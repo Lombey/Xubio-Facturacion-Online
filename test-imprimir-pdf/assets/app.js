@@ -474,10 +474,15 @@ export default function createAppWithTemplate(template) {
      * Maneja el submit del formulario de token
      */
     handleTokenSubmit(event) {
+      console.log('🚀 handleTokenSubmit llamado', { event, hasEvent: !!event });
+      
       // Prevenir comportamiento por defecto del formulario
       if (event) {
         event.preventDefault();
         event.stopPropagation();
+        console.log('✅ Evento prevenido');
+      } else {
+        console.warn('⚠️ No se recibió evento, pero continuando...');
       }
       
       console.log('📝 Formulario de token enviado');

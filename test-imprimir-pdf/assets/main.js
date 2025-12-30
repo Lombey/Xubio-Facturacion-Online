@@ -17,16 +17,6 @@ if (typeof EventTarget !== 'undefined' && typeof window !== 'undefined') {
   };
 }
 
-// IMPORTANTE: Capturar el template del DOM ANTES de importar la app
-// porque Vue necesita el template al crear la aplicación
-let templateHTML = '';
-if (typeof document !== 'undefined') {
-  const appElement = document.getElementById('app');
-  if (appElement) {
-    templateHTML = appElement.innerHTML;
-  }
-}
-
 // Importar la función factory de la app
 import appFactory from './app.js';
 
@@ -38,14 +28,15 @@ async function mountApp() {
       throw new Error('No se encontró el elemento #app');
     }
     
-    // Capturar el template del DOM (por si no se capturó antes)
-    const templateToUse = templateHTML || appElement.innerHTML;
+    // Capturar el template del DOM - debe hacerse cuando el DOM está listo
+    const templateToUse = appElement.innerHTML;
     
     if (!templateToUse || templateToUse.trim() === '') {
-      throw new Error('No se pudo capturar el template del DOM');
+      throw new Error('No se pudo capturar el template del DOM. El elemento #app está vacío.');
     }
     
     console.log('📋 Template capturado, longitud:', templateToUse.length);
+    console.log('📋 Primeros 200 caracteres del template:', templateToUse.substring(0, 200));
     
     // Crear la app de Vue con el template
     // Según la documentación de Vue 3, el template se pasa en la configuración
@@ -64,14 +55,32 @@ async function mountApp() {
     
     console.log('✅ Vue montado correctamente');
     console.log('📋 Instancia de Vue:', mountedApp);
+    console.log('📋 Contenido del #app después del mount:', document.getElementById('app')?.innerHTML?.substring(0, 200));
     
     // Verificar que los métodos estén disponibles
     if (mountedApp && typeof mountedApp.handleTokenSubmit === 'function') {
       console.log('✅ Método handleTokenSubmit está disponible');
     } else {
       console.warn('⚠️ Método handleTokenSubmit NO está disponible');
-      console.warn('⚠️ Métodos disponibles:', Object.keys(mountedApp || {}));
+      console.warn('⚠️ Tipo de mountedApp:', typeof mountedApp);
+      console.warn('⚠️ Propiedades de mountedApp:', Object.keys(mountedApp || {}));
+      
+      // Intentar acceder a través de $options
+      if (mountedApp && mountedApp.$options && mountedApp.$options.methods) {
+        console.warn('⚠️ Métodos en $options.methods:', Object.keys(mountedApp.$options.methods));
+      }
     }
+    
+    // Verificar que el botón tenga el evento binding
+    setTimeout(() => {
+      const button = document.querySelector('button[type="button"]');
+      if (button) {
+        console.log('🔘 Botón encontrado:', button);
+        console.log('🔘 Atributos del botón:', Array.from(button.attributes).map(a => `${a.name}="${a.value}"`));
+      } else {
+        console.warn('⚠️ No se encontró el botón');
+      }
+    }, 1000);
     
     // Remover v-cloak después de montar
     requestAnimationFrame(() => {

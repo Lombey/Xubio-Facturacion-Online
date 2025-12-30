@@ -34,7 +34,7 @@
                     <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
                     <label for="guardarCredenciales" style="font-weight: normal; margin: 0;">Guardar credenciales en localStorage</label>
                 </div>
-                <button type="button" @click="handleTokenSubmit" :disabled="isLoading">Obtener Token</button>
+                <button type="button" @click.prevent="handleTokenSubmit($event)" :disabled="isLoading">Obtener Token</button>
                 <button type="button" class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
             </form>
             <div v-if="isLoading === true && loadingContext && typeof loadingContext === 'string' && loadingContext.includes('token')" class="info">
