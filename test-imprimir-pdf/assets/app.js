@@ -497,19 +497,50 @@ export default function createAppWithTemplate(template) {
       this.loadingContext = 'Obteniendo token...';
       this.mostrarResultado('token', 'Obteniendo token...', 'info');
       
-      // Asegurar que Vue detecte el cambio
-      await this.$nextTick();
+      // Asegurar que Vue detecte el cambio (con timeout para evitar que se quede colgado)
+      try {
+        await Promise.race([
+          this.$nextTick(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('nextTick timeout')), 1000))
+        ]);
+      } catch (nextTickError) {
+        console.warn('⚠️ nextTick timeout o error (continuando de todas formas):', nextTickError);
+      }
 
       try {
-        console.log('📤 Enviando petición de autenticación a /api/auth...');
-        const response = await fetch('/api/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ clientId, secretId })
-        });
+        console.log('📤 Enviando petición de autenticación a /api/auth...', { clientId: clientId.substring(0, 5) + '...', hasSecretId: !!secretId });
+        
+        // Agregar timeout para evitar que se quede colgado
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.error('⏱️ Timeout: La petición tardó más de 30 segundos');
+          controller.abort();
+        }, 30000); // 30 segundos timeout
+        
+        let response;
+        try {
+          const fetchPromise = fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ clientId, secretId }),
+            signal: controller.signal
+          });
+          
+          console.log('⏳ Esperando respuesta del servidor...');
+          response = await fetchPromise;
+          clearTimeout(timeoutId);
+          console.log('✅ Respuesta recibida del servidor');
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          console.error('❌ Error en fetch:', fetchError);
+          if (fetchError.name === 'AbortError') {
+            throw new Error('La petición de autenticación tardó demasiado (timeout de 30 segundos). Verifica tu conexión a internet y que el endpoint /api/auth esté disponible.');
+          }
+          throw fetchError;
+        }
 
         console.log('📥 Token response:', response.status, response.statusText, response.ok);
 
@@ -585,13 +616,26 @@ export default function createAppWithTemplate(template) {
         }
       } catch (error) {
         console.error('❌ Error completo en obtenerToken:', error);
+        
+        // Manejar diferentes tipos de errores
+        let errorMessage = error.message || 'Error desconocido';
+        
+        if (error.name === 'AbortError' || errorMessage.includes('timeout')) {
+          errorMessage = 'La petición tardó demasiado. Verifica tu conexión a internet y que el servidor esté disponible.';
+        } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          errorMessage = 'Error de red. Verifica tu conexión a internet y que el endpoint /api/auth esté disponible.';
+        }
+        
+        this.mostrarResultado('token', 
+          `❌ Error obteniendo token:\n\n${errorMessage}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`, 
+          'error'
+        );
         this.handleError(error, 'Obtención de token', 'token');
-        // Asegurar que se limpien los estados incluso si hay error
-        this.isLoading = false;
-        this.loadingContext = '';
       } finally {
+        // Asegurar que siempre se limpien los estados
         this.isLoading = false;
         this.loadingContext = '';
+        console.log('✅ Estados de loading limpiados');
       }
     },
 
