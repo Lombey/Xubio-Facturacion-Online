@@ -926,26 +926,20 @@ const app = createApp({
     },
 
     /**
-     * Obtiene la cotización del dólar vendedor del día desde la API del BCRA
+     * Obtiene la cotización del dólar vendedor del día desde dolarapi.com
      */
     async obtenerCotizacionBCRA() {
       this.isLoading = true;
-      this.loadingContext = 'Obteniendo cotización del BCRA...';
-      this.mostrarResultado('factura', 'Obteniendo cotización del dólar vendedor del día desde el BCRA...', 'info');
+      this.loadingContext = 'Obteniendo cotización del dólar...';
+      this.mostrarResultado('factura', 'Obteniendo cotización del dólar vendedor del día...', 'info');
 
       try {
-        // Obtener fecha actual en formato YYYY-MM-DD
-        const hoy = new Date();
-        const fecha = hoy.toISOString().split('T')[0];
+        // Usar dolarapi.com para obtener dólar OFICIAL vendedor
+        const urlOficial = 'https://dolarapi.com/v1/dolares/oficial';
         
-        // Endpoint de la API del BCRA para cotizaciones de USD
-        // Usar el proxy para evitar problemas de CORS
-        const bcraPath = `/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde=${fecha}&fechahasta=${fecha}`;
-        const url = `/api/bcra?path=${encodeURIComponent(bcraPath)}`;
-        
-        console.log('🔍 Obteniendo cotización del BCRA:', url);
+        console.log('🔍 Obteniendo cotización del dólar OFICIAL vendedor:', urlOficial);
 
-        const response = await fetch(url, {
+        const response = await fetch(urlOficial, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -953,104 +947,33 @@ const app = createApp({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: response.statusText }));
-          throw new Error(`Error ${response.status}: ${errorData.error || response.statusText}`);
+          throw new Error(`Error ${response.status}: No se pudo obtener la cotización del dólar oficial. ${response.statusText}`);
         }
 
         const data = await response.json();
+        console.log('📥 Respuesta de dolarapi.com (oficial):', data);
 
-        console.log('📥 Respuesta del BCRA:', data);
-
-        // La API del BCRA devuelve un array de cotizaciones
-        // Buscar la cotización vendedor del día más reciente
-        if (Array.isArray(data) && data.length > 0) {
-          // Ordenar por fecha descendente para obtener la más reciente
-          const cotizaciones = data.sort((a, b) => {
-            const fechaA = new Date(a.fecha || a.Fecha || 0);
-            const fechaB = new Date(b.fecha || b.Fecha || 0);
-            return fechaB - fechaA;
-          });
-
-          const cotizacion = cotizaciones[0];
-          
-          // Intentar diferentes campos posibles para la cotización vendedor
-          const cotizacionVendedor = 
-            cotizacion.vendedor || 
-            cotizacion.Vendedor || 
-            cotizacion.cotizacionVendedor ||
-            cotizacion.CotizacionVendedor ||
-            cotizacion.valorVendedor ||
-            cotizacion.ValorVendedor ||
-            cotizacion.precioVendedor ||
-            cotizacion.PrecioVendedor;
-
-          if (cotizacionVendedor) {
-            const precio = parseFloat(cotizacionVendedor);
-            if (!isNaN(precio) && precio > 0) {
-              this.facturaCotizacion = precio.toFixed(2);
-              this.mostrarResultado('factura', 
-                `✅ Cotización obtenida: $${precio.toFixed(2)} (vendedor del ${fecha})`, 
-                'success'
-              );
-              return;
-            }
-          }
-
-          // Si no hay campo vendedor específico, intentar con campos genéricos
-          const cotizacionGeneral = 
-            cotizacion.cotizacion ||
-            cotizacion.Cotizacion ||
-            cotizacion.valor ||
-            cotizacion.Valor ||
-            cotizacion.precio ||
-            cotizacion.Precio;
-
-          if (cotizacionGeneral) {
-            const precio = parseFloat(cotizacionGeneral);
-            if (!isNaN(precio) && precio > 0) {
-              this.facturaCotizacion = precio.toFixed(2);
-              this.mostrarResultado('factura', 
-                `✅ Cotización obtenida: $${precio.toFixed(2)} (del ${fecha})`, 
-                'success'
-              );
-              return;
-            }
-          }
-        }
-
-        // Si no se encontró cotización, intentar con el día anterior (por si es fin de semana)
-        const ayer = new Date(hoy);
-        ayer.setDate(ayer.getDate() - 1);
-        const fechaAyer = ayer.toISOString().split('T')[0];
-        const bcraPathAyer = `/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde=${fechaAyer}&fechahasta=${fechaAyer}`;
-        const urlAyer = `/api/bcra?path=${encodeURIComponent(bcraPathAyer)}`;
-        
-        const responseAyer = await fetch(urlAyer, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        if (responseAyer.ok) {
-          const dataAyer = await responseAyer.json();
-          if (Array.isArray(dataAyer) && dataAyer.length > 0) {
-            const cotizacionAyer = dataAyer[0];
-            const precio = parseFloat(cotizacionAyer.vendedor || cotizacionAyer.Vendedor || cotizacionAyer.cotizacion || cotizacionAyer.Cotizacion);
-            if (!isNaN(precio) && precio > 0) {
-              this.facturaCotizacion = precio.toFixed(2);
-              this.mostrarResultado('factura', 
-                `✅ Cotización obtenida (día anterior): $${precio.toFixed(2)} (del ${fechaAyer})`, 
-                'success'
-              );
-              return;
-            }
+        // dolarapi.com devuelve un objeto con estructura: { moneda, casa, nombre, compra, venta, fechaActualizacion }
+        // Usar el campo "venta" que es la cotización vendedor OFICIAL
+        if (data && data.venta) {
+          const precio = parseFloat(data.venta);
+          if (!isNaN(precio) && precio > 0) {
+            const fecha = data.fechaActualizacion ? new Date(data.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy';
+            
+            this.facturaCotizacion = precio.toFixed(2);
+            this.mostrarResultado('factura', 
+              `✅ Cotización OFICIAL vendedor obtenida: $${precio.toFixed(2)} (actualizada ${fecha})`, 
+              'success'
+            );
+            return;
           }
         }
 
         throw new Error('No se pudo obtener la cotización vendedor. La respuesta no contiene el formato esperado.');
       } catch (error) {
-        console.error('❌ Error obteniendo cotización del BCRA:', error);
+        console.error('❌ Error obteniendo cotización del dólar:', error);
         this.mostrarResultado('factura', 
-          `❌ Error obteniendo cotización del BCRA:\n\n${error.message}\n\n💡 Puedes ingresar la cotización manualmente.`, 
+          `❌ Error obteniendo cotización del dólar:\n\n${error.message}\n\n💡 Puedes ingresar la cotización manualmente.`, 
           'error'
         );
       } finally {
