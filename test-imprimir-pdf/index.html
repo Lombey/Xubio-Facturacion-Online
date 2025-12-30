@@ -76,7 +76,12 @@
                                     </div>
                                 </div>
                                 <div style="font-weight: bold; color: #2196F3;">
-                                    ${{ formatearPrecio(obtenerPrecioProducto(producto)) }}
+                                    <span v-if="producto.precioAGDP || producto.precio">
+                                        ${{ formatearPrecio(producto.precioAGDP || producto.precio) }}
+                                    </span>
+                                    <span v-else style="color: #999; font-size: 11px;">
+                                        Sin precio
+                                    </span>
                                 </div>
                             </div>
                         </div>

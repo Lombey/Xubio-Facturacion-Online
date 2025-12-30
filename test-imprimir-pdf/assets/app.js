@@ -945,15 +945,23 @@ const app = createApp({
         });
 
         if (response.ok && Array.isArray(data)) {
-          this.productosList = data;
+          // Enriquecer productos con precios de la lista AGDP
+          const productosConPrecios = await this.enriquecerProductosConPrecios(data);
+          this.productosList = productosConPrecios;
+          
           this.mostrarResultado('productosList', 
-            `✅ Se encontraron ${data.length} productos activos`, 
+            `✅ Se encontraron ${data.length} productos activos${productosConPrecios.filter(p => p.precioAGDP).length > 0 ? ` (${productosConPrecios.filter(p => p.precioAGDP).length} con precios)` : ''}`, 
             'success'
           );
           
           // Intentar obtener lista de precios AGDP si no está cargada
           if (!this.listaPrecioAGDP) {
             await this.obtenerListaPrecioAGDP();
+            // Re-enriquecer productos después de cargar la lista de precios
+            if (this.listaPrecioAGDP) {
+              const productosReenriquecidos = await this.enriquecerProductosConPrecios(data);
+              this.productosList = productosReenriquecidos;
+            }
           }
         } else {
           this.mostrarResultado('productosList',
@@ -1264,6 +1272,32 @@ const app = createApp({
     },
 
     /**
+     * Enriquece los productos con precios de la lista AGDP
+     * @param {Array} productos - Array de productos sin precios
+     * @returns {Array} Array de productos con precios agregados
+     */
+    async enriquecerProductosConPrecios(productos) {
+      if (!productos || !Array.isArray(productos)) {
+        return productos;
+      }
+
+      // Asegurar que tenemos la lista de precios AGDP cargada
+      if (!this.listaPrecioAGDP) {
+        await this.obtenerListaPrecioAGDP();
+      }
+
+      // Enriquecer cada producto con su precio
+      return productos.map(producto => {
+        const precio = this.obtenerPrecioProducto(producto);
+        return {
+          ...producto,
+          precioAGDP: precio > 0 ? precio : null, // Agregar precio si existe
+          precio: precio > 0 ? precio : null // También en campo precio para compatibilidad
+        };
+      });
+    },
+
+    /**
      * Obtiene el precio de un producto desde la lista AGDP
      * Intenta múltiples estructuras posibles de la API
      */
@@ -1272,7 +1306,8 @@ const app = createApp({
         return 0;
       }
       
-      const productoId = producto.id || producto.ID || producto.producto_id;
+      // Según Swagger: ProductoVentaBean tiene campo "productoid" (no "id")
+      const productoId = producto.productoid || producto.id || producto.ID || producto.producto_id;
       if (!productoId) {
         return 0;
       }
@@ -1282,7 +1317,9 @@ const app = createApp({
       if (Array.isArray(this.listaPrecioAGDP.listaPrecioItem)) {
         const item = this.listaPrecioAGDP.listaPrecioItem.find(i => {
           if (i.producto) {
-            return i.producto.id === productoId || i.producto.ID === productoId;
+            // El producto en listaPrecioItem puede tener id, ID, o productoid
+            const itemProductoId = i.producto.id || i.producto.ID || i.producto.productoid;
+            return itemProductoId === productoId;
           }
           return false;
         });
@@ -1300,11 +1337,13 @@ const app = createApp({
       
       // Estructura 2: listaPrecioAGDP.items (array con objetos que tienen producto y precio)
       if (Array.isArray(this.listaPrecioAGDP.items)) {
-        const item = this.listaPrecioAGDP.items.find(i => 
-          (i.producto && (i.producto.id === productoId || i.producto.ID === productoId)) ||
-          i.producto_id === productoId ||
-          i.idProducto === productoId
-        );
+        const item = this.listaPrecioAGDP.items.find(i => {
+          if (i.producto) {
+            const itemProductoId = i.producto.productoid || i.producto.id || i.producto.ID;
+            return itemProductoId === productoId;
+          }
+          return i.producto_id === productoId || i.idProducto === productoId;
+        });
         if (item) {
           return item.precio || item.valor || item.importe || 0;
         }
@@ -1312,11 +1351,13 @@ const app = createApp({
       
       // Estructura 3: listaPrecioAGDP.detalle (array similar a items)
       if (Array.isArray(this.listaPrecioAGDP.detalle)) {
-        const item = this.listaPrecioAGDP.detalle.find(i => 
-          (i.producto && (i.producto.id === productoId || i.producto.ID === productoId)) ||
-          i.producto_id === productoId ||
-          i.idProducto === productoId
-        );
+        const item = this.listaPrecioAGDP.detalle.find(i => {
+          if (i.producto) {
+            const itemProductoId = i.producto.productoid || i.producto.id || i.producto.ID;
+            return itemProductoId === productoId;
+          }
+          return i.producto_id === productoId || i.idProducto === productoId;
+        });
         if (item) {
           return item.precio || item.valor || item.importe || 0;
         }
@@ -1355,11 +1396,13 @@ const app = createApp({
      */
     agregarProducto(producto) {
       // Verificar si el producto ya está en la lista
-      const productoId = producto.id || producto.ID || producto.producto_id;
-      const yaExiste = this.productosSeleccionados.some(item => 
-        (item.producto_id === productoId) ||
-        (item.producto && (item.producto.id === productoId || item.producto.ID === productoId))
-      );
+      // Según Swagger: ProductoVentaBean tiene campo "productoid"
+      const productoId = producto.productoid || producto.id || producto.ID || producto.producto_id;
+      const yaExiste = this.productosSeleccionados.some(item => {
+        const itemProductoId = item.producto_id || 
+                              (item.producto && (item.producto.productoid || item.producto.id || item.producto.ID));
+        return itemProductoId === productoId;
+      });
       
       if (yaExiste) {
         this.mostrarResultado('productosList', 
@@ -1369,7 +1412,8 @@ const app = createApp({
         return;
       }
       
-      const precio = this.obtenerPrecioProducto(producto) || 0;
+      // Usar precio enriquecido si está disponible, sino intentar obtenerlo
+      const precio = producto.precioAGDP || producto.precio || this.obtenerPrecioProducto(producto) || 0;
       const item = {
         producto: producto,
         cantidad: 1,

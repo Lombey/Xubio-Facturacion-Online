@@ -470,6 +470,15 @@ Dado que la documentación completa es extensa y repetitiva, este archivo se cen
   | `minimalVersion` (boolean) | Versión minimalista del endpoint |
 * **Respuesta:** Array de objetos `ProductoVentaBean` con campos como `productoid`, `nombre`, `codigo`, `usrcode`, `codigoBarra`, `unidadMedida`, `categoria`, `tasaIva`, `activo`, etc.
 
+**⚠️ IMPORTANTE - Precios de Productos:**
+- Los productos **NO incluyen precios** en su respuesta directa.
+- Los precios se obtienen desde las **listas de precios** (`listaPrecioBean`).
+- Para obtener el precio de un producto, se debe:
+  1. Obtener la lista de precios deseada: `GET /listaPrecioBean/{id}`
+  2. Buscar el producto en el array `listaPrecioItem` de la lista de precios
+  3. El campo `productoid` del producto debe coincidir con `producto.id` o `producto.ID` en `listaPrecioItem`
+- **Campo ID del producto:** Según Swagger, el campo correcto es `productoid` (no `id` directamente, aunque puede venir como `id` o `ID` también).
+
 #### POST `/ProductoVentaBean` – Crear producto de venta
 * **Descripción:** Crea un nuevo producto de venta.
 * **Cuerpo:** Objeto `ProductoVentaBean` completo.
