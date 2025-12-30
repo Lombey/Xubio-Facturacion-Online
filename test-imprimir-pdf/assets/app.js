@@ -931,6 +931,12 @@ const app = createApp({
         const { response, data } = await this.requestXubio('/listaPrecioBean', 'GET');
         
         if (response.ok && Array.isArray(data)) {
+          console.log('📋 Listas de precios disponibles:', data.map(lp => ({ 
+            nombre: lp.nombre, 
+            codigo: lp.codigo, 
+            id: lp.id || lp.ID || lp.listaPrecioID 
+          })));
+          
           const listaAGDP = data.find(lp => 
             lp.nombre === 'AGDP' || 
             lp.codigo === 'AGDP' ||
@@ -939,17 +945,46 @@ const app = createApp({
           );
           
           if (listaAGDP) {
-            const listaId = listaAGDP.id || listaAGDP.ID;
+            // Según Swagger: el campo correcto es listaPrecioID (int64)
+            const listaId = listaAGDP.listaPrecioID || listaAGDP.id || listaAGDP.ID;
+            
+            console.log('🔍 Lista AGDP encontrada:', {
+              nombre: listaAGDP.nombre,
+              codigo: listaAGDP.codigo,
+              listaPrecioID: listaAGDP.listaPrecioID,
+              id: listaAGDP.id,
+              ID: listaAGDP.ID,
+              listaIdUsado: listaId
+            });
             
             // Intentar obtener los detalles de la lista (precios de productos)
             if (listaId) {
               try {
+                console.log(`📥 Obteniendo detalles de lista de precios con ID: ${listaId}`);
                 const { response: detalleResponse, data: detalleData } = await this.requestXubio(`/listaPrecioBean/${listaId}`, 'GET');
+                
                 if (detalleResponse.ok && detalleData) {
                   // Combinar la información de la lista con sus detalles
                   this.listaPrecioAGDP = { ...listaAGDP, ...detalleData };
-                  console.log('✅ Lista de precios AGDP con detalles obtenida:', this.listaPrecioAGDP);
+                  
+                  // Verificar que listaPrecioItem existe y tiene datos
+                  const itemsCount = Array.isArray(this.listaPrecioAGDP.listaPrecioItem) 
+                    ? this.listaPrecioAGDP.listaPrecioItem.length 
+                    : 0;
+                  
+                  console.log('✅ Lista de precios AGDP con detalles obtenida:', {
+                    nombre: this.listaPrecioAGDP.nombre,
+                    listaPrecioID: this.listaPrecioAGDP.listaPrecioID,
+                    itemsCount: itemsCount,
+                    primerItem: itemsCount > 0 ? this.listaPrecioAGDP.listaPrecioItem[0] : null
+                  });
+                  
                   return this.listaPrecioAGDP;
+                } else {
+                  console.warn('⚠️ Error obteniendo detalles de la lista:', {
+                    status: detalleResponse.status,
+                    data: detalleData
+                  });
                 }
               } catch (error) {
                 console.warn('⚠️ No se pudieron obtener detalles de la lista, usando lista básica:', error);
@@ -961,7 +996,11 @@ const app = createApp({
             console.log('✅ Lista de precios AGDP encontrada (sin detalles):', listaAGDP);
             return listaAGDP;
           } else {
-            console.warn('⚠️ Lista de precios AGDP no encontrada. Listas disponibles:', data.map(lp => lp.nombre || lp.codigo));
+            console.warn('⚠️ Lista de precios AGDP no encontrada. Listas disponibles:', data.map(lp => ({
+              nombre: lp.nombre,
+              codigo: lp.codigo,
+              id: lp.id || lp.ID || lp.listaPrecioID
+            })));
             return null;
           }
         }
@@ -993,24 +1032,24 @@ const app = createApp({
         });
 
         if (response.ok && Array.isArray(data)) {
+          console.log(`📦 Se obtuvieron ${data.length} productos activos`);
+          
+          // Asegurar que la lista de precios AGDP esté cargada ANTES de enriquecer
+          if (!this.listaPrecioAGDP) {
+            console.log('🔄 Cargando lista de precios AGDP...');
+            await this.obtenerListaPrecioAGDP();
+          }
+          
           // Enriquecer productos con precios de la lista AGDP
           const productosConPrecios = await this.enriquecerProductosConPrecios(data);
           this.productosList = productosConPrecios;
           
-          this.mostrarResultado('productosList', 
-            `✅ Se encontraron ${data.length} productos activos${productosConPrecios.filter(p => p.precioAGDP).length > 0 ? ` (${productosConPrecios.filter(p => p.precioAGDP).length} con precios)` : ''}`, 
-            'success'
-          );
+          const productosConPrecio = productosConPrecios.filter(p => p.precioAGDP && p.precioAGDP > 0);
+          const mensaje = productosConPrecio.length > 0
+            ? `✅ Se encontraron ${data.length} productos activos (${productosConPrecio.length} con precios de la lista AGDP)`
+            : `✅ Se encontraron ${data.length} productos activos\n\n⚠️ No se encontraron precios en la lista AGDP. Verifica que:\n- La lista de precios "AGDP" existe\n- Los productos están incluidos en la lista\n- Revisa la consola (F12) para más detalles`;
           
-          // Intentar obtener lista de precios AGDP si no está cargada
-          if (!this.listaPrecioAGDP) {
-            await this.obtenerListaPrecioAGDP();
-            // Re-enriquecer productos después de cargar la lista de precios
-            if (this.listaPrecioAGDP) {
-              const productosReenriquecidos = await this.enriquecerProductosConPrecios(data);
-              this.productosList = productosReenriquecidos;
-            }
-          }
+          this.mostrarResultado('productosList', mensaje, productosConPrecio.length > 0 ? 'success' : 'info');
         } else {
           this.mostrarResultado('productosList',
             `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
@@ -1391,23 +1430,54 @@ const app = createApp({
       // Según Swagger: ProductoVentaBean tiene campo "productoid" (no "id")
       const productoId = producto.productoid || producto.id || producto.ID || producto.producto_id;
       if (!productoId) {
+        console.warn('⚠️ Producto sin ID:', producto);
         return 0;
       }
       
+      // Normalizar IDs a número para comparación (la API puede devolver strings o números)
+      const productoIdNum = Number(productoId);
+      
       // Según Swagger: ListaPrecioBean tiene listaPrecioItem (array)
-      // Estructura correcta: listaPrecioItem con { producto: { id }, precio, codigo, referencia }
+      // Estructura correcta: listaPrecioItem con { producto: { id, ID, productoid }, precio, codigo, referencia }
       if (Array.isArray(this.listaPrecioAGDP.listaPrecioItem)) {
         const item = this.listaPrecioAGDP.listaPrecioItem.find(i => {
           if (i.producto) {
             // El producto en listaPrecioItem puede tener id, ID, o productoid
-            const itemProductoId = i.producto.id || i.producto.ID || i.producto.productoid;
-            return itemProductoId === productoId;
+            const itemProductoId = i.producto.productoid || i.producto.id || i.producto.ID;
+            if (!itemProductoId) {
+              return false;
+            }
+            // Comparar tanto como número como string para mayor compatibilidad
+            const itemProductoIdNum = Number(itemProductoId);
+            return itemProductoIdNum === productoIdNum || 
+                   String(itemProductoId) === String(productoId) ||
+                   itemProductoId === productoId;
           }
           return false;
         });
-        if (item && item.precio) {
-          return parseFloat(item.precio) || 0;
+        
+        if (item) {
+          const precio = parseFloat(item.precio);
+          if (precio && precio > 0) {
+            console.log(`✅ Precio encontrado para producto ${productoId}:`, precio);
+            return precio;
+          }
+        } else {
+          // Log solo si hay items pero no se encontró match (para debug)
+          if (this.listaPrecioAGDP.listaPrecioItem.length > 0) {
+            const primerItem = this.listaPrecioAGDP.listaPrecioItem[0];
+            console.debug(`🔍 Producto ${productoId} no encontrado en lista. Primer item ejemplo:`, {
+              productoId: primerItem.producto?.productoid || primerItem.producto?.id || primerItem.producto?.ID,
+              precio: primerItem.precio
+            });
+          }
         }
+      } else {
+        console.warn('⚠️ listaPrecioItem no es un array o no existe:', {
+          tieneListaPrecioItem: !!this.listaPrecioAGDP.listaPrecioItem,
+          tipo: typeof this.listaPrecioAGDP.listaPrecioItem,
+          keys: Object.keys(this.listaPrecioAGDP)
+        });
       }
       
       // Fallback: Intentar otras estructuras posibles (por compatibilidad)
@@ -1422,7 +1492,10 @@ const app = createApp({
         const item = this.listaPrecioAGDP.items.find(i => {
           if (i.producto) {
             const itemProductoId = i.producto.productoid || i.producto.id || i.producto.ID;
-            return itemProductoId === productoId;
+            const itemProductoIdNum = Number(itemProductoId);
+            return itemProductoIdNum === productoIdNum || 
+                   String(itemProductoId) === String(productoId) ||
+                   itemProductoId === productoId;
           }
           return i.producto_id === productoId || i.idProducto === productoId;
         });
@@ -1436,7 +1509,10 @@ const app = createApp({
         const item = this.listaPrecioAGDP.detalle.find(i => {
           if (i.producto) {
             const itemProductoId = i.producto.productoid || i.producto.id || i.producto.ID;
-            return itemProductoId === productoId;
+            const itemProductoIdNum = Number(itemProductoId);
+            return itemProductoIdNum === productoIdNum || 
+                   String(itemProductoId) === String(productoId) ||
+                   itemProductoId === productoId;
           }
           return i.producto_id === productoId || i.idProducto === productoId;
         });
