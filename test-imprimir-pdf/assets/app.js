@@ -84,8 +84,8 @@ export const appOptions = {
       facturaCotizacion: '1',
       facturaMoneda: '', // Moneda seleccionada para la factura (se selecciona DOLARES automáticamente al cargar)
       monedasList: [], // Lista de monedas disponibles desde la API
-      facturaObservacion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5',
-      facturaDescripcion: '', // Descripción general de la factura (campo documentado en swagger)
+      facturaObservacion: '', // Observaciones adicionales (CBU, alias, notas) - Campo no documentado oficialmente
+      facturaDescripcion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5', // Descripción general de la factura (campo documentado en swagger)
       modoAvanzado: false, // Controla si se muestra el campo JSON manual
       facturaCondicionPago: 1, // 1 = Cuenta Corriente, 2 = Contado
       facturaFechaVto: '', // Fecha de vencimiento
@@ -133,6 +133,9 @@ export const appOptions = {
       // Clientes
       clientesList: [],
       clientesListResult: { message: '', type: '', visible: false },
+      
+      // Puntos de Venta
+      puntosDeVentaResult: { message: '', type: '', visible: false },
       busquedaCliente: '',
       mostrarDropdownClientes: false,
       clienteSeleccionado: null,
@@ -312,13 +315,14 @@ export const appOptions = {
         setTimeout(async () => {
           try {
             await this.obtenerToken();
-            // Después de obtener token, cargar productos y clientes automáticamente
+            // Después de obtener token, cargar productos, clientes y puntos de venta automáticamente
             if (this.accessToken && this.tokenValido) {
               await Promise.all([
                 this.listarProductos(),
-                this.listarClientes()
+                this.listarClientes(),
+                this.listarPuntosDeVenta()
               ]);
-              console.log('✅ Productos y clientes cargados después de obtener token');
+              console.log('✅ Productos, clientes y puntos de venta cargados después de obtener token');
             }
           } catch (error) {
             console.error('⚠️ Error obteniendo token automáticamente:', error);
@@ -349,9 +353,10 @@ export const appOptions = {
               this.obtenerMonedas(),
               this.obtenerCotizacionDolar(true), // true = silencioso
               this.listarProductos(),  // Carga desde cache si está disponible
-              this.listarClientes()    // Carga desde cache si está disponible
+              this.listarClientes(),    // Carga desde cache si está disponible
+              this.listarPuntosDeVenta() // Carga desde cache si está disponible
             ]);
-            console.log('✅ Datos iniciales cargados (monedas + cotización + productos + clientes)');
+            console.log('✅ Datos iniciales cargados (monedas + cotización + productos + clientes + puntos de venta)');
           } catch (error) {
             console.warn('⚠️ No se pudieron cargar todos los datos iniciales:', error);
           }
@@ -878,6 +883,30 @@ export const appOptions = {
         return;
       }
 
+      // Asegurar que los valores de configuración estén cargados (puntos de venta, vendedores, etc.)
+      if (!this.valoresCargados) {
+        this.isLoading = true;
+        this.loadingContext = 'Cargando configuración...';
+        this.mostrarResultado('factura', 'Cargando configuración necesaria...', 'info');
+        try {
+          await this.cargarValoresDeConfiguracion();
+        } catch (error) {
+          this.mostrarResultado('factura', `Error cargando configuración: ${error.message}`, 'error');
+          this.isLoading = false;
+          this.loadingContext = '';
+          return;
+        }
+      }
+
+      // Validar que el punto de venta esté disponible
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      if (!puntoVenta || !puntoVenta.ID || !puntoVenta.id) {
+        this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Por favor, verifica tu configuración en Xubio.', 'error');
+        this.isLoading = false;
+        this.loadingContext = '';
+        return;
+      }
+
       this.isLoading = true;
       this.loadingContext = 'Creando factura...';
       this.mostrarResultado('factura', 'Creando factura...', 'info');
@@ -1044,10 +1073,29 @@ export const appOptions = {
           this.mostrarResultado('factura', mensaje, 'success');
           await this.obtenerPDF(transaccionId, this.facturaTipoimpresion, 'factura');
         } else {
-          this.mostrarResultado('factura',
-            `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-            'error'
-          );
+          // Mejorar el mensaje de error para casos comunes
+          let mensajeError = `❌ Error ${response.status}: `;
+          
+          if (data && data.description) {
+            // Error del servidor de Xubio
+            if (data.description.includes('puntoVentaInstance') && data.description.includes('null')) {
+              mensajeError += 'Punto de venta no válido.\n\n';
+              mensajeError += '💡 Solución: Verifica que tengas puntos de venta configurados en Xubio y que estén activos.';
+            } else {
+              mensajeError += data.description;
+            }
+          } else if (data && data.error) {
+            mensajeError += data.error;
+            if (data.message) {
+              mensajeError += `\n${data.message}`;
+            }
+          } else {
+            mensajeError += 'Error desconocido al crear la factura';
+          }
+          
+          mensajeError += `\n\n📄 Detalles técnicos:\n${JSON.stringify(data, null, 2)}`;
+          
+          this.mostrarResultado('factura', mensajeError, 'error');
         }
       } catch (error) {
         this.handleError(error, 'Flujo completo factura', 'factura');
@@ -1962,7 +2010,7 @@ export const appOptions = {
     },
 
     /**
-     * Obtiene puntos de venta activos
+     * Obtiene puntos de venta activos (método interno, sin UI)
      */
     async obtenerPuntosDeVenta() {
       try {
@@ -1979,6 +2027,71 @@ export const appOptions = {
       } catch (error) {
         console.error('❌ Error obteniendo puntos de venta:', error);
         return [];
+      }
+    },
+
+    /**
+     * Lista puntos de venta activos (con cache y UI)
+     * @param {boolean} forceRefresh - Si es true, fuerza la actualización desde la API
+     */
+    async listarPuntosDeVenta(forceRefresh = false) {
+      if (!this.accessToken) {
+        console.warn('⚠️ No hay token de acceso. Intentando obtener token...');
+        this.mostrarResultado('puntosDeVentaResult', '⚠️ No hay token de acceso. Obteniendo token...', 'info');
+        try {
+          await this.obtenerToken();
+          if (!this.accessToken) {
+            this.mostrarResultado('puntosDeVentaResult', '❌ Error: No se pudo obtener el token. Por favor, obtén un token primero.', 'error');
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error obteniendo token:', error);
+          this.mostrarResultado('puntosDeVentaResult', `❌ Error obteniendo token: ${error.message}`, 'error');
+          return;
+        }
+      }
+
+      this.isLoading = true;
+      this.loadingContext = 'Listando puntos de venta...';
+      this.mostrarResultado('puntosDeVentaResult', 'Cargando puntos de venta...', 'info');
+
+      try {
+        // Intentar cargar desde cache primero (si no se fuerza refresh)
+        if (!forceRefresh) {
+          const cached = cacheManager.get('puntosDeVenta');
+          if (cached) {
+            this.puntosDeVenta = cached.data;
+            const mensaje = `✅ ${cached.data.length} punto(s) de venta cargado(s) desde cache\n\n💡 Usa "Actualizar desde API" para obtener datos frescos.`;
+            this.mostrarResultado('puntosDeVentaResult', mensaje, 'success');
+            this.isLoading = false;
+            this.loadingContext = '';
+            return;
+          }
+        }
+
+        // Cargar desde la API
+        const puntosDeVenta = await this.obtenerPuntosDeVenta();
+        
+        if (puntosDeVenta && puntosDeVenta.length > 0) {
+          // Guardar en cache
+          cacheManager.set('puntosDeVenta', puntosDeVenta, 3600000); // 1 hora
+          
+          const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
+          const puntoVenta0004 = puntosDeVenta.find(pv => pv.puntoVenta === '0004' || pv.codigo === '0004');
+          if (puntoVenta0004) {
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta 0004 encontrado y será usado por defecto`, 'success');
+          } else {
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta 0004 no encontrado. Se usará el primero disponible.`, 'info');
+          }
+        } else {
+          this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
+        }
+      } catch (error) {
+        console.error('❌ Error listando puntos de venta:', error);
+        this.mostrarResultado('puntosDeVentaResult', `❌ Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
       }
     },
 
@@ -2033,20 +2146,40 @@ export const appOptions = {
     },
 
     /**
-     * Obtiene el primer punto de venta disponible o uno por defecto
+     * Obtiene el punto de venta 0004 por defecto, o el primero disponible si no existe
      */
     obtenerPuntoVentaPorDefecto() {
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
+        // Buscar específicamente el punto de venta 0004
+        const puntoVenta0004 = this.puntosDeVenta.find(pv => 
+          pv.puntoVenta === '0004' || 
+          pv.codigo === '0004' ||
+          (pv.puntoVenta && pv.puntoVenta.toString().padStart(4, '0') === '0004')
+        );
+        
+        if (puntoVenta0004) {
+          console.log('✅ Usando punto de venta 0004:', puntoVenta0004);
+          return {
+            ID: puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id,
+            id: puntoVenta0004.id || puntoVenta0004.ID || puntoVenta0004.puntoVenta_id,
+            nombre: puntoVenta0004.nombre || '',
+            codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || ''
+          };
+        }
+        
+        // Si no existe 0004, usar el primero disponible
         const puntoVenta = this.puntosDeVenta[0];
+        console.warn('⚠️ Punto de venta 0004 no encontrado, usando el primero disponible:', puntoVenta);
         return {
           ID: puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id || 1,
           id: puntoVenta.id || puntoVenta.ID || puntoVenta.puntoVenta_id || 1,
           nombre: puntoVenta.nombre || '',
-          codigo: puntoVenta.codigo || ''
+          codigo: puntoVenta.codigo || puntoVenta.puntoVenta || ''
         };
       }
       // Fallback si no hay puntos de venta cargados
-      return { ID: 1 };
+      console.error('❌ No hay puntos de venta cargados. Se usará ID: 1 como fallback');
+      return { ID: 1, id: 1 };
     },
 
     /**
