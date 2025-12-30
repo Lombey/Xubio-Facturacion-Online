@@ -1,5 +1,27 @@
 const XUBIO_BASE_URL = 'https://xubio.com/API/1.1';
 
+/**
+ * @typedef {Object} VercelRequest
+ * @property {string} method
+ * @property {any} body
+ * @property {Record<string, string>} headers
+ * @property {Record<string, string>} query
+ * @property {string} url
+ */
+
+/**
+ * @typedef {Object} VercelResponse
+ * @property {(status: number) => VercelResponse} status
+ * @property {(data: any) => void} json
+ * @property {(data: Buffer) => void} send
+ * @property {(header: string, value: string) => void} setHeader
+ * @property {() => void} end
+ */
+
+/**
+ * @param {VercelRequest} req
+ * @param {VercelResponse} res
+ */
 export default async function handler(req, res) {
   // Manejar preflight CORS
   if (req.method === 'OPTIONS') {
@@ -11,7 +33,8 @@ export default async function handler(req, res) {
 
   try {
     // Obtener el path desde query string
-    let path = req.query.path || '';
+    /** @type {string} */
+    let path = (req.query && typeof req.query.path === 'string') ? req.query.path : '';
     
     // Si no viene en query, intentar desde la URL
     if (!path && req.url) {
@@ -34,37 +57,46 @@ export default async function handler(req, res) {
     console.log(`[PROXY] ${req.method} ${url} (path: ${path})`);
 
     // Preparar headers
+    /** @type {Record<string, string>} */
     const headers = {
       'Accept': 'application/json'
     };
 
     // Copiar headers importantes del cliente (Authorization, etc.)
-    if (req.headers.authorization) {
-      headers['Authorization'] = req.headers.authorization;
+    const authHeader = req.headers && typeof req.headers.authorization === 'string' ? req.headers.authorization : null;
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
     }
-    if (req.headers['content-type']) {
-      headers['Content-Type'] = req.headers['content-type'];
+    const contentTypeHeader = req.headers && typeof req.headers['content-type'] === 'string' ? req.headers['content-type'] : null;
+    if (contentTypeHeader) {
+      headers['Content-Type'] = contentTypeHeader;
     }
 
     // Preparar opciones del fetch
+    /** @type {RequestInit & { redirect?: RequestRedirect }} */
     const fetchOptions = {
       method: req.method,
       headers: headers,
-      redirect: 'manual'
+      redirect: /** @type {RequestRedirect} */ ('manual')
     };
 
     // Agregar body si existe (POST, PUT, etc.)
     if (req.body && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH')) {
       // Si es form-urlencoded, enviar como string
       if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-        fetchOptions.body = typeof req.body === 'string' ? req.body : new URLSearchParams(req.body).toString();
+        if (typeof req.body === 'string') {
+          fetchOptions.body = req.body;
+        } else if (typeof req.body === 'object' && req.body !== null) {
+          fetchOptions.body = new URLSearchParams(/** @type {Record<string, string>} */ (req.body)).toString();
+        }
       } else {
         // JSON u otro formato
         fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
       }
     }
 
-    console.log(`[PROXY] Fetching with method: ${req.method}, body length: ${fetchOptions.body ? fetchOptions.body.length : 0}`);
+    const bodyLength = fetchOptions.body ? (typeof fetchOptions.body === 'string' ? fetchOptions.body.length : 0) : 0;
+    console.log(`[PROXY] Fetching with method: ${req.method}, body length: ${bodyLength}`);
 
     // Hacer la petición a Xubio
     const response = await fetch(url, fetchOptions);
@@ -100,11 +132,12 @@ export default async function handler(req, res) {
     }
 
   } catch (error) {
-    console.error('[PROXY] Error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[PROXY] Error:', errorMessage);
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.status(500).json({
-      error: error.message,
+      error: errorMessage,
       type: 'proxy_error'
     });
   }

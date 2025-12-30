@@ -4,211 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Xubio - Imprimir PDF</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            border-left: 4px solid #4CAF50;
-        }
-        .section h2 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 18px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        input, textarea, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        textarea {
-            min-height: 80px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-        button {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.2s;
-            margin-right: 10px;
-            margin-bottom: 10px;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .btn-secondary {
-            background: #2196F3;
-        }
-        .btn-secondary:hover {
-            background: #0b7dda;
-        }
-        .btn-danger {
-            background: #f44336;
-        }
-        .btn-danger:hover {
-            background: #da190b;
-        }
-        .btn-warning {
-            background: #ff9800;
-        }
-        .btn-warning:hover {
-            background: #f57c00;
-        }
-        .result {
-            margin-top: 15px;
-            padding: 15px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .success {
-            border-left: 4px solid #4CAF50;
-            background: #f1f8f4;
-        }
-        .error {
-            border-left: 4px solid #f44336;
-            background: #fff5f5;
-        }
-        .info {
-            background: #e3f2fd;
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            color: #1976d2;
-        }
-        .test-values {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-        .test-btn {
-            background: #ff9800;
-            padding: 8px 16px;
-            font-size: 13px;
-        }
-        .test-btn:hover {
-            background: #f57c00;
-        }
-        .pdf-viewer {
-            margin-top: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .pdf-viewer iframe {
-            width: 100%;
-            height: 600px;
-            border: none;
-        }
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .checkbox-group input[type="checkbox"] {
-            width: auto;
-        }
-        .flow-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
-        .facturas-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-            background: white;
-            border-radius: 4px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .facturas-table th {
-            background: #4CAF50;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 500;
-            font-size: 13px;
-        }
-        .facturas-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-        .facturas-table tr:hover {
-            background: #f5f5f5;
-            cursor: pointer;
-        }
-        .facturas-table tr.selected {
-            background: #e3f2fd;
-        }
-        .facturas-table tr:last-child td {
-            border-bottom: none;
-        }
-    </style>
+    <link rel="stylesheet" href="./assets/styles.css">
 </head>
 <body>
+    <div id="app">
     <div class="container">
         <h1>🧪 Test Xubio - Imprimir PDF</h1>
         <p class="subtitle">Prueba completa: Facturas y Cobranzas con obtención de PDF</p>
@@ -222,19 +21,20 @@
             </div>
             <div class="form-group">
                 <label for="clientId">Client ID:</label>
-                <input type="text" id="clientId" placeholder="Ingresa tu Client ID">
+                <input type="text" id="clientId" v-model="clientId" placeholder="Ingresa tu Client ID">
             </div>
             <div class="form-group">
                 <label for="secretId">Secret ID:</label>
-                <input type="password" id="secretId" placeholder="Ingresa tu Secret ID">
+                <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID">
             </div>
             <div class="checkbox-group">
-                <input type="checkbox" id="guardarCredenciales" checked>
+                <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
                 <label for="guardarCredenciales" style="font-weight: normal; margin: 0;">Guardar credenciales en localStorage</label>
             </div>
-            <button onclick="obtenerToken()">Obtener Token</button>
-            <button class="btn-danger" onclick="limpiarCredenciales()">Limpiar Credenciales</button>
-            <div id="tokenResult" class="result" style="display: none;"></div>
+            <button @click="obtenerToken()" :disabled="isLoading">Obtener Token</button>
+            <button class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
+            <div v-if="isLoading && loadingContext.includes('token')" class="info">⏳ {{ loadingContext }}...</div>
+            <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
         </div>
 
         <!-- Sección 2: Flujo Completo - Factura -->
@@ -245,27 +45,27 @@
             </div>
             <div class="form-group">
                 <label for="facturaClienteId">Cliente ID:</label>
-                <input type="number" id="facturaClienteId" placeholder="ID del cliente">
+                <input type="number" id="facturaClienteId" v-model="facturaClienteId" placeholder="ID del cliente">
             </div>
             <div class="form-group">
                 <label for="facturaTipoimpresion">Tipo Impresión (para PDF):</label>
-                <input type="number" id="facturaTipoimpresion" placeholder="Ej: 1" value="1">
+                <input type="number" id="facturaTipoimpresion" v-model="facturaTipoimpresion" placeholder="Ej: 1">
                 <div class="test-values">
-                    <button class="test-btn" onclick="document.getElementById('facturaTipoimpresion').value=1">1</button>
-                    <button class="test-btn" onclick="document.getElementById('facturaTipoimpresion').value=2">2</button>
-                    <button class="test-btn" onclick="document.getElementById('facturaTipoimpresion').value=3">3</button>
+                    <button class="test-btn" @click="facturaTipoimpresion = '1'">1</button>
+                    <button class="test-btn" @click="facturaTipoimpresion = '2'">2</button>
+                    <button class="test-btn" @click="facturaTipoimpresion = '3'">3</button>
                 </div>
             </div>
             <div class="form-group">
                 <label for="facturaJson">JSON de Factura (opcional):</label>
-                <textarea id="facturaJson" placeholder='Dejar vacío para usar template básico'></textarea>
+                <textarea id="facturaJson" v-model="facturaJson" placeholder='Dejar vacío para usar template básico'></textarea>
             </div>
             <div class="flow-buttons">
-                <button class="btn-secondary" onclick="flujoCompletoFactura()">🚀 Crear Factura y Obtener PDF</button>
-                <button onclick="soloCrearFactura()">Solo Crear Factura</button>
+                <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading">🚀 Crear Factura y Obtener PDF</button>
+                <button @click="soloCrearFactura()" :disabled="isLoading">Solo Crear Factura</button>
             </div>
-            <div id="facturaResult" class="result" style="display: none;"></div>
-            <div id="facturaPdfViewer" class="pdf-viewer" style="display: none;"></div>
+            <div v-if="facturaResult.visible" :class="['result', facturaResult.type]" v-html="formatoMensaje(facturaResult.message)"></div>
+            <div v-if="facturaPdfViewerVisible" class="pdf-viewer" v-html="facturaPdfViewerHtml"></div>
         </div>
 
         <!-- Sección 3: Flujo Completo - Cobranza -->
@@ -276,35 +76,35 @@
             </div>
             <div class="form-group">
                 <label for="cobranzaClienteId">Cliente ID:</label>
-                <input type="number" id="cobranzaClienteId" placeholder="ID del cliente">
+                <input type="number" id="cobranzaClienteId" v-model="cobranzaClienteId" placeholder="ID del cliente">
             </div>
             <div class="form-group">
                 <label for="cobranzaIdComprobante">ID Comprobante (Factura a cobrar):</label>
-                <input type="number" id="cobranzaIdComprobante" placeholder="ID de la factura a cobrar">
+                <input type="number" id="cobranzaIdComprobante" v-model="cobranzaIdComprobante" placeholder="ID de la factura a cobrar">
             </div>
             <div class="form-group">
                 <label for="cobranzaImporte">Importe a Aplicar:</label>
-                <input type="number" id="cobranzaImporte" placeholder="Ej: 1000" step="0.01">
+                <input type="number" id="cobranzaImporte" v-model="cobranzaImporte" placeholder="Ej: 1000" step="0.01">
             </div>
             <div class="form-group">
                 <label for="cobranzaTipoimpresion">Tipo Impresión (para PDF):</label>
-                <input type="number" id="cobranzaTipoimpresion" placeholder="Ej: 1" value="1">
+                <input type="number" id="cobranzaTipoimpresion" v-model="cobranzaTipoimpresion" placeholder="Ej: 1">
                 <div class="test-values">
-                    <button class="test-btn" onclick="document.getElementById('cobranzaTipoimpresion').value=1">1</button>
-                    <button class="test-btn" onclick="document.getElementById('cobranzaTipoimpresion').value=2">2</button>
-                    <button class="test-btn" onclick="document.getElementById('cobranzaTipoimpresion').value=3">3</button>
+                    <button class="test-btn" @click="cobranzaTipoimpresion = '1'">1</button>
+                    <button class="test-btn" @click="cobranzaTipoimpresion = '2'">2</button>
+                    <button class="test-btn" @click="cobranzaTipoimpresion = '3'">3</button>
                 </div>
             </div>
             <div class="form-group">
                 <label for="cobranzaJson">JSON de Cobranza (opcional):</label>
-                <textarea id="cobranzaJson" placeholder='Dejar vacío para generar automáticamente'></textarea>
+                <textarea id="cobranzaJson" v-model="cobranzaJson" placeholder='Dejar vacío para generar automáticamente'></textarea>
             </div>
             <div class="flow-buttons">
-                <button class="btn-secondary" onclick="flujoCompletoCobranza()">🚀 Crear Cobranza y Obtener PDF</button>
-                <button onclick="soloCrearCobranza()">Solo Crear Cobranza</button>
+                <button class="btn-secondary" @click="flujoCompletoCobranza()" :disabled="isLoading">🚀 Crear Cobranza y Obtener PDF</button>
+                <button @click="soloCrearCobranza()" :disabled="isLoading">Solo Crear Cobranza</button>
             </div>
-            <div id="cobranzaResult" class="result" style="display: none;"></div>
-            <div id="cobranzaPdfViewer" class="pdf-viewer" style="display: none;"></div>
+            <div v-if="cobranzaResult.visible" :class="['result', cobranzaResult.type]" v-html="formatoMensaje(cobranzaResult.message)"></div>
+            <div v-if="cobranzaPdfViewerVisible" class="pdf-viewer" v-html="cobranzaPdfViewerHtml"></div>
         </div>
 
         <!-- Sección 4: Listar Facturas del Último Mes -->
@@ -313,9 +113,42 @@
             <div class="info">
                 💡 Trae las facturas del último mes y selecciona una para usar su ID
             </div>
-            <button onclick="listarFacturasUltimoMes()">📋 Traer Facturas del Último Mes</button>
-            <div id="facturasListResult" class="result" style="display: none;"></div>
-            <div id="facturasTable" style="margin-top: 15px; display: none;"></div>
+            <button @click="listarFacturasUltimoMes()" :disabled="isLoading">📋 Traer Facturas del Último Mes</button>
+            <div v-if="facturasListResult.visible" :class="['result', facturasListResult.type]" v-html="formatoMensaje(facturasListResult.message)"></div>
+            <div v-if="facturasList.length > 0" style="margin-top: 15px;">
+                <table class="facturas-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Número</th>
+                            <th>Fecha</th>
+                            <th>CUIT</th>
+                            <th>Razón Social</th>
+                            <th>Monto</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="factura in facturasList" :key="factura.id" 
+                            :class="{ selected: facturaSeleccionada === factura.id }"
+                            @click="seleccionarFactura(factura)"
+                            style="cursor: pointer;">
+                            <td><strong>{{ factura.id }}</strong></td>
+                            <td>{{ factura.numero }}</td>
+                            <td>{{ factura.fecha }}</td>
+                            <td>{{ factura.cuit }}</td>
+                            <td>{{ factura.razonSocial }}</td>
+                            <td>${{ parseFloat(factura.monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}</td>
+                            <td>
+                                <button class="test-btn" @click.stop="seleccionarFactura(factura)">Seleccionar</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    💡 Haz clic en una fila para seleccionarla. Se copiará el ID a los campos correspondientes.
+                </div>
+            </div>
         </div>
 
         <!-- Sección 5: Obtener PDF de Comprobante Existente -->
@@ -326,705 +159,28 @@
             </div>
             <div class="form-group">
                 <label for="transaccionId">Transaction ID:</label>
-                <input type="number" id="transaccionId" placeholder="Ej: 67519506">
+                <input type="number" id="transaccionId" v-model="transaccionId" placeholder="Ej: 67519506">
             </div>
             <div class="form-group">
                 <label for="tipoimpresion">Tipo Impresión:</label>
-                <input type="number" id="tipoimpresion" placeholder="Ej: 1" value="1">
+                <input type="number" id="tipoimpresion" v-model="tipoimpresion" placeholder="Ej: 1">
                 <div class="test-values">
-                    <button class="test-btn" onclick="probarTipo(1)">Probar 1</button>
-                    <button class="test-btn" onclick="probarTipo(2)">Probar 2</button>
-                    <button class="test-btn" onclick="probarTipo(3)">Probar 3</button>
-                    <button class="test-btn" onclick="probarTipo(0)">Probar 0</button>
+                    <button class="test-btn" @click="probarTipo(1)">Probar 1</button>
+                    <button class="test-btn" @click="probarTipo(2)">Probar 2</button>
+                    <button class="test-btn" @click="probarTipo(3)">Probar 3</button>
+                    <button class="test-btn" @click="probarTipo(0)">Probar 0</button>
                 </div>
             </div>
-            <button onclick="obtenerPDF()">Obtener PDF</button>
-            <div id="pdfResult" class="result" style="display: none;"></div>
-            <div id="pdfViewer" class="pdf-viewer" style="display: none;"></div>
+            <button @click="obtenerPDF()" :disabled="isLoading">Obtener PDF</button>
+            <div v-if="pdfResult.visible" :class="['result', pdfResult.type]" v-html="formatoMensaje(pdfResult.message)"></div>
+            <div v-if="pdfViewerVisible" class="pdf-viewer" v-html="pdfViewerHtml"></div>
         </div>
     </div>
+    </div>
 
-    <script>
-        // Configuración para Vercel - siempre usar /api/proxy
-        const PROXY_BASE = '/api/proxy';
-        const XUBIO_BASE_URL = 'https://xubio.com/API/1.1';
-        
-        let accessToken = null;
-        let tokenExpiration = null;
-
-        // Cargar credenciales y obtener token automáticamente al cargar la página
-        window.addEventListener('DOMContentLoaded', async () => {
-            // Intentar cargar credenciales guardadas
-            const savedClientId = localStorage.getItem('xubio_clientId');
-            const savedSecretId = localStorage.getItem('xubio_secretId');
-            
-            if (savedClientId) {
-                document.getElementById('clientId').value = savedClientId;
-            }
-            if (savedSecretId) {
-                document.getElementById('secretId').value = savedSecretId;
-            }
-
-            // Intentar cargar token guardado primero
-            const savedToken = localStorage.getItem('xubio_token');
-            const savedExpiration = localStorage.getItem('xubio_tokenExpiration');
-
-            if (savedToken && savedExpiration && Date.now() < parseInt(savedExpiration) - 60000) {
-                accessToken = savedToken;
-                tokenExpiration = parseInt(savedExpiration);
-                mostrarResultado(document.getElementById('tokenResult'), 
-                    `✅ Token cargado desde localStorage (válido hasta ${new Date(tokenExpiration).toLocaleString()})\n\n💡 Si el token expiró, haz clic en "Obtener Token" para renovarlo.`, 
-                    'success'
-                );
-            } else if (savedClientId && savedSecretId) {
-                // Si hay credenciales guardadas pero no hay token válido, obtener uno nuevo automáticamente
-                await obtenerToken();
-            } else {
-                mostrarResultado(document.getElementById('tokenResult'), 
-                    '⚠️ Ingresa tus credenciales de Xubio y haz clic en "Obtener Token"\n\n💡 Las credenciales están en el archivo .xubio-credentials.md', 
-                    'info'
-                );
-            }
-        });
-
-        async function obtenerToken(forceRefresh = false) {
-            // Usar credenciales del formulario o localStorage
-            let clientId = document.getElementById('clientId').value.trim();
-            let secretId = document.getElementById('secretId').value.trim();
-            
-            // Si no hay en el formulario, intentar desde localStorage
-            if (!clientId) {
-                clientId = localStorage.getItem('xubio_clientId') || '';
-            }
-            if (!secretId) {
-                secretId = localStorage.getItem('xubio_secretId') || '';
-            }
-
-            const resultDiv = document.getElementById('tokenResult');
-            const guardar = document.getElementById('guardarCredenciales').checked;
-
-            if (!clientId || !secretId) {
-                mostrarResultado(resultDiv, 'Error: Completa Client ID y Secret ID', 'error');
-                return;
-            }
-
-            // Verificar si el token actual es válido
-            if (!forceRefresh && accessToken && tokenExpiration && Date.now() < tokenExpiration - 60000) {
-                mostrarResultado(resultDiv, '✅ Token aún válido, no es necesario renovarlo', 'success');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Obteniendo token...', 'info');
-
-            try {
-                const basic = btoa(`${clientId}:${secretId}`);
-                const tokenUrl = `${PROXY_BASE}/TokenEndpoint`;
-                
-                console.log('🔍 Obteniendo token:', tokenUrl);
-
-                const response = await fetch(tokenUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Basic ${basic}`,
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'Accept': 'application/json'
-                    },
-                    body: 'grant_type=client_credentials'
-                });
-
-                console.log('📥 Token response:', response.status, response.statusText);
-
-                let data;
-                let responseText = '';
-                try {
-                    responseText = await response.text();
-                    console.log('📄 Token response body:', responseText);
-                    
-                    if (!responseText || responseText.trim() === '') {
-                        throw new Error('Respuesta vacía del servidor');
-                    }
-                    
-                    data = JSON.parse(responseText);
-                    console.log('📄 Token response parsed:', data);
-                } catch (parseError) {
-                    console.error('❌ Error parseando token response:', parseError);
-                    throw new Error(`Error parseando respuesta del token: ${parseError.message}. Respuesta recibida: ${responseText.substring(0, 200)}`);
-                }
-
-                if (response.ok && data) {
-                    accessToken = data.access_token || data.token;
-                    const expiresIn = parseInt(data.expires_in || 3600, 10);
-                    tokenExpiration = Date.now() + (expiresIn * 1000);
-
-                    if (guardar) {
-                        localStorage.setItem('xubio_clientId', clientId);
-                        localStorage.setItem('xubio_secretId', secretId);
-                        localStorage.setItem('xubio_token', accessToken);
-                        localStorage.setItem('xubio_tokenExpiration', tokenExpiration.toString());
-                    }
-
-                    mostrarResultado(resultDiv, 
-                        `✅ Token obtenido exitosamente!\n\nToken: ${accessToken.substring(0, 50)}...\nExpira en: ${expiresIn} segundos\nVálido hasta: ${new Date(tokenExpiration).toLocaleString()}`,
-                        'success'
-                    );
-                } else {
-                    const errorMsg = `❌ Error obteniendo token:\n\nStatus: ${response.status} ${response.statusText}\n\nRespuesta recibida: ${responseText || 'Sin respuesta'}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
-                    mostrarResultado(resultDiv, errorMsg, 'error');
-                }
-            } catch (error) {
-                console.error('❌ Error completo:', error);
-                const errorMsg = `❌ Error: ${error.message}\n\n💡 Abre la consola del navegador (F12 → Console) para ver más detalles del error.`;
-                mostrarResultado(resultDiv, errorMsg, 'error');
-            }
-        }
-
-        function limpiarCredenciales() {
-            localStorage.removeItem('xubio_clientId');
-            localStorage.removeItem('xubio_secretId');
-            localStorage.removeItem('xubio_token');
-            localStorage.removeItem('xubio_tokenExpiration');
-            document.getElementById('clientId').value = '';
-            document.getElementById('secretId').value = '';
-            accessToken = null;
-            tokenExpiration = null;
-            const resultDiv = document.getElementById('tokenResult');
-            mostrarResultado(resultDiv, '✅ Credenciales y token eliminados del almacenamiento local', 'success');
-        }
-
-        async function requestXubio(endpoint, method = 'GET', payload = null, queryParams = null) {
-            // Verificar y renovar token si es necesario
-            if (!accessToken || !tokenExpiration || Date.now() >= tokenExpiration - 60000) {
-                await obtenerToken(true);
-            }
-
-            // Construir URL usando el proxy
-            let url = `${PROXY_BASE}${endpoint}`;
-            
-            if (queryParams) {
-                const params = new URLSearchParams(queryParams);
-                url += '?' + params.toString();
-            }
-
-            const options = {
-                method: method,
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Accept': 'application/json'
-                }
-            };
-
-            if (method !== 'GET' && payload) {
-                options.headers['Content-Type'] = 'application/json';
-                options.body = JSON.stringify(payload);
-            }
-
-            console.log('🔍 Request Xubio:', { url, method, payload: payload ? JSON.stringify(payload).substring(0, 200) : null });
-
-            try {
-                const response = await fetch(url, options);
-                
-                console.log('📥 Response recibida:', response.status, response.statusText);
-
-                let data;
-                try {
-                    const text = await response.text();
-                    console.log('📄 Response body (primeros 500 chars):', text.substring(0, 500));
-                    data = text ? JSON.parse(text) : null;
-                } catch (parseError) {
-                    console.error('❌ Error parseando JSON:', parseError);
-                    throw new Error(`Error parseando respuesta JSON: ${parseError.message}`);
-                }
-
-                // Si el token expiró, renovar y reintentar
-                if (response.status === 401) {
-                    console.log('🔄 Token expirado, renovando...');
-                    await obtenerToken(true);
-                    options.headers['Authorization'] = `Bearer ${accessToken}`;
-                    const retryResponse = await fetch(url, options);
-                    const retryText = await retryResponse.text();
-                    const retryData = retryText ? JSON.parse(retryText) : null;
-                    return { response: retryResponse, data: retryData };
-                }
-
-                return { response, data };
-            } catch (error) {
-                console.error('❌ Error en fetch:', error);
-                throw error;
-            }
-        }
-
-        async function obtenerPDF(transaccionId = null, tipoimpresion = null, resultDivId = 'pdfResult', viewerId = 'pdfViewer') {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const transId = transaccionId || document.getElementById('transaccionId').value.trim();
-            const tipo = tipoimpresion || document.getElementById('tipoimpresion').value.trim();
-            const resultDiv = document.getElementById(resultDivId);
-            const viewerDiv = document.getElementById(viewerId);
-
-            if (!transId || !tipo) {
-                mostrarResultado(resultDiv, 'Error: Completa Transaction ID y Tipo Impresión', 'error');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Obteniendo PDF...', 'info');
-            viewerDiv.style.display = 'none';
-
-            try {
-                const { response, data } = await requestXubio('/imprimirPDF', 'GET', null, {
-                    idtransaccion: transId,
-                    tipoimpresion: tipo
-                });
-
-                if (response.ok && data.urlPdf) {
-                    let mensaje = `✅ PDF obtenido exitosamente!\n\n`;
-                    mensaje += `URL PDF: ${data.urlPdf}\n`;
-                    mensaje += `Nombre XML: ${data.nombrexml || 'N/A'}\n`;
-                    mensaje += `DataSource: ${data.datasource || 'N/A'}\n\n`;
-                    mensaje += `Respuesta completa:\n${JSON.stringify(data, null, 2)}`;
-
-                    mostrarResultado(resultDiv, mensaje, 'success');
-
-                    // Mostrar PDF en iframe
-                    viewerDiv.innerHTML = `
-                        <div style="padding: 10px; background: #f0f0f0; display: flex; justify-content: space-between; align-items: center;">
-                            <strong>Vista previa del PDF</strong>
-                            <div>
-                                <a href="${data.urlPdf}" download style="margin-right: 10px; color: #2196F3; text-decoration: none;">⬇️ Descargar</a>
-                                <a href="${data.urlPdf}" target="_blank" style="color: #2196F3; text-decoration: none;">🔗 Abrir en nueva pestaña</a>
-                            </div>
-                        </div>
-                        <iframe src="${data.urlPdf}"></iframe>
-                    `;
-                    viewerDiv.style.display = 'block';
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        function probarTipo(valor) {
-            document.getElementById('tipoimpresion').value = valor;
-            obtenerPDF();
-        }
-
-        async function flujoCompletoFactura() {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const clienteId = document.getElementById('facturaClienteId').value.trim();
-            const facturaJson = document.getElementById('facturaJson').value.trim();
-            const tipoimpresion = document.getElementById('facturaTipoimpresion').value.trim();
-            const resultDiv = document.getElementById('facturaResult');
-            const viewerDiv = document.getElementById('facturaPdfViewer');
-
-            if (!clienteId) {
-                mostrarResultado(resultDiv, 'Error: Completa Cliente ID', 'error');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Creando factura...', 'info');
-            viewerDiv.style.display = 'none';
-
-            try {
-                let payload;
-                if (facturaJson) {
-                    payload = JSON.parse(facturaJson);
-                } else {
-                    payload = {
-                        circuitoContable: { ID: 1 },
-                        comprobante: 1,
-                        cliente: { cliente_id: parseInt(clienteId) },
-                        fecha: new Date().toISOString().split('T')[0],
-                        detalleComprobantes: [{
-                            cantidad: 1,
-                            precio: 100
-                        }]
-                    };
-                }
-
-                const { response, data } = await requestXubio('/comprobanteVentaBean', 'POST', payload);
-
-                if (response.ok) {
-                    const transaccionId = data.transaccionId || data.transaccionid || data.id;
-                    let mensaje = `✅ Factura creada exitosamente!\n\n`;
-                    mensaje += `Transaction ID: ${transaccionId}\n`;
-                    mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
-                    mensaje += `Obteniendo PDF...\n\n`;
-
-                    mostrarResultado(resultDiv, mensaje, 'success');
-                    await obtenerPDF(transaccionId, tipoimpresion, 'facturaResult', 'facturaPdfViewer');
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function soloCrearFactura() {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const clienteId = document.getElementById('facturaClienteId').value.trim();
-            const facturaJson = document.getElementById('facturaJson').value.trim();
-            const resultDiv = document.getElementById('facturaResult');
-
-            if (!clienteId) {
-                mostrarResultado(resultDiv, 'Error: Completa Cliente ID', 'error');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Creando factura...', 'info');
-
-            try {
-                let payload;
-                if (facturaJson) {
-                    payload = JSON.parse(facturaJson);
-                } else {
-                    payload = {
-                        circuitoContable: { ID: 1 },
-                        comprobante: 1,
-                        cliente: { cliente_id: parseInt(clienteId) },
-                        fecha: new Date().toISOString().split('T')[0],
-                        detalleComprobantes: [{ cantidad: 1, precio: 100 }]
-                    };
-                }
-
-                const { response, data } = await requestXubio('/comprobanteVentaBean', 'POST', payload);
-
-                if (response.ok) {
-                    const transaccionId = data.transaccionId || data.transaccionid || data.id;
-                    let mensaje = `✅ Factura creada exitosamente!\n\n`;
-                    mensaje += `Transaction ID: ${transaccionId}\n`;
-                    mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
-                    mensaje += `Respuesta completa:\n${JSON.stringify(data, null, 2)}`;
-
-                    if (transaccionId) {
-                        document.getElementById('transaccionId').value = transaccionId;
-                        mensaje += `\n\n💡 Transaction ID copiado al campo de "Obtener PDF de Comprobante Existente"`;
-                    }
-
-                    mostrarResultado(resultDiv, mensaje, 'success');
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function flujoCompletoCobranza() {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const clienteId = document.getElementById('cobranzaClienteId').value.trim();
-            const idComprobante = document.getElementById('cobranzaIdComprobante').value.trim();
-            const importe = document.getElementById('cobranzaImporte').value.trim();
-            const cobranzaJson = document.getElementById('cobranzaJson').value.trim();
-            const tipoimpresion = document.getElementById('cobranzaTipoimpresion').value.trim();
-            const resultDiv = document.getElementById('cobranzaResult');
-            const viewerDiv = document.getElementById('cobranzaPdfViewer');
-
-            if (!clienteId || !idComprobante || !importe) {
-                mostrarResultado(resultDiv, 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Creando cobranza...', 'info');
-            viewerDiv.style.display = 'none';
-
-            try {
-                let payload;
-                if (cobranzaJson) {
-                    payload = JSON.parse(cobranzaJson);
-                } else {
-                    const compResponse = await requestXubio(`/comprobanteVentaBean/${idComprobante}`, 'GET');
-                    if (!compResponse.response.ok) {
-                        throw new Error('No se pudo obtener el comprobante. Verifica el ID.');
-                    }
-                    const comp = compResponse.data;
-
-                    payload = {
-                        circuitoContable: comp.circuitoContable || { ID: 1 },
-                        cliente: { cliente_id: parseInt(clienteId) },
-                        fecha: new Date().toISOString().split('T')[0],
-                        monedaCtaCte: comp.moneda || { ID: 1 },
-                        cotizacion: comp.cotizacion || 1,
-                        utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
-                        mediosDePago: [],
-                        detalleCobranzas: [{
-                            idComprobante: parseInt(idComprobante),
-                            importe: parseFloat(importe)
-                        }]
-                    };
-                }
-
-                const { response, data } = await requestXubio('/cobranzaBean', 'POST', payload);
-
-                if (response.ok) {
-                    const transaccionId = data.transaccionId || data.transaccionid || data.id;
-                    let mensaje = `✅ Cobranza creada exitosamente!\n\n`;
-                    mensaje += `Transaction ID: ${transaccionId}\n`;
-                    mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
-                    mensaje += `Obteniendo PDF...\n\n`;
-
-                    mostrarResultado(resultDiv, mensaje, 'success');
-                    await obtenerPDF(transaccionId, tipoimpresion, 'cobranzaResult', 'cobranzaPdfViewer');
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function soloCrearCobranza() {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const clienteId = document.getElementById('cobranzaClienteId').value.trim();
-            const idComprobante = document.getElementById('cobranzaIdComprobante').value.trim();
-            const importe = document.getElementById('cobranzaImporte').value.trim();
-            const cobranzaJson = document.getElementById('cobranzaJson').value.trim();
-            const resultDiv = document.getElementById('cobranzaResult');
-
-            if (!clienteId || !idComprobante || !importe) {
-                mostrarResultado(resultDiv, 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
-                return;
-            }
-
-            mostrarResultado(resultDiv, 'Creando cobranza...', 'info');
-
-            try {
-                let payload;
-                if (cobranzaJson) {
-                    payload = JSON.parse(cobranzaJson);
-                } else {
-                    const compResponse = await requestXubio(`/comprobanteVentaBean/${idComprobante}`, 'GET');
-                    if (!compResponse.response.ok) {
-                        throw new Error('No se pudo obtener el comprobante. Verifica el ID.');
-                    }
-                    const comp = compResponse.data;
-
-                    payload = {
-                        circuitoContable: comp.circuitoContable || { ID: 1 },
-                        cliente: { cliente_id: parseInt(clienteId) },
-                        fecha: new Date().toISOString().split('T')[0],
-                        monedaCtaCte: comp.moneda || { ID: 1 },
-                        cotizacion: comp.cotizacion || 1,
-                        utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
-                        mediosDePago: [],
-                        detalleCobranzas: [{
-                            idComprobante: parseInt(idComprobante),
-                            importe: parseFloat(importe)
-                        }]
-                    };
-                }
-
-                const { response, data } = await requestXubio('/cobranzaBean', 'POST', payload);
-
-                if (response.ok) {
-                    const transaccionId = data.transaccionId || data.transaccionid || data.id;
-                    let mensaje = `✅ Cobranza creada exitosamente!\n\n`;
-                    mensaje += `Transaction ID: ${transaccionId}\n`;
-                    mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
-                    mensaje += `Respuesta completa:\n${JSON.stringify(data, null, 2)}`;
-
-                    if (transaccionId) {
-                        document.getElementById('transaccionId').value = transaccionId;
-                        mensaje += `\n\n💡 Transaction ID copiado al campo de "Obtener PDF de Comprobante Existente"`;
-                    }
-
-                    mostrarResultado(resultDiv, mensaje, 'success');
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function listarFacturasUltimoMes() {
-            if (!accessToken) {
-                alert('Primero obtén un token de acceso');
-                return;
-            }
-
-            const resultDiv = document.getElementById('facturasListResult');
-            const tableDiv = document.getElementById('facturasTable');
-
-            mostrarResultado(resultDiv, 'Obteniendo facturas del último mes...', 'info');
-            tableDiv.style.display = 'none';
-
-            try {
-                const hoy = new Date();
-                const haceUnMes = new Date();
-                haceUnMes.setMonth(haceUnMes.getMonth() - 1);
-
-                const fechaDesde = haceUnMes.toISOString().split('T')[0];
-                const fechaHasta = hoy.toISOString().split('T')[0];
-
-                const { response, data } = await requestXubio('/comprobanteVentaBean', 'GET', null, {
-                    fechaDesde: fechaDesde,
-                    fechaHasta: fechaHasta
-                });
-
-                if (response.ok && Array.isArray(data)) {
-                    if (data.length === 0) {
-                        mostrarResultado(resultDiv, 'No se encontraron facturas en el último mes', 'info');
-                        return;
-                    }
-
-                    let tabla = `
-                        <table class="facturas-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Número</th>
-                                    <th>Fecha</th>
-                                    <th>CUIT</th>
-                                    <th>Razón Social</th>
-                                    <th>Monto</th>
-                                    <th>Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-
-                    data.forEach(factura => {
-                        const id = factura.id || factura.ID || factura.transaccionId || factura.transaccionid || '';
-                        const numero = factura.numeroComprobante || factura.numero || '';
-                        const fecha = factura.fecha || '';
-                        const cliente = factura.cliente || {};
-                        const cuit = cliente.cuit || cliente.CUIT || cliente.identificacionTributaria?.numero || '';
-                        const razonSocial = cliente.razonSocial || cliente.nombre || '';
-                        const monto = factura.importetotal || factura.importeTotal || factura.total || '0';
-                        const transaccionId = factura.transaccionId || factura.transaccionid || id;
-
-                        tabla += `
-                            <tr data-id="${id}" data-transid="${transaccionId}" data-razon="${razonSocial}" data-cuit="${cuit}" data-monto="${monto}">
-                                <td><strong>${id}</strong></td>
-                                <td>${numero}</td>
-                                <td>${fecha}</td>
-                                <td>${cuit}</td>
-                                <td>${razonSocial}</td>
-                                <td>$${parseFloat(monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                                <td>
-                                    <button class="test-btn" onclick="seleccionarFacturaDesdeBoton(this)">
-                                        Seleccionar
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                    });
-
-                    tabla += `
-                            </tbody>
-                        </table>
-                        <div style="margin-top: 10px; font-size: 12px; color: #666;">
-                            💡 Haz clic en una fila para seleccionarla. Se copiará el ID a los campos correspondientes.
-                        </div>
-                    `;
-
-                    tableDiv.innerHTML = tabla;
-                    tableDiv.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        agregarListenersATabla();
-                    }, 100);
-                    
-                    mostrarResultado(resultDiv, `✅ Se encontraron ${data.length} facturas del último mes`, 'success');
-                } else {
-                    mostrarResultado(resultDiv, 
-                        `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-                        'error'
-                    );
-                }
-            } catch (error) {
-                mostrarResultado(resultDiv, `❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        function seleccionarFacturaDesdeBoton(button) {
-            const row = button.closest('tr');
-            const id = row.getAttribute('data-id');
-            const transaccionId = row.getAttribute('data-transid');
-            const razonSocial = row.getAttribute('data-razon');
-            const cuit = row.getAttribute('data-cuit');
-            const monto = row.getAttribute('data-monto');
-            seleccionarFactura(id, transaccionId, razonSocial, cuit, monto, row);
-        }
-
-        function seleccionarFactura(id, transaccionId, razonSocial, cuit, monto, rowElement = null) {
-            document.getElementById('transaccionId').value = transaccionId;
-            document.getElementById('cobranzaIdComprobante').value = id;
-            
-            const resultDiv = document.getElementById('facturasListResult');
-            mostrarResultado(resultDiv, 
-                `✅ Factura seleccionada:\nID: ${id}\nTransaction ID: ${transaccionId}\nCliente: ${razonSocial}\nCUIT: ${cuit}\nMonto: $${parseFloat(monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n\n💡 El ID se copió a los campos correspondientes.`, 
-                'success'
-            );
-
-            const rows = document.querySelectorAll('.facturas-table tbody tr');
-            rows.forEach(row => row.classList.remove('selected'));
-            if (rowElement) {
-                rowElement.classList.add('selected');
-            } else {
-                const targetRow = document.querySelector(`.facturas-table tbody tr[data-id="${id}"]`);
-                if (targetRow) targetRow.classList.add('selected');
-            }
-        }
-
-        function agregarListenersATabla() {
-            const rows = document.querySelectorAll('.facturas-table tbody tr');
-            rows.forEach(row => {
-                row.addEventListener('click', function(e) {
-                    if (e.target.tagName === 'BUTTON') return;
-                    
-                    const id = this.getAttribute('data-id');
-                    const transaccionId = this.getAttribute('data-transid');
-                    const razonSocial = this.getAttribute('data-razon');
-                    const cuit = this.getAttribute('data-cuit');
-                    const monto = this.getAttribute('data-monto');
-                    seleccionarFactura(id, transaccionId, razonSocial, cuit, monto, this);
-                });
-            });
-        }
-
-        function mostrarResultado(div, mensaje, tipo) {
-            div.style.display = 'block';
-            div.className = `result ${tipo}`;
-            div.innerHTML = mensaje.replace(/\n/g, '<br>');
-        }
-    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="./assets/app.js"></script>
 </body>
 </html>
+
 

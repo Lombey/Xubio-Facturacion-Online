@@ -1,0 +1,313 @@
+# Plan de Refactorización: Test Xubio Web App
+
+Este documento detalla el plan de refactorización para la aplicación de testing `index.html`. El objetivo es transformar el prototipo monolítico actual en una aplicación modular, segura y mantenible.
+
+## 🎯 Objetivos Principales
+
+1.  **Seguridad (Critical):** Eliminar credenciales del almacenamiento local del navegador y mover la lógica de autenticación al servidor (Proxy).
+2.  **Mantenibilidad:** Separar la vista (HTML), el estilo (CSS) y la lógica (JS).
+3.  **Mejora de Código:** Implementar un framework ligero (Vue.js) para manejar el estado y la reactividad, eliminando la manipulación manual del DOM.
+
+## 🍰 Estrategia: Thin Slicing (Rebanadas Finas)
+
+En lugar de reescribir todo de una vez, aplicaremos cambios incrementales. Cada "slice" o paso debe dejar la aplicación en un estado funcional.
+
+---
+
+## 📅 Hoja de Ruta Detallada
+
+### Slice 1: Modularización Básica (Separation of Concerns)
+*Objetivo: Ordenar la casa sin cambiar la lógica funcional.*
+
+1.  **Estructura de Carpetas:** Crear la estructura `test-imprimir-pdf/assets/` (respetando el routing de Vercel).
+2.  **Extraer CSS:** Mover todos los estilos `<style>` a `test-imprimir-pdf/assets/styles.css`.
+3.  **Extraer JS:** Mover todo el script `<script>` a `test-imprimir-pdf/assets/app.js`.
+4.  **Limpiar HTML:** El `index.html` solo debe contener la estructura y las referencias relativas a los nuevos archivos (`./assets/styles.css`, `./assets/app.js`).
+5.  **Verificación Manual:** Comprobar manualmente que la app funciona exactamente igual que antes (login, crear factura, ver PDF, listar facturas).
+
+### Slice 2: Hardening de Seguridad (Server-Side Auth)
+*Objetivo: Proteger el `client_secret` procesándolo en el servidor, evitando que sea visible en el código del cliente o en logs del navegador.*
+
+**Decisión de Arquitectura:** El usuario seguirá introduciendo `clientId` y `secretId` manualmente desde la app, pero estas credenciales se enviarán al servidor de forma segura (POST body) y el servidor construirá el Basic Auth internamente. El `client_secret` nunca se construye ni se expone en el cliente.
+
+1.  **Backend - Nuevo Endpoint de Autenticación:**
+    *   Crear `/api/auth.js` (endpoint específico, no modificar el proxy genérico).
+    *   El endpoint:
+        *   Recibe `clientId` y `secretId` en el body del POST (JSON).
+        *   Construye el header `Authorization: Basic ${btoa(clientId:secretId)}` **en el servidor** (nunca en el cliente).
+        *   Hace POST a `https://xubio.com/API/1.1/TokenEndpoint` con `grant_type=client_credentials`.
+        *   Devuelve solo `{ access_token, expires_in }` al cliente (nunca las credenciales).
+        *   No loguea las credenciales en consola del servidor (solo errores genéricos).
+
+2.  **Frontend - Refactorización:**
+    *   Mantener inputs `clientId` y `secretId` en el HTML (el usuario los introduce manualmente).
+    *   Mantener checkbox "Guardar credenciales" (opcional, para UX).
+    *   Actualizar `obtenerToken()` para:
+        *   Leer `clientId` y `secretId` desde los inputs (o localStorage si está guardado).
+        *   Enviar POST a `/api/auth` con `{ clientId, secretId }` en el body (JSON).
+        *   **Eliminar** la construcción de header `Authorization: Basic` en el cliente (esto ahora lo hace el servidor).
+    *   Mantener guardado de credenciales en localStorage (opcional, según checkbox).
+    *   Mantener función `limpiarCredenciales()`.
+    *   Mantener guardado de `access_token` en localStorage.
+    *   Mantener lógica de renovación automática de token en `requestXubio()`.
+
+3.  **Seguridad:**
+    *   El `client_secret` nunca se construye en el cliente (no más `btoa()` en el frontend).
+    *   Las credenciales se envían por HTTPS al servidor (Vercel maneja esto automáticamente).
+    *   El servidor no expone las credenciales en la respuesta.
+    *   Las credenciales pueden seguir guardándose en localStorage (es una decisión de UX, no de seguridad crítica para una app de testing).
+
+### Slice 3: Migración a Vue.js (Reactivity)
+*Objetivo: Eliminar el "Spaghetti Code" de manipulación del DOM usando Vue.js 3.*
+
+1.  **Setup:**
+    *   Importar Vue.js 3 via CDN en `index.html`: `<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>`.
+    *   Asegurar que se carga antes de `app.js`.
+
+2.  **Estado Global:**
+    *   Crear una instancia de Vue (`const app = Vue.createApp({...})`) en `app.js`.
+    *   Mover variables globales (`accessToken`, `tokenExpiration`) al `data()` del componente.
+    *   Agregar estados reactivos: `isLoading`, `errorMessage`, `clientId`, `secretId`, etc.
+
+3.  **Migración de UI (Iterativa):**
+    *   **Auth:** Convertir sección de autenticación a template de Vue:
+        *   Reemplazar `onclick="obtenerToken()"` por `@click="obtenerToken"`.
+        *   Mantener inputs de credenciales pero con `v-model` (ej: `v-model="clientId"`).
+        *   Mantener checkbox "Guardar credenciales" con `v-model="guardarCredenciales"`.
+        *   Mostrar estado del token con `v-if/v-show` y propiedades reactivas.
+    *   **Facturas:** Migrar formularios a `v-model`:
+        *   `<input id="facturaClienteId">` → `<input v-model="facturaClienteId">`.
+        *   Reemplazar todos los `document.getElementById()` por bindings de Vue.
+    *   **Listados:** Reemplazar generación de tablas:
+        *   Eliminar `innerHTML` y construcción manual de tablas.
+        *   Usar `v-for` en el template HTML para renderizar facturas.
+        *   Usar `@click` en lugar de `onclick` para eventos.
+
+4.  **Lógica:**
+    *   Mover todas las funciones (`obtenerToken`, `flujoCompletoFactura`, `requestXubio`, etc.) a `methods`.
+    *   Actualizar referencias: `document.getElementById()` → `this.propertyName`.
+    *   Usar `this.mostrarResultado()` en lugar de pasar `div` como parámetro.
+
+5.  **Montaje:**
+    *   Usar `app.mount('#app')` al final de `app.js`.
+    *   Envolver el contenido del body en `<div id="app">...</div>`.
+
+### Slice 4: Refinamiento de UX y Código
+*Objetivo: Pulir la experiencia y el código.*
+
+1.  **Feedback Visual:**
+    *   Usar propiedades computadas o watchers para mostrar estados de carga (`isLoading`).
+    *   Deshabilitar botones automáticamente cuando `isLoading === true` usando `:disabled="isLoading"`.
+    *   Mostrar spinners o mensajes de carga con `v-if="isLoading"`.
+
+2.  **Manejo de Errores:**
+    *   Crear función centralizada `handleError(error, context)` en `methods`.
+    *   Unificar formato de errores mostrados al usuario.
+    *   Logging consistente en consola para debugging.
+    *   Manejar errores 401 (token expirado) automáticamente con retry.
+
+3.  **Optimizaciones:**
+    *   Usar `computed` para valores derivados (ej: `tokenValido`).
+    *   Limpiar código muerto y comentarios obsoletos.
+    *   Agregar JSDoc básico en funciones principales.
+
+---
+
+## 🔧 Detalles Técnicos de Implementación
+
+### Slice 2: Endpoint de Autenticación (`/api/auth.js`)
+
+Ejemplo de implementación del endpoint:
+
+```javascript
+// /api/auth.js
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Recibir credenciales del cliente en el body
+  const { clientId, secretId } = req.body;
+
+  if (!clientId || !secretId) {
+    return res.status(400).json({ 
+      error: 'Missing credentials: clientId and secretId are required' 
+    });
+  }
+
+  try {
+    // Construir Basic Auth EN EL SERVIDOR (nunca en el cliente)
+    const basic = Buffer.from(`${clientId}:${secretId}`).toString('base64');
+    
+    const response = await fetch('https://xubio.com/API/1.1/TokenEndpoint', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${basic}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: 'grant_type=client_credentials'
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      // No exponer detalles sensibles en el error
+      return res.status(response.status).json({ 
+        error: 'Failed to obtain token',
+        message: data.error_description || 'Authentication failed'
+      });
+    }
+
+    // Devolver solo el token, nunca las credenciales
+    return res.status(200).json({
+      access_token: data.access_token || data.token,
+      expires_in: data.expires_in || 3600
+    });
+  } catch (error) {
+    // No loguear credenciales en consola
+    console.error('[AUTH] Error obtaining token:', error.message);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      message: 'Failed to process authentication request'
+    });
+  }
+}
+```
+
+### Slice 2: Refactorización de `obtenerToken()` en Frontend
+
+Antes (actual - INSEGURO):
+```javascript
+const basic = btoa(`${clientId}:${secretId}`); // ❌ Construye Basic Auth en el cliente
+const response = await fetch(`${PROXY_BASE}/TokenEndpoint`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Basic ${basic}`, // ❌ Expone credenciales en headers
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Accept': 'application/json'
+  },
+  body: 'grant_type=client_credentials'
+});
+```
+
+Después (refactorizado - SEGURO):
+```javascript
+// Leer credenciales desde inputs o localStorage
+const clientId = document.getElementById('clientId').value.trim();
+const secretId = document.getElementById('secretId').value.trim();
+
+// Enviar credenciales al servidor (HTTPS protege el transporte)
+const response = await fetch('/api/auth', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  },
+  body: JSON.stringify({ clientId, secretId }) // ✅ Credenciales en body, servidor construye Basic Auth
+});
+
+const data = await response.json();
+// ✅ Solo recibimos el token, nunca las credenciales
+accessToken = data.access_token;
+```
+
+### Slice 3: Estructura Básica de Vue App
+
+```javascript
+// app.js
+const { createApp } = Vue;
+
+const app = createApp({
+  data() {
+    return {
+      accessToken: null,
+      tokenExpiration: null,
+      isLoading: false,
+      errorMessage: null,
+      // ... otros estados
+    };
+  },
+  computed: {
+    tokenValido() {
+      return this.accessToken && 
+             this.tokenExpiration && 
+             Date.now() < this.tokenExpiration - 60000;
+    }
+  },
+  methods: {
+    async obtenerToken() {
+      // Lógica migrada aquí
+    },
+    // ... otros métodos
+  },
+  mounted() {
+    // Cargar token guardado si existe
+    const savedToken = localStorage.getItem('xubio_token');
+    if (savedToken) {
+      this.accessToken = savedToken;
+    }
+  }
+});
+
+app.mount('#app');
+```
+
+---
+
+## ✅ Checklist para el Desarrollador
+
+### Preparación
+- [x] Crear estructura de carpetas: `test-imprimir-pdf/assets/`.
+- [ ] Asegurar que el entorno local (Vercel CLI) esté corriendo: `vercel dev`.
+- [ ] Verificar que el routing de Vercel funciona correctamente.
+
+### Ejecución - Slice 1 (Modularización)
+- [x] Crear `test-imprimir-pdf/assets/styles.css` y mover todo el contenido de `<style>`.
+- [x] Crear `test-imprimir-pdf/assets/app.js` y mover todo el contenido de `<script>`.
+- [x] Actualizar `index.html`: agregar `<link rel="stylesheet" href="./assets/styles.css">` y `<script src="./assets/app.js"></script>`.
+- [x] Eliminar `<style>` y `<script>` del HTML.
+- [ ] **Verificación Manual:** Probar login, crear factura, ver PDF, listar facturas. Todo debe funcionar igual que antes.
+
+### Ejecución - Slice 2 (Seguridad)
+- [x] Crear `/api/auth.js` con la lógica de autenticación:
+    - [x] Recibir `{ clientId, secretId }` en el body del POST.
+    - [x] Construir `Authorization: Basic` en el servidor (usar `Buffer.from()` en Node.js).
+    - [x] Hacer request a Xubio TokenEndpoint.
+    - [x] Devolver solo `{ access_token, expires_in }` al cliente.
+- [x] Refactorizar `obtenerToken()` en `app.js`:
+    - [x] Leer `clientId` y `secretId` desde inputs o localStorage.
+    - [x] Enviar POST a `/api/auth` con `{ clientId, secretId }` en el body (JSON).
+    - [x] **Eliminar** construcción de `btoa()` y header `Authorization: Basic` en el cliente.
+- [x] Mantener inputs `clientId` y `secretId` en el HTML (no eliminar).
+- [x] Mantener checkbox "Guardar credenciales" y su funcionalidad.
+- [x] Mantener función `limpiarCredenciales()`.
+- [x] Mantener guardado de `access_token` en localStorage.
+- [ ] **Verificación Manual:** Probar que la autenticación funciona. El `client_secret` no debe aparecer en la consola del navegador ni en Network tab (solo en el body del request a `/api/auth`).
+
+### Ejecución - Slice 3 (Vue.js)
+- [x] Agregar `<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>` en `index.html` (antes de `app.js`).
+- [x] Envolver contenido del body en `<div id="app">...</div>`.
+- [x] Inicializar Vue app en `app.js`: `const app = Vue.createApp({ data() {...}, methods: {...} })`.
+- [x] Mover variables globales (`accessToken`, `tokenExpiration`) a `data()`.
+- [x] Mover todas las funciones a `methods`.
+- [x] Refactorizar inputs: reemplazar `id="..."` y `document.getElementById()` por `v-model`.
+- [x] Refactorizar botones: reemplazar `onclick="..."` por `@click="..."`.
+- [x] Refactorizar tablas: usar `v-for` en lugar de `innerHTML`.
+- [x] Agregar `app.mount('#app')` al final de `app.js`.
+- [ ] **Verificación Manual:** Probar todos los flujos. La app debe funcionar igual pero con código más limpio.
+
+### Ejecución - Slice 4 (Refinamiento)
+- [x] Agregar estados reactivos: `isLoading`, `errorMessage` en `data()`.
+- [x] Usar `:disabled="isLoading"` en botones.
+- [x] Mostrar spinners/mensajes de carga con `v-if="isLoading"`.
+- [x] Crear función `handleError(error, context)` centralizada.
+- [x] Agregar `computed` para valores derivados (ej: `tokenValido`).
+- [x] Limpiar código muerto y comentarios obsoletos.
+- [x] Agregar JSDoc básico en funciones principales.
+- [ ] **Verificación Manual:** Probar flujos completos y verificar que la UX es mejor.
+
+### Finalización
+- [ ] Validar flujo completo de principio a fin manualmente.
+- [ ] Verificar que no hay errores en consola del navegador.
+- [ ] Actualizar `README.md` con instrucciones de desarrollo y configuración de env vars.

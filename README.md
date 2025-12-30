@@ -33,13 +33,34 @@ La aplicación está configurada para funcionar en **Vercel**:
 
 ```
 ├── test-imprimir-pdf/
-│   ├── index.html          # Aplicación web principal
+│   ├── index.html          # Aplicación web principal (Vue.js)
+│   ├── assets/
+│   │   ├── app.js          # Lógica de la aplicación (Vue 3)
+│   │   └── styles.css      # Estilos CSS
+│   ├── docs/
+│   │   ├── API_Xubio.md    # Documentación de la API
+│   │   └── REFACTOR_PLAN.md # Plan de refactorización
 │   └── README.md           # Documentación de la app
 ├── api/
-│   └── proxy.js            # Proxy serverless para evitar CORS
+│   ├── proxy.js            # Proxy serverless para evitar CORS
+│   └── auth.js             # Endpoint de autenticación seguro
 ├── vercel.json             # Configuración de Vercel
 └── .xubio-credentials.md   # Credenciales (gitignored)
 ```
+
+### 🏗️ Arquitectura
+
+La aplicación ha sido refactorizada siguiendo las mejores prácticas:
+
+- **Frontend**: Vue.js 3 (CDN) con reactividad y estado centralizado
+- **Backend**: Serverless functions en Vercel
+  - `/api/proxy`: Proxy genérico para requests a Xubio API
+  - `/api/auth`: Endpoint seguro para autenticación (Basic Auth en servidor)
+- **Seguridad**: 
+  - Credenciales nunca se construyen en el cliente
+  - Autenticación procesada completamente en el servidor
+  - Tokens manejados de forma segura
+- **Modularidad**: Separación de concerns (HTML, CSS, JS)
 
 ## 🔮 Fase 2: Integración con Google Sheets (FUTURO)
 
@@ -59,8 +80,30 @@ La integración con Google Sheets permitirá:
 - [Documentación oficial Xubio](https://xubio.com/API/documentation/index.html)
 - [Requerimientos del proyecto](./requerimientos.md)
 
+## 🔧 Desarrollo Local
+
+### Requisitos
+- Node.js (para Vercel CLI opcional)
+- Cuenta de Vercel (para despliegue)
+
+### Ejecutar localmente
+```bash
+# Instalar Vercel CLI (opcional)
+npm i -g vercel
+
+# Iniciar servidor de desarrollo
+vercel dev
+```
+
+### Tecnologías
+- **Frontend**: Vue.js 3 (CDN), HTML5, CSS3
+- **Backend**: Vercel Serverless Functions (Node.js)
+- **Despliegue**: Vercel Platform
+
 ## 📝 Notas
 
-- Las credenciales se almacenan localmente y nunca se suben al repositorio
+- **Seguridad**: Las credenciales se procesan en el servidor (`/api/auth`), nunca en el cliente
+- Las credenciales pueden guardarse localmente en localStorage (opcional, solo para UX)
 - El proxy serverless en Vercel maneja automáticamente los problemas de CORS
 - La aplicación crea facturas reales en Xubio, usar con cuidado
+- La aplicación usa Vue.js 3 para reactividad y mejor mantenibilidad

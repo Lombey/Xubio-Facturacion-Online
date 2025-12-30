@@ -1,0 +1,27 @@
+{
+  "name": "sheets-con-xubio",
+  "version": "1.0.0",
+  "description": "Aplicación web para probar y gestionar la API de Xubio",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --ext .js,.ts --fix",
+    "type": "tsc --noEmit",
+    "type:check": "tsc --noEmit",
+    "lint:fix": "eslint . --ext .js,.ts --fix"
+  },
+  "keywords": [
+    "xubio",
+    "api",
+    "facturacion"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  }
+}
+
