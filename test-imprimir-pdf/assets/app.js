@@ -312,7 +312,15 @@ export default function createAppWithTemplate(template) {
         );
       } else if (savedClientId && savedSecretId) {
         // Si hay credenciales guardadas pero no hay token válido, obtener uno nuevo automáticamente
-        await this.obtenerToken();
+        // Hacer esto de forma asíncrona para no bloquear la carga inicial
+        setTimeout(async () => {
+          try {
+            await this.obtenerToken();
+          } catch (error) {
+            console.error('⚠️ Error obteniendo token automáticamente:', error);
+            // No mostrar error al usuario, solo loguear
+          }
+        }, 500); // Esperar 500ms para que la UI se renderice primero
       } else {
         this.mostrarResultado('token',
           '⚠️ Ingresa tus credenciales de Xubio y haz clic en "Obtener Token"\n\n💡 Las credenciales están en el archivo .xubio-credentials.md', 
@@ -461,6 +469,19 @@ export default function createAppWithTemplate(template) {
       );
     },
     
+    /**
+     * Maneja el submit del formulario de token
+     */
+    handleTokenSubmit() {
+      console.log('📝 Formulario de token enviado');
+      console.log('📝 Valores:', { 
+        clientId: this.clientId ? this.clientId.substring(0, 5) + '...' : 'vacío',
+        hasSecretId: !!this.secretId,
+        isLoading: this.isLoading
+      });
+      this.obtenerToken();
+    },
+
     /**
      * Obtiene un token de acceso de Xubio
      * @param {boolean} forceRefresh - Si es true, fuerza la renovación del token

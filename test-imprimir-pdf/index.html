@@ -21,7 +21,7 @@
                 💡 Las credenciales están en el archivo <code>.xubio-credentials.md</code><br>
                 ✅ Desplegado en Vercel - El proxy API funciona automáticamente
             </div>
-            <form @submit.prevent="obtenerToken()" novalidate>
+            <form @submit.prevent="handleTokenSubmit" novalidate>
                 <div class="form-group">
                     <label for="clientId">Client ID:</label>
                     <input type="text" id="clientId" v-model="clientId" placeholder="Ingresa tu Client ID" autocomplete="username">
@@ -37,8 +37,8 @@
                 <button type="submit" :disabled="isLoading">Obtener Token</button>
                 <button type="button" class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
             </form>
-            <div v-if="isLoading && loadingContext && loadingContext.includes('token')" class="info">
-                ⏳ {{ loadingContext }}
+            <div v-if="isLoading && loadingContext && typeof loadingContext === 'string' && loadingContext.includes('token')" class="info">
+                ⏳ <span v-text="loadingContext"></span>
             </div>
             <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
         </div>
