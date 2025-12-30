@@ -79,7 +79,8 @@ test-imprimir-pdf/assets/
 |---------|----------|-----------|
 | `/api/auth.js` | `/api/auth` | Autenticación OAuth2 con Xubio |
 | `/api/proxy.js` | `/api/proxy/*` | Proxy reverso para API de Xubio |
-| `/api/bcra.js` | `/api/bcra` | Integración con API BCRA (cotizaciones) |
+
+**Nota:** Las cotizaciones del dólar se obtienen directamente desde `dolarapi.com` en el frontend mediante la función `obtenerCotizacionDolar()`. DolarAPI.com es adecuada porque proporciona cotizaciones oficiales actualizadas del dólar de forma gratuita y sin requerir autenticación.
 
 **Características:**
 - Manejo de CORS
@@ -128,7 +129,14 @@ test-imprimir-pdf/assets/
 | API | Base URL | Propósito | Autenticación |
 |-----|----------|-----------|---------------|
 | **Xubio API** | `https://xubio.com/API/1.1` | Facturación, clientes, productos | OAuth2 Client Credentials |
-| **BCRA API** | (vía `/api/bcra`) | Cotizaciones de monedas | (No requiere) |
+| **DolarAPI.com** | `https://dolarapi.com/v1/dolares/oficial` | Cotizaciones del dólar oficial | (No requiere) |
+
+**Decisión de usar DolarAPI.com:**
+- ✅ API gratuita y pública
+- ✅ Cotizaciones oficiales del BCRA actualizadas
+- ✅ No requiere autenticación ni proxy
+- ✅ Respuesta rápida y confiable
+- ✅ Formato JSON simple y fácil de consumir
 
 **Endpoints principales de Xubio:**
 - `/TokenEndpoint` - Autenticación
@@ -137,6 +145,16 @@ test-imprimir-pdf/assets/
 - `/clienteBean` - CRUD de clientes
 - `/productoBean` - CRUD de productos
 - `/monedaBean` - Listado de monedas
+
+**Endpoints de DolarAPI.com:**
+- `/v1/dolares/oficial` - Cotización del dólar oficial vendedor (usado en el frontend mediante `obtenerCotizacionDolar()`)
+
+**Ventajas de DolarAPI.com:**
+- Proporciona datos oficiales del BCRA de forma más accesible
+- No requiere autenticación ni configuración de proxy
+- Respuesta rápida y confiable
+- Formato JSON simple y bien documentado
+- Actualizaciones frecuentes de las cotizaciones
 
 ---
 

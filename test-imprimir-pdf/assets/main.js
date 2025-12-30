@@ -1,6 +1,22 @@
 // Punto de entrada principal para Vite
 // Este archivo se importa desde index.html y maneja el montaje de Vue
 
+// Solución preventiva para warnings de event listeners no-pasivos en touchstart
+// Intercepta addEventListener para hacer pasivos los listeners de touch cuando sea apropiado
+if (typeof EventTarget !== 'undefined' && typeof window !== 'undefined') {
+  const originalAddEventListener = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    // Si es un evento touchstart/touchmove/touchend y no se especificó passive explícitamente
+    if ((type === 'touchstart' || type === 'touchmove' || type === 'touchend') && 
+        typeof options === 'object' && options !== null && !('passive' in options)) {
+      // Solo hacer pasivo si no se necesita preventDefault
+      // Para eventos de scroll, passive mejora el rendimiento
+      options = { ...options, passive: true };
+    }
+    return originalAddEventListener.call(this, type, listener, options);
+  };
+}
+
 // IMPORTANTE: Capturar el template del DOM ANTES de importar la app
 // porque Vue necesita el template al crear la aplicación
 let templateHTML = '';

@@ -28,7 +28,7 @@
                 </div>
                 <div class="form-group">
                     <label for="secretId">Secret ID:</label>
-                    <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID">
+                    <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID" autocomplete="current-password">
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
@@ -242,7 +242,7 @@
                 <label for="facturaCotizacion">Cotización ({{ facturaMoneda }}):</label>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="number" id="facturaCotizacion" v-model.number="facturaCotizacion" step="0.01" min="0.01" placeholder="Ej: 1.00" style="flex: 1;">
-                    <button class="test-btn" @click="obtenerCotizacionBCRA()" :disabled="isLoading">
+                    <button class="test-btn" @click="obtenerCotizacionDolar()" :disabled="isLoading">
                         💱 Actualizar
                     </button>
                 </div>

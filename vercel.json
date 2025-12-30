@@ -29,10 +29,6 @@
       "destination": "/api/proxy.js?path=:path*"
     },
     {
-      "source": "/api/bcra",
-      "destination": "/api/bcra.js"
-    },
-    {
       "source": "/api/auth",
       "destination": "/api/auth.js"
     }

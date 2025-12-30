@@ -333,7 +333,7 @@ export default function createAppWithTemplate(template) {
         this._cotizacionTimeout = setTimeout(async () => {
           if (this.accessToken) {
             try {
-              await this.obtenerCotizacionBCRA(true); // true = silencioso (sin mostrar mensajes)
+              await this.obtenerCotizacionDolar(true); // true = silencioso (sin mostrar mensajes)
             } catch (error) {
               console.warn('⚠️ No se pudo obtener cotización automáticamente:', error);
             }
@@ -1496,7 +1496,7 @@ export default function createAppWithTemplate(template) {
      * Obtiene la cotización del dólar vendedor del día desde dolarapi.com
      * @param {boolean} silencioso - Si es true, no muestra mensajes (útil para carga automática)
      */
-    async obtenerCotizacionBCRA(silencioso = false) {
+    async obtenerCotizacionDolar(silencioso = false) {
       if (!silencioso) {
         this.isLoading = true;
         this.loadingContext = 'Obteniendo cotización del dólar...';

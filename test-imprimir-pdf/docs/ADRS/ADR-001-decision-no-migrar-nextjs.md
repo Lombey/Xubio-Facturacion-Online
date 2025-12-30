@@ -123,7 +123,8 @@ test-imprimir-pdf/
 - **APIs:**
   - `/api/auth` - Autenticación
   - `/api/proxy` - Proxy a Xubio
-  - `/api/bcra` - Proxy a BCRA
+- **Integraciones externas:**
+  - **DolarAPI.com** - Cotizaciones del dólar (consumida directamente desde el frontend)
 
 ## Métricas de Éxito
 
