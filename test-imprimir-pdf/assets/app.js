@@ -82,7 +82,7 @@ export const appOptions = {
       facturaClienteId: '',
       facturaTipoimpresion: '1',
       facturaCotizacion: '1',
-      facturaMoneda: 'ARS', // Moneda seleccionada para la factura
+      facturaMoneda: '', // Moneda seleccionada para la factura (se selecciona DOLARES automáticamente al cargar)
       monedasList: [], // Lista de monedas disponibles desde la API
       facturaObservacion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5',
       facturaDescripcion: '', // Descripción general de la factura (campo documentado en swagger)
@@ -984,11 +984,14 @@ export const appOptions = {
             transaccionPercepcionItems: []
           };
 
-          // Agregar moneda si no es ARS
-          if (this.facturaMoneda === 'USD' || (this.facturaMoneda && this.facturaMoneda !== 'ARS')) {
+          // Agregar moneda si no es ARS/PESOS_ARGENTINOS (moneda extranjera)
+          const esMonedaExtranjera = this.facturaMoneda && 
+            this.facturaMoneda !== 'ARS' && 
+            this.facturaMoneda !== 'PESOS_ARGENTINOS';
+          
+          if (esMonedaExtranjera) {
             const monedaSeleccionada = this.monedasList.find(m => 
-              m.codigo === this.facturaMoneda || 
-              m.codigo === 'USD'
+              m.codigo === this.facturaMoneda
             ) || await this.obtenerMoneda(this.facturaMoneda);
             
             if (monedaSeleccionada) {

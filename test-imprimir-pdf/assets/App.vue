@@ -221,16 +221,16 @@
       <div class="form-group">
         <label for="facturaMoneda">Moneda:</label>
         <select id="facturaMoneda" v-model="facturaMoneda" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-          <option v-if="monedasList.length === 0" value="ARS">ARS - Pesos Argentinos (cargando...)</option>
+          <option v-if="monedasList.length === 0" value="" disabled>Cargando monedas...</option>
           <option v-for="moneda in monedasList" :key="moneda.id || moneda.ID" :value="moneda.codigo">
             {{ moneda.codigo }} - {{ moneda.nombre }}
           </option>
         </select>
-        <div v-if="monedasList.length > 0" style="font-size: 11px; color: #666; margin-top: 3px;">
-          💡 {{ monedasList.length }} monedas cargadas. DOLARES seleccionado por defecto.
+        <div v-if="monedasList.length > 0 && facturaMoneda" style="font-size: 11px; color: #28a745; margin-top: 3px;">
+          ✅ {{ monedasList.length }} monedas cargadas. <strong>{{ facturaMoneda }}</strong> seleccionada.
         </div>
       </div>
-      <div class="form-group" v-if="facturaMoneda !== 'ARS'">
+      <div class="form-group" v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS'">
         <label for="facturaCotizacion">Cotización ({{ facturaMoneda }}):</label>
         <div style="display: flex; gap: 10px; align-items: center;">
           <input type="number" id="facturaCotizacion" v-model.number="facturaCotizacion" step="0.01" min="0.01" placeholder="Ej: 1.00" style="flex: 1;">
@@ -327,8 +327,8 @@
         <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
           <div style="font-weight: bold; margin-bottom: 5px;">⚙️ Configuración:</div>
           <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 14px;">
-            <div><strong>Moneda:</strong> {{ facturaMoneda }}</div>
-            <div v-if="facturaMoneda !== 'ARS'"><strong>Cotización:</strong> ${{ formatearPrecio(facturaCotizacion) }}</div>
+            <div><strong>Moneda:</strong> {{ facturaMoneda || 'Cargando...' }}</div>
+            <div v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS'"><strong>Cotización:</strong> ${{ formatearPrecio(facturaCotizacion) }}</div>
             <div><strong>Fecha:</strong> {{ new Date().toISOString().split('T')[0] }}</div>
             <div><strong>Vencimiento:</strong> {{ fechaVencimiento }}</div>
           </div>
