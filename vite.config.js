@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     vue(),
     visualizer({
-      open: true,
+      open: false, // No abrir en CI/CD (Vercel)
       filename: 'dist/stats.html',
       gzipSize: true,
       brotliSize: true,
