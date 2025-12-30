@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
+  base: './', // Rutas relativas para compatibilidad con Vercel
   plugins: [
     vue(),
     visualizer({
