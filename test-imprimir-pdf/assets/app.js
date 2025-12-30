@@ -1089,10 +1089,26 @@ export const appOptions = {
         return;
       }
       
-      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      // Verificar que el punto de venta tenga un ID válido y sea editable-sugerido
-      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
-      if (!puntoVentaId || !puntoVenta.editable || !puntoVenta.sugerido) {
+      // Validar punto de venta seleccionado (manual o automático)
+      let puntoVentaValido = false;
+      let puntoVentaId = null;
+      
+      // Si hay un punto de venta seleccionado manualmente, validarlo
+      if (this.puntoVentaSeleccionadoParaFactura) {
+        const pv = this.puntoVentaSeleccionadoParaFactura;
+        puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        puntoVentaValido = puntoVentaId && ((esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1));
+      } else {
+        // Si no hay selección manual, usar el método automático
+        const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+        puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+        // El método obtenerPuntoVentaPorDefecto() ya filtra solo editable-sugerido
+        puntoVentaValido = !!puntoVentaId;
+      }
+      
+      if (!puntoVentaValido) {
         this.mostrarResultado('factura', 
           'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
           'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
@@ -1102,6 +1118,8 @@ export const appOptions = {
         this.loadingContext = '';
         return;
       }
+      
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
 
       this.isLoading = true;
       this.loadingContext = 'Creando factura...';
