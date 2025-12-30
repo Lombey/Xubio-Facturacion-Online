@@ -92,9 +92,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // IMPORTANTE: Vue 3 con compilador de templates
-      // Necesario porque usamos template strings en createApp()
-      'vue': 'vue/dist/vue.esm-bundler.js',
+      // Vue 3 runtime-only (sin compilador de templates)
+      // Los componentes SFC (.vue) se compilan en build time por @vitejs/plugin-vue
+      // Esto ahorra ~16KB en el bundle final
       '@': resolve(__dirname, 'test-imprimir-pdf/assets'),
       '@utils': resolve(__dirname, 'test-imprimir-pdf/assets/utils'),
       '@composables': resolve(__dirname, 'test-imprimir-pdf/assets/composables')

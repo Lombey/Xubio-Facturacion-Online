@@ -1,5 +1,8 @@
 // Punto de entrada principal para Vite
-// Este archivo se importa desde index.html y maneja el montaje de Vue
+// Este archivo importa el componente SFC App.vue y lo monta
+
+import { createApp } from 'vue';
+import App from './App.vue';
 
 // Solución preventiva para warnings de event listeners no-pasivos en touchstart
 // Intercepta addEventListener para hacer pasivos los listeners de touch cuando sea apropiado
@@ -17,80 +20,37 @@ if (typeof EventTarget !== 'undefined' && typeof window !== 'undefined') {
   };
 }
 
-// Importar la función factory de la app
-import appFactory from './app.js';
-
 // Función para montar la aplicación con manejo de errores
-async function mountApp() {
+function mountApp() {
   try {
     const appElement = document.getElementById('app');
     if (!appElement) {
       throw new Error('No se encontró el elemento #app');
     }
     
-    // Verificar que el elemento #app tenga contenido
-    if (!appElement.innerHTML || appElement.innerHTML.trim() === '') {
-      throw new Error('El elemento #app está vacío. Verifica que el HTML se haya cargado correctamente.');
-    }
+    // Crear la app de Vue con el componente SFC
+    const app = createApp(App);
     
-    // IMPORTANTE: Capturar el HTML ANTES de montar Vue
-    // Vue 3 reemplazará el contenido del elemento cuando se monte
-    const htmlTemplate = appElement.innerHTML;
-    console.log('📋 Template capturado, longitud:', htmlTemplate.length);
+    // Configurar error handler global para Vue
+    app.config.errorHandler = (err, instance, info) => {
+      console.error('🚨 Error global de Vue:', {
+        error: err,
+        component: instance?.$options?.name || 'Unknown',
+        info: info,
+        stack: err?.stack
+      });
+      
+      // Mostrar mensaje amigable al usuario si hay un método disponible
+      if (err && typeof err === 'object' && 'message' in err) {
+        const errorMessage = err.message || 'Ha ocurrido un error inesperado';
+        console.warn('💡 Considera mostrar este error al usuario:', errorMessage);
+      }
+    };
     
-    // Crear la app de Vue con el template capturado
-    const app = appFactory(htmlTemplate);
-    
-    if (!app || typeof app.mount !== 'function') {
-      throw new Error('La función factory no retornó una instancia válida de Vue app');
-    }
-    
-    // Limpiar el elemento antes de montar (Vue lo reemplazará con el template renderizado)
-    appElement.innerHTML = '';
-    
-    // Montar la aplicación - Vue renderizará el template
+    // Montar la aplicación
     const mountedApp = app.mount('#app');
     
-    // Verificar que el contenido se haya renderizado
-    setTimeout(() => {
-      const appAfterMount = document.getElementById('app');
-      if (appAfterMount && (!appAfterMount.innerHTML || appAfterMount.innerHTML.trim() === '')) {
-        console.error('❌ El contenido no se renderizó después del mount');
-        // Restaurar el HTML original como fallback
-        appAfterMount.innerHTML = htmlTemplate;
-      } else {
-        console.log('✅ Contenido renderizado correctamente');
-      }
-    }, 100);
-    
     console.log('✅ Vue montado correctamente');
-    console.log('📋 Instancia de Vue:', mountedApp);
-    console.log('📋 Contenido del #app después del mount:', document.getElementById('app')?.innerHTML?.substring(0, 200));
-    
-    // Verificar que los métodos estén disponibles
-    if (mountedApp && typeof mountedApp.handleTokenSubmit === 'function') {
-      console.log('✅ Método handleTokenSubmit está disponible');
-    } else {
-      console.warn('⚠️ Método handleTokenSubmit NO está disponible');
-      console.warn('⚠️ Tipo de mountedApp:', typeof mountedApp);
-      console.warn('⚠️ Propiedades de mountedApp:', Object.keys(mountedApp || {}));
-      
-      // Intentar acceder a través de $options
-      if (mountedApp && mountedApp.$options && mountedApp.$options.methods) {
-        console.warn('⚠️ Métodos en $options.methods:', Object.keys(mountedApp.$options.methods));
-      }
-    }
-    
-    // Verificar que el botón tenga el evento binding
-    setTimeout(() => {
-      const button = document.querySelector('button[type="button"]');
-      if (button) {
-        console.log('🔘 Botón encontrado:', button);
-        console.log('🔘 Atributos del botón:', Array.from(button.attributes).map(a => `${a.name}="${a.value}"`));
-      } else {
-        console.warn('⚠️ No se encontró el botón');
-      }
-    }, 1000);
     
     // Remover v-cloak después de montar
     requestAnimationFrame(() => {
@@ -99,14 +59,6 @@ async function mountApp() {
         appEl.removeAttribute('v-cloak');
       }
     });
-    
-    // Fallback: remover v-cloak después de 500ms
-    setTimeout(() => {
-      const appEl = document.getElementById('app');
-      if (appEl && appEl.hasAttribute('v-cloak')) {
-        appEl.removeAttribute('v-cloak');
-      }
-    }, 500);
     
     return mountedApp;
   } catch (error) {
@@ -155,4 +107,3 @@ if (document.readyState === 'loading') {
 } else {
   mountApp();
 }
-

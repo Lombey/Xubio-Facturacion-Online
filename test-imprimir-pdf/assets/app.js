@@ -1,6 +1,4 @@
 // @ts-nocheck - Vue desde CDN no tiene tipos completos
-// Importar Vue desde npm
-import { createApp } from 'vue';
 // Importar cache manager
 import cacheManager from './utils/cache.js';
 // Importar formatters
@@ -67,14 +65,10 @@ import ClienteSelector from './components/ClienteSelector.vue';
  */
 
 // @ts-ignore - Vue component definition
-// Función factory para crear la app de Vue
-// Nota: El template se maneja restaurando el HTML después del mount (ver main.js)
-export default function createAppWithTemplate(template) {
-  const app = createApp({
-    // Pasar el template capturado del DOM
-    // Vue 3 lo renderizará cuando se monte la aplicación
-    template: template || '<div>Error: No se proporcionó template</div>',
-    data() {
+// Opciones del componente principal - exportadas para ser usadas en App.vue (SFC)
+// Esto permite usar Vue sin el compilador de templates en runtime (~16KB menos)
+export const appOptions = {
+  data() {
     return {
       // Autenticación
       accessToken: null,
@@ -2641,31 +2635,11 @@ export default function createAppWithTemplate(template) {
       }
     }
   }
-  });
-  
-  // Configurar error handler global para Vue
-  app.config.errorHandler = (err, instance, info) => {
-    console.error('🚨 Error global de Vue:', {
-      error: err,
-      component: instance?.$options?.name || 'Unknown',
-      info: info,
-      stack: err?.stack
-    });
-    
-    // Mostrar mensaje amigable al usuario si hay un método disponible
-    // (esto se maneja mejor en cada componente, pero aquí capturamos errores no manejados)
-    if (err && typeof err === 'object' && 'message' in err) {
-      const errorMessage = err.message || 'Ha ocurrido un error inesperado';
-      console.warn('💡 Considera mostrar este error al usuario:', errorMessage);
-    }
-  };
-  
-  return app;
-}
+};
 
 // Manejar errores no capturados de Promises (solo una vez, no por cada instancia)
 // Este handler se registra globalmente y no necesita cleanup ya que es para toda la app
-if (!window.__vueErrorHandlersInitialized) {
+if (typeof window !== 'undefined' && !window.__vueErrorHandlersInitialized) {
   window.__vueErrorHandlersInitialized = true;
   const unhandledRejectionHandler = (event) => {
     console.error('🚨 Promise rechazada no manejada:', event.reason);
@@ -2674,3 +2648,6 @@ if (!window.__vueErrorHandlersInitialized) {
   // Guardar referencia para posible cleanup futuro si es necesario
   window.__vueUnhandledRejectionHandler = unhandledRejectionHandler;
 }
+
+// Export por defecto para compatibilidad
+export default appOptions;
