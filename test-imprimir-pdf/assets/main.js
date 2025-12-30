@@ -46,16 +46,12 @@ async function mountApp() {
     const mountedApp = app.mount('#app');
     
     // Verificar si el contenido desapareció y restaurarlo si es necesario
+    // (Esto no debería pasar ahora que tenemos el template definido, pero lo dejamos como fallback)
     setTimeout(() => {
       const appEl = document.getElementById('app');
       if (appEl && (appEl.innerHTML.trim() === '' || appEl.innerHTML.trim() === '<!---->')) {
         console.warn('⚠️ El contenido HTML desapareció después de montar Vue');
-        console.warn('🔄 Restaurando contenido HTML original...');
-        // Restaurar el HTML original
-        appEl.innerHTML = existingHTML;
-        // Remontar Vue con el template explícito
-        // Necesitamos recrear la app con el template
-        console.warn('💡 Necesitamos definir el template explícitamente en la app');
+        console.warn('💡 Esto no debería pasar con el template definido. Revisa la configuración.');
       }
     }, 100);
     
