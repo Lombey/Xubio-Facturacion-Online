@@ -466,18 +466,23 @@ export default function createAppWithTemplate(template) {
      * @param {boolean} forceRefresh - Si es true, fuerza la renovación del token
      */
     async obtenerToken(forceRefresh = false) {
+      console.log('🔐 obtenerToken llamado:', { forceRefresh, hasClientId: !!this.clientId, hasSecretId: !!this.secretId });
+      
       let clientId = this.clientId.trim();
       let secretId = this.secretId.trim();
       
       // Si no hay en el formulario, intentar desde localStorage
       if (!clientId) {
         clientId = localStorage.getItem('xubio_clientId') || '';
+        console.log('📦 ClientId obtenido de localStorage:', !!clientId);
       }
       if (!secretId) {
         secretId = localStorage.getItem('xubio_secretId') || '';
+        console.log('📦 SecretId obtenido de localStorage:', !!secretId);
       }
 
       if (!clientId || !secretId) {
+        console.error('❌ Credenciales faltantes:', { hasClientId: !!clientId, hasSecretId: !!secretId });
         this.mostrarResultado('token', 'Error: Completa Client ID y Secret ID', 'error');
         return;
       }
@@ -490,11 +495,13 @@ export default function createAppWithTemplate(template) {
 
       this.isLoading = true;
       this.loadingContext = 'Obteniendo token...';
-      this.isLoading = true;
-      this.loadingContext = 'Obteniendo token...';
       this.mostrarResultado('token', 'Obteniendo token...', 'info');
+      
+      // Asegurar que Vue detecte el cambio
+      await this.$nextTick();
 
       try {
+        console.log('📤 Enviando petición de autenticación a /api/auth...');
         const response = await fetch('/api/auth', {
           method: 'POST',
           headers: {
@@ -504,7 +511,7 @@ export default function createAppWithTemplate(template) {
           body: JSON.stringify({ clientId, secretId })
         });
 
-        console.log('📥 Token response:', response.status, response.statusText);
+        console.log('📥 Token response:', response.status, response.statusText, response.ok);
 
         let data;
         try {
@@ -517,15 +524,39 @@ export default function createAppWithTemplate(template) {
         }
 
         if (response.ok && data) {
-          this.accessToken = data.access_token || data.token;
+          const token = data.access_token || data.token;
+          
+          // Validar que el token existe
+          if (!token) {
+            console.error('❌ Token no encontrado en la respuesta:', data);
+            const errorMsg = `❌ Error: El servidor no devolvió un token válido.\n\nRespuesta recibida: ${JSON.stringify(data, null, 2)}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
+            this.mostrarResultado('token', errorMsg, 'error');
+            return;
+          }
+          
+          this.accessToken = token;
           const expiresIn = parseInt(data.expires_in || 3600, 10);
           this.tokenExpiration = Date.now() + (expiresIn * 1000);
+
+          console.log('✅ Token obtenido y guardado:', {
+            tokenLength: this.accessToken.length,
+            expiresIn,
+            expiration: new Date(this.tokenExpiration).toLocaleString(),
+            tokenValido: this.tokenValido
+          });
 
           if (this.guardarCredenciales) {
             localStorage.setItem('xubio_clientId', clientId);
             localStorage.setItem('xubio_secretId', secretId);
             localStorage.setItem('xubio_token', this.accessToken);
             localStorage.setItem('xubio_tokenExpiration', this.tokenExpiration.toString());
+          }
+
+          // Validar que el token se guardó correctamente
+          if (!this.accessToken) {
+            console.error('❌ Error: Token no se guardó en this.accessToken');
+            this.mostrarResultado('token', '❌ Error: El token no se guardó correctamente. Revisa la consola (F12).', 'error');
+            return;
           }
 
           this.mostrarResultado('token',
@@ -544,11 +575,20 @@ export default function createAppWithTemplate(template) {
           // Cargar cuentas disponibles
           await this.obtenerCuentas();
         } else {
-          const errorMsg = `❌ Error obteniendo token:\n\nStatus: ${response.status} ${response.statusText}\n\n${data.error || data.message || 'Error desconocido'}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
+          console.error('❌ Error en respuesta de token:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: data
+          });
+          const errorMsg = `❌ Error obteniendo token:\n\nStatus: ${response.status} ${response.statusText}\n\n${data?.error || data?.message || 'Error desconocido'}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
           this.mostrarResultado('token', errorMsg, 'error');
         }
       } catch (error) {
+        console.error('❌ Error completo en obtenerToken:', error);
         this.handleError(error, 'Obtención de token', 'token');
+        // Asegurar que se limpien los estados incluso si hay error
+        this.isLoading = false;
+        this.loadingContext = '';
       } finally {
         this.isLoading = false;
         this.loadingContext = '';
@@ -1383,8 +1423,19 @@ export default function createAppWithTemplate(template) {
      */
     async listarProductos(forceRefresh = false) {
       if (!this.accessToken) {
-        alert('Primero obtén un token de acceso');
-        return;
+        console.warn('⚠️ No hay token de acceso. Intentando obtener token...');
+        this.mostrarResultado('productosList', '⚠️ No hay token de acceso. Obteniendo token...', 'info');
+        try {
+          await this.obtenerToken();
+          if (!this.accessToken) {
+            this.mostrarResultado('productosList', '❌ Error: No se pudo obtener el token. Por favor, obtén un token primero.', 'error');
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error obteniendo token:', error);
+          this.mostrarResultado('productosList', `❌ Error obteniendo token: ${error.message}`, 'error');
+          return;
+        }
       }
 
       // 1. Verificar cache en memoria
@@ -2106,8 +2157,19 @@ export default function createAppWithTemplate(template) {
      */
     async listarClientes(forceRefresh = false) {
       if (!this.accessToken) {
-        alert('Primero obtén un token de acceso');
-        return;
+        console.warn('⚠️ No hay token de acceso. Intentando obtener token...');
+        this.mostrarResultado('clientesList', '⚠️ No hay token de acceso. Obteniendo token...', 'info');
+        try {
+          await this.obtenerToken();
+          if (!this.accessToken) {
+            this.mostrarResultado('clientesList', '❌ Error: No se pudo obtener el token. Por favor, obtén un token primero.', 'error');
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error obteniendo token:', error);
+          this.mostrarResultado('clientesList', `❌ Error obteniendo token: ${error.message}`, 'error');
+          return;
+        }
       }
 
       // 1. Verificar cache en memoria (si ya está cargado y no se fuerza refresh)

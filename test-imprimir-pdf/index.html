@@ -37,8 +37,8 @@
                 <button type="submit" :disabled="isLoading">Obtener Token</button>
                 <button type="button" class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
             </form>
-            <div v-if="isLoading && loadingContext.includes('token')" class="info">
-                <span>⏳ </span><span v-text="loadingContext"></span><span>...</span>
+            <div v-if="isLoading && loadingContext && loadingContext.includes('token')" class="info">
+                ⏳ {{ loadingContext }}
             </div>
             <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
         </div>
