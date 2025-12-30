@@ -33,8 +33,11 @@ export function useXubio(obtenerToken, tokenValido, getAccessToken) {
     
     // Si ya hay un request pendiente con la misma clave, reutilizar
     if (requestKey && pendingRequests.has(requestKey)) {
-      console.log('🔄 Reutilizando request pendiente:', requestKey);
-      return pendingRequests.get(requestKey);
+      const pendingRequest = pendingRequests.get(requestKey);
+      if (pendingRequest) {
+        console.log('🔄 Reutilizando request pendiente:', requestKey);
+        return pendingRequest;
+      }
     }
 
     // Crear promise para el request

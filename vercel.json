@@ -1,5 +1,8 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "test-imprimir-pdf/dist",
+  "installCommand": "npm install",
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -30,16 +33,20 @@
       "dest": "/api/bcra.js"
     },
     {
+      "src": "/api/auth",
+      "dest": "/api/auth.js"
+    },
+    {
       "src": "/favicon.ico",
-      "dest": "/test-imprimir-pdf/favicon.ico"
+      "dest": "/favicon.ico"
     },
     {
       "src": "/favicon.svg",
-      "dest": "/test-imprimir-pdf/favicon.svg"
+      "dest": "/favicon.svg"
     },
     {
       "src": "/(.*)",
-      "dest": "/test-imprimir-pdf/$1"
+      "dest": "/$1"
     }
   ]
 }

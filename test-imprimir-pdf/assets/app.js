@@ -2471,5 +2471,29 @@ const app = createApp({
   }
 });
 
+// Configurar error handler global para Vue
+app.config.errorHandler = (err, instance, info) => {
+  console.error('🚨 Error global de Vue:', {
+    error: err,
+    component: instance?.$options?.name || 'Unknown',
+    info: info,
+    stack: err?.stack
+  });
+  
+  // Mostrar mensaje amigable al usuario si hay un método disponible
+  // (esto se maneja mejor en cada componente, pero aquí capturamos errores no manejados)
+  if (err && typeof err === 'object' && 'message' in err) {
+    const errorMessage = err.message || 'Ha ocurrido un error inesperado';
+    console.warn('💡 Considera mostrar este error al usuario:', errorMessage);
+  }
+};
+
+// Manejar errores no capturados de Promises
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🚨 Promise rechazada no manejada:', event.reason);
+  // Prevenir que aparezca en consola del navegador (opcional)
+  // event.preventDefault();
+});
+
 // Exportar la app para que index.html la monte
 export default app;

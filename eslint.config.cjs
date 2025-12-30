@@ -63,9 +63,17 @@ module.exports = [
     }
   },
   
-  // Ignorar node_modules y dist
+  // Ignorar node_modules, dist y archivos generados
   {
-    ignores: ['node_modules/**', 'dist/**', '.vercel/**']
+    ignores: [
+      'node_modules/**', 
+      'dist/**', 
+      '**/dist/**',
+      'test-imprimir-pdf/dist/**',
+      '.vercel/**',
+      '*.min.js',
+      '*.bundle.js'
+    ]
   },
   
   // Configuración para archivos de tipos TypeScript (.d.ts)

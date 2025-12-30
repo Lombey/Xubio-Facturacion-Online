@@ -24,7 +24,9 @@
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "**/dist/**",
+    "test-imprimir-pdf/dist/**"
   ]
 }
 

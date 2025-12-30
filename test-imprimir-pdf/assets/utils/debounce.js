@@ -8,7 +8,11 @@ export function debounce(func, wait = 300) {
   /** @type {ReturnType<typeof setTimeout> | null} */
   let timeout = null;
   
+  /**
+   * @param {any[]} args
+   */
   return function executedFunction(...args) {
+    /** @type {() => void} */
     const later = () => {
       timeout = null;
       func(...args);
