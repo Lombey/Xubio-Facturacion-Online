@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "routes": [
+    {
+      "src": "/api/proxy/(.*)",
+      "dest": "/api/proxy.js?path=$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/test-imprimir-pdf/$1"
+    }
+  ]
+}
+

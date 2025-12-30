@@ -1,6 +1,21 @@
 # Test Xubio - Imprimir PDF
 
-Aplicación HTML simple para probar el endpoint `/imprimirPDF` de la API de Xubio y determinar los valores válidos del parámetro `tipoimpresion`.
+Aplicación web para probar el endpoint `/imprimirPDF` de la API de Xubio y determinar los valores válidos del parámetro `tipoimpresion`.
+
+## 🚀 Despliegue en Vercel
+
+Esta aplicación está configurada para funcionar en **Vercel**. 
+
+### Configuración
+
+1. Conecta tu repositorio GitHub a Vercel
+2. Vercel detectará automáticamente la configuración desde `vercel.json`
+3. La aplicación se desplegará automáticamente en cada push
+
+### URLs
+
+- **Producción**: Se despliega automáticamente en tu dominio de Vercel
+- El proxy API está en `/api/proxy` y se configura automáticamente
 
 ## 🔐 Credenciales
 
@@ -13,45 +28,6 @@ Las credenciales de Xubio están almacenadas en el archivo `.xubio-credentials.m
 2. Copia el Client ID y Secret ID
 3. Pégalos en los campos correspondientes de la aplicación web
 4. Marca el checkbox "Guardar credenciales en localStorage" para no tener que ingresarlas cada vez
-
-## 🚀 Uso
-
-### ⚠️ IMPORTANTE: Problema de CORS
-
-La API de Xubio **NO permite peticiones directas desde navegadores** (ni localhost ni otros dominios). Por eso necesitas usar el **servidor proxy incluido**.
-
-### Opción 1: Servidor Proxy (RECOMENDADO) ✅
-
-El servidor proxy actúa como intermediario y evita problemas de CORS.
-
-**Windows:**
-```bash
-# Doble clic en start-server-proxy.bat
-# O desde terminal:
-cd test-imprimir-pdf
-python server-proxy.py
-```
-
-**Mac/Linux:**
-```bash
-cd test-imprimir-pdf
-python3 server-proxy.py
-```
-
-Luego abre: `http://localhost:8000/index.html`
-
-El servidor proxy:
-- ✅ Sirve los archivos estáticos (HTML, CSS, JS)
-- ✅ Hace las peticiones a Xubio desde el servidor (sin CORS)
-- ✅ Devuelve las respuestas al navegador con CORS habilitado
-
-### Opción 2: Servidor Simple (NO funciona por CORS)
-
-Si usas `python -m http.server 8000`, seguirás teniendo errores de CORS porque Xubio bloquea peticiones desde navegadores.
-
-### Opción 3: Extensión CORS (solo para desarrollo)
-
-Puedes instalar "CORS Unblock" o "Allow CORS" en Chrome, pero **el servidor proxy es la solución correcta**.
 
 ## 📋 Funcionalidades
 
@@ -72,7 +48,11 @@ Puedes instalar "CORS Unblock" o "Allow CORS" en Chrome, pero **el servidor prox
    - Visualizar PDF en iframe
    - Descargar PDF
 
-4. **Obtener PDF de Comprobante Existente**:
+4. **Listar Facturas**:
+   - Ver facturas del último mes
+   - Seleccionar facturas para usar sus IDs
+
+5. **Obtener PDF de Comprobante Existente**:
    - Probar el endpoint `/imprimirPDF` con diferentes valores de `tipoimpresion`
    - Visualizar y descargar PDFs
 
@@ -91,24 +71,7 @@ Puedes instalar "CORS Unblock" o "Allow CORS" en Chrome, pero **el servidor prox
 - **Seguridad**: Las credenciales NO están hardcodeadas en el código. Se almacenan localmente en `.xubio-credentials.md` (excluido de git) y opcionalmente en localStorage del navegador
 - **No compartas tus credenciales**: No subas el archivo `.xubio-credentials.md` al repositorio. Está en `.gitignore`
 - **Facturas de prueba**: La opción de crear factura crea facturas reales en Xubio, úsala con cuidado
-- **CORS**: Si hay problemas de CORS, puedes usar una extensión del navegador o ejecutar un servidor local simple
-
-## 🔧 Solución de problemas CORS
-
-Si encuentras errores de CORS, puedes:
-
-1. **Usar un servidor local simple**:
-   ```bash
-   # Python 3
-   python -m http.server 8000
-   
-   # Node.js (con http-server)
-   npx http-server
-   ```
-
-2. **Usar una extensión del navegador** que deshabilite CORS (solo para desarrollo)
-
-3. **Probar desde GitHub Pages** (si lo subes a un repo)
+- **CORS**: La aplicación usa un proxy serverless en Vercel (`/api/proxy`) para evitar problemas de CORS
 
 ## 📝 Resultados esperados
 
@@ -116,4 +79,3 @@ Una vez que determines qué valores de `tipoimpresion` funcionan, documenta:
 - Valores válidos encontrados
 - Qué representa cada valor (si es posible determinarlo)
 - Errores específicos para valores inválidos
-
