@@ -109,6 +109,13 @@ const app = createApp({
       busquedaProducto: '',
       mostrarDropdownProductos: false,
       
+      // Clientes
+      clientesList: [],
+      clientesListResult: { message: '', type: '', visible: false },
+      busquedaCliente: '',
+      mostrarDropdownClientes: false,
+      clienteSeleccionado: null,
+      
       // Valores de configuración (maestros)
       centrosDeCosto: [],
       depositos: [],
@@ -466,10 +473,52 @@ const app = createApp({
         return;
       }
 
-      const clienteId = this.facturaClienteId.trim();
+      let clienteId = this.facturaClienteId.trim();
+
+      // Si el campo contiene un CUIT (formato XX-XXXXXXXX-X), buscar el cliente
+      if (clienteId && clienteId.match(/^\d{2}-\d{8}-\d{1}$/)) {
+        const cuitSinFormato = clienteId.replace(/\D/g, '');
+        const clienteEncontrado = this.clientesList.find(c => {
+          const cuitCliente = (c.cuit || c.identificacionTributaria?.numero || '').replace(/\D/g, '');
+          return cuitCliente === cuitSinFormato;
+        });
+        
+        if (clienteEncontrado) {
+          clienteId = (clienteEncontrado.cliente_id || clienteEncontrado.id || clienteEncontrado.ID).toString();
+          this.facturaClienteId = clienteId;
+          this.clienteSeleccionado = clienteEncontrado;
+        } else {
+          // Si no está en la lista cargada, intentar buscar en la API
+          try {
+            const { response, data } = await this.requestXubio('/clienteBean', 'GET', null, {
+              activo: 1,
+              numeroIdentificacion: cuitSinFormato
+            });
+            
+            if (response.ok && Array.isArray(data) && data.length > 0) {
+              const cliente = data[0];
+              clienteId = (cliente.cliente_id || cliente.id || cliente.ID).toString();
+              this.facturaClienteId = clienteId;
+              this.clienteSeleccionado = cliente;
+            } else {
+              this.mostrarResultado('factura', 
+                `Error: No se encontró un cliente con CUIT ${clienteId}. Asegúrate de haber listado los clientes primero.`, 
+                'error'
+              );
+              return;
+            }
+          } catch (error) {
+            this.mostrarResultado('factura', 
+              `Error: No se pudo buscar el cliente con CUIT ${clienteId}. ${error.message}`, 
+              'error'
+            );
+            return;
+          }
+        }
+      }
 
       if (!clienteId) {
-        this.mostrarResultado('factura', 'Error: Completa Cliente ID', 'error');
+        this.mostrarResultado('factura', 'Error: Completa Cliente ID o selecciona un cliente de la lista', 'error');
         return;
       }
 
@@ -515,11 +564,20 @@ const app = createApp({
             const iva = importe - (importe / (1 + tasaIVA / 100));
             const total = importe; // Total con IVA incluido
             
+            // Obtener ID del producto (según Swagger: productoid es el campo correcto)
+            const productoId = item.producto_id || item.producto?.productoid || item.producto?.id || item.producto?.ID;
+            
             const detalle = {
               cantidad: cantidad,
               precio: precio,
               descripcion: item.producto?.descripcion || item.producto?.nombre || 'Producto sin descripción',
-              producto: item.producto_id ? { id: item.producto_id } : undefined,
+              // Según Swagger: producto debe tener al menos ID e id
+              producto: productoId ? { 
+                ID: productoId, 
+                id: productoId,
+                nombre: item.producto?.nombre || '',
+                codigo: item.producto?.codigo || ''
+              } : undefined,
               // Campos requeridos según Swagger
               iva: parseFloat(iva.toFixed(2)),
               importe: parseFloat(importe.toFixed(2)),
@@ -634,10 +692,50 @@ const app = createApp({
         return;
       }
 
-      const clienteId = this.facturaClienteId.trim();
+      let clienteId = this.facturaClienteId.trim();
+
+      // Si el campo contiene un CUIT (formato XX-XXXXXXXX-X), buscar el cliente
+      if (clienteId && clienteId.match(/^\d{2}-\d{8}-\d{1}$/)) {
+        const cuitSinFormato = clienteId.replace(/\D/g, '');
+        const clienteEncontrado = this.clientesList.find(c => {
+          const cuitCliente = (c.cuit || c.identificacionTributaria?.numero || '').replace(/\D/g, '');
+          return cuitCliente === cuitSinFormato;
+        });
+        
+        if (clienteEncontrado) {
+          clienteId = (clienteEncontrado.cliente_id || clienteEncontrado.id || clienteEncontrado.ID).toString();
+          this.facturaClienteId = clienteId;
+        } else {
+          // Si no está en la lista cargada, intentar buscar en la API
+          try {
+            const { response, data } = await this.requestXubio('/clienteBean', 'GET', null, {
+              activo: 1,
+              numeroIdentificacion: cuitSinFormato
+            });
+            
+            if (response.ok && Array.isArray(data) && data.length > 0) {
+              const cliente = data[0];
+              clienteId = (cliente.cliente_id || cliente.id || cliente.ID).toString();
+              this.facturaClienteId = clienteId;
+            } else {
+              this.mostrarResultado('factura', 
+                `Error: No se encontró un cliente con CUIT ${clienteId}. Asegúrate de haber listado los clientes primero.`, 
+                'error'
+              );
+              return;
+            }
+          } catch (error) {
+            this.mostrarResultado('factura', 
+              `Error: No se pudo buscar el cliente con CUIT ${clienteId}. ${error.message}`, 
+              'error'
+            );
+            return;
+          }
+        }
+      }
 
       if (!clienteId) {
-        this.mostrarResultado('factura', 'Error: Completa Cliente ID', 'error');
+        this.mostrarResultado('factura', 'Error: Completa Cliente ID o selecciona un cliente de la lista', 'error');
         return;
       }
 
@@ -746,6 +844,8 @@ const app = createApp({
           }
           const comp = compResponse.data;
 
+          // Según documentación: CobranzaBean requiere transaccionInstrumentoDeCobro (no mediosDePago)
+          // detalleCobranzas puede ser un campo válido para asociar comprobantes, pero también necesitamos instrumentos de cobro
           payload = {
             circuitoContable: comp.circuitoContable || { ID: 1 },
             cliente: { cliente_id: parseInt(clienteId) },
@@ -753,7 +853,16 @@ const app = createApp({
             monedaCtaCte: comp.moneda || { ID: 1 },
             cotizacion: comp.cotizacion || 1,
             utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
-            mediosDePago: [],
+            // Según documentación: transaccionInstrumentoDeCobro es el campo correcto para medios de pago
+            transaccionInstrumentoDeCobro: [{
+              cuentaTipo: 1, // Tipo de cuenta (1 = Caja, ajustar según necesidad)
+              cuenta: { ID: 1, id: 1 }, // Cuenta de caja por defecto
+              moneda: comp.moneda || { ID: 1 },
+              cotizacion: comp.cotizacion || 1,
+              importe: parseFloat(importe),
+              descripcion: `Cobranza de factura ${idComprobante}`
+            }],
+            // detalleCobranzas puede ser necesario para asociar el comprobante (verificar con API)
             detalleCobranzas: [{
               idComprobante: parseInt(idComprobante),
               importe: parseFloat(importe)
@@ -811,6 +920,8 @@ const app = createApp({
           }
           const comp = compResponse.data;
 
+          // Según documentación: CobranzaBean requiere transaccionInstrumentoDeCobro (no mediosDePago)
+          // detalleCobranzas puede ser un campo válido para asociar comprobantes, pero también necesitamos instrumentos de cobro
           payload = {
             circuitoContable: comp.circuitoContable || { ID: 1 },
             cliente: { cliente_id: parseInt(clienteId) },
@@ -818,7 +929,16 @@ const app = createApp({
             monedaCtaCte: comp.moneda || { ID: 1 },
             cotizacion: comp.cotizacion || 1,
             utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
-            mediosDePago: [],
+            // Según documentación: transaccionInstrumentoDeCobro es el campo correcto para medios de pago
+            transaccionInstrumentoDeCobro: [{
+              cuentaTipo: 1, // Tipo de cuenta (1 = Caja, ajustar según necesidad)
+              cuenta: { ID: 1, id: 1 }, // Cuenta de caja por defecto
+              moneda: comp.moneda || { ID: 1 },
+              cotizacion: comp.cotizacion || 1,
+              importe: parseFloat(importe),
+              descripcion: `Cobranza de factura ${idComprobante}`
+            }],
+            // detalleCobranzas puede ser necesario para asociar el comprobante (verificar con API)
             detalleCobranzas: [{
               idComprobante: parseInt(idComprobante),
               importe: parseFloat(importe)
@@ -1609,6 +1729,175 @@ const app = createApp({
         const descripcion = (p.descripcion || '').toLowerCase();
         return nombre.includes(busqueda) || codigo.includes(busqueda) || descripcion.includes(busqueda);
       });
+    },
+
+    /**
+     * Lista clientes activos
+     */
+    async listarClientes() {
+      if (!this.accessToken) {
+        alert('Primero obtén un token de acceso');
+        return;
+      }
+
+      this.isLoading = true;
+      this.loadingContext = 'Obteniendo clientes...';
+      this.mostrarResultado('clientesList', 'Obteniendo clientes...', 'info');
+      this.clientesList = [];
+
+      try {
+        // Obtener clientes activos
+        const { response, data } = await this.requestXubio('/clienteBean', 'GET', null, {
+          activo: 1
+        });
+
+        if (response.ok && Array.isArray(data)) {
+          console.log(`👥 Se obtuvieron ${data.length} clientes activos`);
+          
+          // Normalizar estructura de clientes
+          this.clientesList = data.map(cliente => {
+            const clienteId = cliente.cliente_id || cliente.id || cliente.ID;
+            const cuit = cliente.cuit || 
+                        cliente.identificacionTributaria?.numero || 
+                        cliente.CUIT ||
+                        '';
+            
+            return {
+              ...cliente,
+              cliente_id: clienteId,
+              cuit: cuit,
+              razonSocial: cliente.razonSocial || cliente.nombre || '',
+              nombre: cliente.nombre || cliente.razonSocial || ''
+            };
+          });
+          
+          this.mostrarResultado('clientesList', 
+            `✅ Se encontraron ${data.length} clientes activos`, 
+            'success'
+          );
+        } else {
+          this.mostrarResultado('clientesList',
+            `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
+            'error'
+          );
+        }
+      } catch (error) {
+        this.mostrarResultado('clientesList', `❌ Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
+      }
+    },
+
+    /**
+     * Filtra clientes según búsqueda (por CUIT, razón social o nombre)
+     */
+    clientesFiltrados() {
+      if (!this.busquedaCliente.trim()) {
+        return this.clientesList;
+      }
+      
+      const busqueda = this.busquedaCliente.toLowerCase().replace(/[-\s]/g, '');
+      return this.clientesList.filter(c => {
+        const razonSocial = (c.razonSocial || '').toLowerCase();
+        const nombre = (c.nombre || '').toLowerCase();
+        const cuit = this.formatearCUIT(c.cuit || c.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
+        const cuitSinFormato = (c.cuit || c.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
+        
+        return razonSocial.includes(busqueda) || 
+               nombre.includes(busqueda) || 
+               cuit.includes(busqueda) ||
+               cuitSinFormato.includes(busqueda);
+      });
+    },
+
+    /**
+     * Selecciona un cliente del dropdown y lo asigna al campo de factura
+     */
+    seleccionarClienteDelDropdown(cliente) {
+      const clienteId = cliente.cliente_id || cliente.id || cliente.ID;
+      if (clienteId) {
+        this.facturaClienteId = clienteId.toString();
+        this.cobranzaClienteId = clienteId.toString();
+        this.clienteSeleccionado = cliente;
+        this.busquedaCliente = '';
+        this.mostrarDropdownClientes = false;
+        
+        this.mostrarResultado('clientesList', 
+          `✅ Cliente seleccionado: ${cliente.razonSocial || cliente.nombre || 'Sin nombre'}\nCUIT: ${this.formatearCUIT(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A'}\nID: ${clienteId}\n\n💡 El ID se copió a los campos de factura y cobranza.`, 
+          'success'
+        );
+      }
+    },
+
+    /**
+     * Formatea un CUIT con guiones (formato: XX-XXXXXXXX-X)
+     * @param {string} cuit - CUIT sin formato o con formato
+     * @returns {string} CUIT formateado
+     */
+    formatearCUIT(cuit) {
+      if (!cuit) return '';
+      
+      // Remover todos los caracteres no numéricos
+      const soloNumeros = cuit.toString().replace(/\D/g, '');
+      
+      // Si tiene 11 dígitos, formatear como XX-XXXXXXXX-X
+      if (soloNumeros.length === 11) {
+        return `${soloNumeros.substring(0, 2)}-${soloNumeros.substring(2, 10)}-${soloNumeros.substring(10, 11)}`;
+      }
+      
+      // Si tiene menos de 11 dígitos pero es válido, devolver sin formato
+      if (soloNumeros.length > 0 && soloNumeros.length < 11) {
+        return soloNumeros;
+      }
+      
+      // Si ya está formateado correctamente, devolverlo tal cual
+      if (cuit.match(/^\d{2}-\d{8}-\d{1}$/)) {
+        return cuit;
+      }
+      
+      return cuit; // Devolver original si no coincide con ningún patrón
+    },
+
+    /**
+     * Formatea el input de CUIT mientras el usuario escribe
+     * @param {Event} event - Evento del input
+     */
+    formatearCUITInput(event) {
+      const input = event.target;
+      const valor = input.value;
+      
+      // Si el campo es facturaClienteId o cobranzaClienteId y parece ser un CUIT
+      if ((input.id === 'facturaClienteId' || input.id === 'cobranzaClienteId') && valor) {
+        // Si contiene solo números o números con guiones, formatear como CUIT
+        if (/^[\d-]+$/.test(valor)) {
+          const soloNumeros = valor.replace(/\D/g, '');
+          
+          // Si tiene más de 2 dígitos, formatear
+          if (soloNumeros.length > 2 && soloNumeros.length <= 11) {
+            let formateado = '';
+            
+            if (soloNumeros.length <= 2) {
+              formateado = soloNumeros;
+            } else if (soloNumeros.length <= 10) {
+              formateado = `${soloNumeros.substring(0, 2)}-${soloNumeros.substring(2)}`;
+            } else {
+              formateado = `${soloNumeros.substring(0, 2)}-${soloNumeros.substring(2, 10)}-${soloNumeros.substring(10, 11)}`;
+            }
+            
+            // Actualizar el valor solo si es diferente (evitar loops)
+            if (formateado !== valor) {
+              this.$nextTick(() => {
+                if (input.id === 'facturaClienteId') {
+                  this.facturaClienteId = formateado;
+                } else if (input.id === 'cobranzaClienteId') {
+                  this.cobranzaClienteId = formateado;
+                }
+              });
+            }
+          }
+        }
+      }
     }
   }
 });

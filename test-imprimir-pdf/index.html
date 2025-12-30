@@ -125,6 +125,72 @@
             </div>
         </div>
 
+        <!-- Sección 2.5: Clientes -->
+        <div class="section">
+            <h2>2.5. Clientes</h2>
+            <div class="info">
+                💡 Lista clientes activos y selecciona el que quieras usar en la factura
+            </div>
+            <button @click="listarClientes()" :disabled="isLoading">👥 Listar Clientes Activos</button>
+            <div v-if="clientesListResult.visible" :class="['result', clientesListResult.type]" v-html="formatoMensaje(clientesListResult.message)"></div>
+            
+            <div v-if="clientesList.length > 0" style="margin-top: 15px;">
+                <div class="form-group">
+                    <label for="selectorCliente">🔍 Buscar Cliente:</label>
+                    <div style="position: relative;">
+                        <input 
+                            type="text" 
+                            id="selectorCliente" 
+                            v-model="busquedaCliente" 
+                            @input="mostrarDropdownClientes = true"
+                            @focus="mostrarDropdownClientes = true"
+                            @blur="setTimeout(() => mostrarDropdownClientes = false, 200)"
+                            placeholder="Buscar por CUIT, razón social o nombre..."
+                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div 
+                            v-if="mostrarDropdownClientes && clientesFiltrados().length > 0"
+                            style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 2px;">
+                            <div 
+                                v-for="cliente in clientesFiltrados()" 
+                                :key="cliente.cliente_id || cliente.id || cliente.ID"
+                                @click="seleccionarClienteDelDropdown(cliente)"
+                                style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;"
+                                @mouseenter="$event.target.style.backgroundColor = '#f5f5f5'"
+                                @mouseleave="$event.target.style.backgroundColor = 'white'">
+                                <div>
+                                    <strong>{{ cliente.razonSocial || cliente.nombre || 'Sin nombre' }}</strong>
+                                    <div style="font-size: 12px; color: #666;">
+                                        CUIT: {{ formatearCUIT(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A' }}
+                                        <span v-if="cliente.cliente_id || cliente.id || cliente.ID" style="margin-left: 10px;">
+                                            | ID: {{ cliente.cliente_id || cliente.id || cliente.ID }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div 
+                            v-if="mostrarDropdownClientes && clientesFiltrados().length === 0 && busquedaCliente.trim()"
+                            style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; z-index: 1000; margin-top: 2px;">
+                            <div style="color: #666; text-align: center;">No se encontraron clientes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="clienteSeleccionado" style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 4px; border: 1px solid #4caf50;">
+                <strong>✅ Cliente Seleccionado:</strong>
+                <div style="margin-top: 5px;">
+                    <strong>{{ clienteSeleccionado.razonSocial || clienteSeleccionado.nombre || 'Sin nombre' }}</strong>
+                    <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                        CUIT: {{ formatearCUIT(clienteSeleccionado.cuit || clienteSeleccionado.identificacionTributaria?.numero || '') || 'N/A' }}
+                        <span v-if="clienteSeleccionado.cliente_id || clienteSeleccionado.id || clienteSeleccionado.ID" style="margin-left: 10px;">
+                            | ID: {{ clienteSeleccionado.cliente_id || clienteSeleccionado.id || clienteSeleccionado.ID }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Sección 3: Flujo Completo - Factura -->
         <div class="section">
             <h2>3. Flujo Completo: Factura → PDF</h2>
@@ -133,7 +199,16 @@
             </div>
             <div class="form-group">
                 <label for="facturaClienteId">Cliente ID:</label>
-                <input type="number" id="facturaClienteId" v-model="facturaClienteId" placeholder="ID del cliente">
+                <input 
+                    type="text" 
+                    id="facturaClienteId" 
+                    v-model="facturaClienteId" 
+                    placeholder="ID del cliente (se completa automáticamente al seleccionar)"
+                    @input="formatearCUITInput($event)"
+                    style="width: 100%;">
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    💡 Puedes ingresar el ID directamente o usar la búsqueda de clientes arriba. Si ingresas solo números, se formateará como CUIT automáticamente.
+                </div>
             </div>
             <div class="form-group">
                 <label for="facturaTipoimpresion">Tipo Impresión (para PDF):</label>
@@ -176,7 +251,13 @@
             </div>
             <div class="form-group">
                 <label for="cobranzaClienteId">Cliente ID:</label>
-                <input type="number" id="cobranzaClienteId" v-model="cobranzaClienteId" placeholder="ID del cliente">
+                <input 
+                    type="text" 
+                    id="cobranzaClienteId" 
+                    v-model="cobranzaClienteId" 
+                    placeholder="ID del cliente (usa la búsqueda de clientes arriba)"
+                    @input="formatearCUITInput($event)"
+                    style="width: 100%;">
             </div>
             <div class="form-group">
                 <label for="cobranzaIdComprobante">ID Comprobante (Factura a cobrar):</label>
