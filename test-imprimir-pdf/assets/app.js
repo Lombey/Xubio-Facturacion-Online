@@ -69,7 +69,11 @@ import ClienteSelector from './components/ClienteSelector.vue';
 // @ts-ignore - Vue component definition
 // Función factory para crear la app con el template
 export default function createAppWithTemplate(template) {
-  return createApp({
+  console.log('🏭 Factory: Creando app con template');
+  console.log('- Template recibido length:', template?.length || 0);
+  console.log('- Template recibido (primeros 200 chars):', template?.substring(0, 200) || 'undefined');
+  
+  const app = createApp({
     // Usar el template pasado como parámetro
     template: template || undefined,
     data() {

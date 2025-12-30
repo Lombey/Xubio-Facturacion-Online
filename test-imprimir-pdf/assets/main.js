@@ -29,7 +29,10 @@ async function mountApp() {
     
     // Capturar el template del DOM (por si no se capturó antes)
     const templateToUse = templateHTML || appElement.innerHTML;
-    console.log('📦 Template a usar:', templateToUse.substring(0, 200) + '...');
+    console.log('📦 Template capturado del DOM:');
+    console.log('- Longitud:', templateToUse.length);
+    console.log('- Primeros 300 caracteres:', templateToUse.substring(0, 300));
+    console.log('- ¿Está vacío?', templateToUse.trim() === '');
     
     // Crear la app de Vue con el template
     console.log('📦 Creando aplicación Vue con template...');
@@ -40,10 +43,17 @@ async function mountApp() {
     }
     
     console.log('✅ Aplicación Vue creada correctamente');
+    console.log('📦 Verificando configuración de la app:');
+    console.log('- ¿Tiene template?', !!app._instance?.type?.template);
+    console.log('- Config de la app:', app.config);
+    
     console.log('📦 Montando aplicación Vue...');
+    console.log('📦 HTML antes de mount:', appElement.innerHTML.substring(0, 200) + '...');
     
     // Montar la aplicación
     const mountedApp = app.mount('#app');
+    
+    console.log('📦 HTML después de mount:', appElement.innerHTML.substring(0, 200) + '...');
     
     // Verificar si el contenido desapareció y restaurarlo si es necesario
     // (Esto no debería pasar ahora que tenemos el template definido, pero lo dejamos como fallback)
