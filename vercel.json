@@ -10,6 +10,14 @@
       "dest": "/api/bcra.js"
     },
     {
+      "src": "/favicon.ico",
+      "dest": "/test-imprimir-pdf/favicon.ico"
+    },
+    {
+      "src": "/favicon.svg",
+      "dest": "/test-imprimir-pdf/favicon.svg"
+    },
+    {
       "src": "/(.*)",
       "dest": "/test-imprimir-pdf/$1"
     }

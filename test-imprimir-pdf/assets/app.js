@@ -1,9 +1,17 @@
 // @ts-nocheck - Vue desde CDN no tiene tipos completos
-// Configuración para Vercel - siempre usar /api/proxy
-const PROXY_BASE = '/api/proxy';
-
-// @ts-ignore - Vue se carga desde CDN
-const { createApp } = Vue;
+// Importar Vue desde npm
+import { createApp } from 'vue';
+// Importar cache manager
+import cacheManager from './utils/cache.js';
+// Importar formatters
+import { formatoMensaje as formatoMensajeUtil, formatearPrecio as formatearPrecioUtil, formatearCUIT as formatearCUITUtil } from './utils/formatters.js';
+// Importar composable Xubio
+import useXubio from './composables/useXubio.js';
+// Importar composable Auth (para funciones auxiliares)
+import useAuth from './composables/useAuth.js';
+// Importar componentes
+import ProductoSelector from './components/ProductoSelector.vue';
+import ClienteSelector from './components/ClienteSelector.vue';
 
 /**
  * @typedef {Object} AppData
@@ -142,7 +150,10 @@ const app = createApp({
       
       // Estados de carga y error
       isLoading: false,
-      loadingContext: ''
+      loadingContext: '',
+      
+      // Cliente Xubio (se inicializa en mounted)
+      xubioClient: null
     };
   },
   computed: {
@@ -264,6 +275,13 @@ const app = createApp({
     }
   },
   async mounted() {
+    // Inicializar cliente Xubio
+    this.xubioClient = useXubio(
+      (forceRefresh) => this.obtenerToken(forceRefresh),
+      () => this.tokenValido,
+      () => this.accessToken
+    );
+    
     // Cargar credenciales guardadas
     const savedClientId = localStorage.getItem('xubio_clientId');
     const savedSecretId = localStorage.getItem('xubio_secretId');
@@ -316,9 +334,13 @@ const app = createApp({
       }, 2000); // Esperar 2 segundos para que el token se obtenga
     }
   },
+  components: {
+    ProductoSelector,
+    ClienteSelector
+  },
   methods: {
     /**
-     * Sistema de Cache con TTL
+     * Sistema de Cache con TTL - Delegado a cacheManager
      * TTL por tipo de dato:
      * - Clientes: 24 horas
      * - Productos: 12 horas
@@ -332,49 +354,17 @@ const app = createApp({
      * @returns {any|null} Datos cacheados o null si expiró/no existe
      */
     getCachedData(key) {
-      try {
-        const cached = localStorage.getItem(`xubio_cache_${key}`);
-        if (!cached) return null;
-        
-        const { data, timestamp, ttl } = JSON.parse(cached);
-        const now = Date.now();
-        
-        // Si expiró, eliminar y retornar null
-        if (now - timestamp > ttl) {
-          localStorage.removeItem(`xubio_cache_${key}`);
-          console.log(`⏰ Cache expirado para: ${key}`);
-          return null;
-        }
-        
-        const edad = Math.floor((now - timestamp) / 1000 / 60); // minutos
-        console.log(`✅ Cache válido para: ${key} (edad: ${edad} minutos)`);
-        return data;
-      } catch (error) {
-        console.error(`❌ Error leyendo cache ${key}:`, error);
-        localStorage.removeItem(`xubio_cache_${key}`);
-        return null;
-      }
+      return cacheManager.getCachedData(key);
     },
     
     /**
      * Guarda datos en el cache con TTL
      * @param {string} key - Clave del cache
      * @param {any} data - Datos a cachear
-     * @param {number} ttl - TTL en milisegundos
+     * @param {number} ttl - TTL en milisegundos (opcional)
      */
     setCachedData(key, data, ttl) {
-      try {
-        localStorage.setItem(`xubio_cache_${key}`, JSON.stringify({
-          data,
-          timestamp: Date.now(),
-          ttl
-        }));
-        console.log(`💾 Cache guardado para: ${key} (TTL: ${Math.floor(ttl / 1000 / 60)} minutos)`);
-      } catch (error) {
-        console.error(`❌ Error guardando cache ${key}:`, error);
-        // Si localStorage está lleno, intentar limpiar caches viejos
-        this.limpiarCachesExpirados();
-      }
+      return cacheManager.setCachedData(key, data, ttl);
     },
     
     /**
@@ -382,62 +372,26 @@ const app = createApp({
      * @param {string} key - Clave del cache a invalidar
      */
     invalidarCache(key) {
-      localStorage.removeItem(`xubio_cache_${key}`);
-      console.log(`🗑️ Cache invalidado: ${key}`);
+      return cacheManager.invalidarCache(key);
     },
     
     /**
      * Limpia todos los caches expirados
      */
     limpiarCachesExpirados() {
-      const keys = Object.keys(localStorage);
-      let limpiados = 0;
-      
-      keys.forEach(key => {
-        if (key.startsWith('xubio_cache_')) {
-          try {
-            const cached = localStorage.getItem(key);
-            if (cached) {
-              const { timestamp, ttl } = JSON.parse(cached);
-              if (Date.now() - timestamp > ttl) {
-                localStorage.removeItem(key);
-                limpiados++;
-              }
-            }
-          } catch (error) {
-            // Si hay error parseando, eliminar
-            localStorage.removeItem(key);
-            limpiados++;
-          }
-        }
-      });
-      
-      if (limpiados > 0) {
-        console.log(`🧹 Limpiados ${limpiados} caches expirados`);
-      }
+      return cacheManager.limpiarCachesExpirados();
     },
     
     /**
      * Limpia todos los caches manualmente (útil para debugging)
      */
     limpiarTodosLosCaches() {
-      const keys = Object.keys(localStorage);
-      let limpiados = 0;
-      
-      keys.forEach(key => {
-        if (key.startsWith('xubio_cache_')) {
-          localStorage.removeItem(key);
-          limpiados++;
-        }
-      });
-      
       // También limpiar datos en memoria
       this.clientesList = [];
       this.productosList = [];
       this.listaPrecioAGDP = null;
       
-      console.log(`🗑️ Limpiados ${limpiados} caches manualmente`);
-      return limpiados;
+      return cacheManager.limpiarTodosLosCaches();
     },
     
     /**
@@ -446,13 +400,7 @@ const app = createApp({
      * @returns {number} TTL en milisegundos
      */
     getTTL(tipo) {
-      const ttlMap = {
-        'clientes': 24 * 60 * 60 * 1000,      // 24 horas
-        'productos': 12 * 60 * 60 * 1000,     // 12 horas
-        'listaPrecios': 6 * 60 * 60 * 1000,   // 6 horas
-        'maestros': 7 * 24 * 60 * 60 * 1000   // 7 días
-      };
-      return ttlMap[tipo] || 60 * 60 * 1000; // Default: 1 hora
+      return cacheManager.getTTL(tipo);
     },
     
     /**
@@ -460,7 +408,7 @@ const app = createApp({
      * @returns {string}
      */
     formatoMensaje(mensaje) {
-      return mensaje ? mensaje.replace(/\n/g, '<br>') : '';
+      return formatoMensajeUtil(mensaje);
     },
     
     /**
@@ -586,10 +534,11 @@ const app = createApp({
     },
 
     limpiarCredenciales() {
-      localStorage.removeItem('xubio_clientId');
-      localStorage.removeItem('xubio_secretId');
-      localStorage.removeItem('xubio_token');
-      localStorage.removeItem('xubio_tokenExpiration');
+      // Usar el composable para limpiar
+      const auth = useAuth();
+      auth.limpiarCredenciales();
+      
+      // Sincronizar con el estado del componente
       this.clientId = '';
       this.secretId = '';
       this.accessToken = null;
@@ -606,65 +555,15 @@ const app = createApp({
      * @returns {Promise<{response: Response, data: object}>}
      */
     async requestXubio(endpoint, method = 'GET', payload = null, queryParams = null) {
-      // Verificar y renovar token si es necesario
-      if (!this.tokenValido) {
-        await this.obtenerToken(true);
+      if (!this.xubioClient) {
+        // Inicializar si no está inicializado
+        this.xubioClient = useXubio(
+          (forceRefresh) => this.obtenerToken(forceRefresh),
+          () => this.tokenValido,
+          () => this.accessToken
+        );
       }
-
-      // Construir URL usando el proxy
-      let url = `${PROXY_BASE}${endpoint}`;
-      
-      if (queryParams) {
-        const params = new URLSearchParams(queryParams);
-        url += '?' + params.toString();
-      }
-
-      const options = {
-        method: method,
-        headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
-          'Accept': 'application/json'
-        }
-      };
-
-      if (method !== 'GET' && payload) {
-        options.headers['Content-Type'] = 'application/json';
-        options.body = JSON.stringify(payload);
-      }
-
-      console.log('🔍 Request Xubio:', { url, method, payload: payload ? JSON.stringify(payload).substring(0, 200) : null });
-
-      try {
-        const response = await fetch(url, options);
-        
-        console.log('📥 Response recibida:', response.status, response.statusText);
-
-        let data;
-        try {
-          const text = await response.text();
-          console.log('📄 Response body (primeros 500 chars):', text.substring(0, 500));
-          data = text ? JSON.parse(text) : null;
-        } catch (parseError) {
-          console.error('❌ Error parseando JSON:', parseError);
-          throw new Error(`Error parseando respuesta JSON: ${parseError.message}`);
-        }
-
-        // Si el token expiró, renovar y reintentar
-        if (response.status === 401) {
-          console.log('🔄 Token expirado, renovando...');
-          await this.obtenerToken(true);
-          options.headers['Authorization'] = `Bearer ${this.accessToken}`;
-          const retryResponse = await fetch(url, options);
-          const retryText = await retryResponse.text();
-          const retryData = retryText ? JSON.parse(retryText) : null;
-          return { response: retryResponse, data: retryData };
-        }
-
-        return { response, data };
-      } catch (error) {
-        console.error('❌ Error en fetch:', error);
-        throw error;
-      }
+      return this.xubioClient.requestXubio(endpoint, method, payload, queryParams);
     },
 
     /**
@@ -2091,10 +1990,7 @@ const app = createApp({
      * Formatea el precio para mostrar
      */
     formatearPrecio(precio) {
-      if (!precio || precio === 0) {
-        return '0.00';
-      }
-      return parseFloat(precio).toFixed(2);
+      return formatearPrecioUtil(precio);
     },
     
     /**
@@ -2369,27 +2265,7 @@ const app = createApp({
      * @returns {string} CUIT formateado
      */
     formatearCUIT(cuit) {
-      if (!cuit) return '';
-      
-      // Remover todos los caracteres no numéricos
-      const soloNumeros = cuit.toString().replace(/\D/g, '');
-      
-      // Si tiene 11 dígitos, formatear como XX-XXXXXXXX-X
-      if (soloNumeros.length === 11) {
-        return `${soloNumeros.substring(0, 2)}-${soloNumeros.substring(2, 10)}-${soloNumeros.substring(10, 11)}`;
-      }
-      
-      // Si tiene menos de 11 dígitos pero es válido, devolver sin formato
-      if (soloNumeros.length > 0 && soloNumeros.length < 11) {
-        return soloNumeros;
-      }
-      
-      // Si ya está formateado correctamente, devolverlo tal cual
-      if (cuit.match(/^\d{2}-\d{8}-\d{1}$/)) {
-        return cuit;
-      }
-      
-      return cuit; // Devolver original si no coincide con ningún patrón
+      return formatearCUITUtil(cuit);
     },
 
     /**
@@ -2595,4 +2471,5 @@ const app = createApp({
   }
 });
 
-app.mount('#app');
+// Exportar la app para que index.html la monte
+export default app;

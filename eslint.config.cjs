@@ -31,6 +31,7 @@ module.exports = [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         URLSearchParams: 'readonly',
+        Blob: 'readonly',
         // Vue desde CDN
         Vue: 'readonly'
       },
