@@ -28,29 +28,22 @@ async function mountApp() {
       throw new Error('No se encontró el elemento #app');
     }
     
-    // Capturar el template del DOM - debe hacerse cuando el DOM está listo
-    const templateToUse = appElement.innerHTML;
-    
-    if (!templateToUse || templateToUse.trim() === '') {
-      throw new Error('No se pudo capturar el template del DOM. El elemento #app está vacío.');
+    // Verificar que el elemento #app tenga contenido
+    if (!appElement.innerHTML || appElement.innerHTML.trim() === '') {
+      throw new Error('El elemento #app está vacío. Verifica que el HTML se haya cargado correctamente.');
     }
     
-    console.log('📋 Template capturado, longitud:', templateToUse.length);
-    console.log('📋 Primeros 200 caracteres del template:', templateToUse.substring(0, 200));
+    console.log('📋 Elemento #app encontrado, contenido presente');
     
-    // Crear la app de Vue con el template
-    // Según la documentación de Vue 3, el template se pasa en la configuración
-    const app = appFactory(templateToUse);
+    // Crear la app de Vue (sin pasar template - Vue usará el HTML del elemento)
+    const app = appFactory('');
     
     if (!app || typeof app.mount !== 'function') {
       throw new Error('La función factory no retornó una instancia válida de Vue app');
     }
     
-    // Limpiar el contenido del elemento antes de montar
-    // Vue 3 reemplazará el contenido con el template renderizado
-    appElement.innerHTML = '';
-    
-    // Montar la aplicación (Vue renderizará el template que pasamos en la configuración)
+    // Montar la aplicación directamente en el elemento que ya tiene el HTML
+    // Vue 3 usará el HTML existente como template
     const mountedApp = app.mount('#app');
     
     console.log('✅ Vue montado correctamente');

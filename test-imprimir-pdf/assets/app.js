@@ -71,9 +71,8 @@ import ClienteSelector from './components/ClienteSelector.vue';
 // Nota: El template se maneja restaurando el HTML después del mount (ver main.js)
 export default function createAppWithTemplate(template) {
   const app = createApp({
-    // Pasar el template directamente a Vue según la documentación oficial
-    // Vue 3 renderizará este template cuando se monte
-    template: template,
+    // NO pasar template - Vue montará directamente en el elemento #app
+    // que ya contiene el HTML. Esto es más simple y funciona mejor.
     data() {
     return {
       // Autenticación
