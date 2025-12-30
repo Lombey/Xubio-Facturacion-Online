@@ -347,13 +347,27 @@ const app = createApp({
         return;
       }
 
-      const transId = transaccionId || this.transaccionId.trim();
-      const tipo = tipoimpresion || this.tipoimpresion.trim();
+      const transIdStr = transaccionId || this.transaccionId.trim();
+      const tipoStr = tipoimpresion || this.tipoimpresion.trim();
       const resultKey = seccion === 'factura' ? 'factura' : seccion === 'cobranza' ? 'cobranza' : 'pdf';
       const viewerKey = `${resultKey}PdfViewer`;
 
-      if (!transId || !tipo) {
+      if (!transIdStr || !tipoStr) {
         this.mostrarResultado(resultKey, 'Error: Completa Transaction ID y Tipo Impresión', 'error');
+        return;
+      }
+
+      // Convertir a enteros y validar que sean mayores a 0
+      const transId = parseInt(transIdStr, 10);
+      const tipo = parseInt(tipoStr, 10);
+
+      if (isNaN(transId) || transId <= 0) {
+        this.mostrarResultado(resultKey, 'Error: Transaction ID debe ser un número mayor a 0', 'error');
+        return;
+      }
+
+      if (isNaN(tipo) || tipo <= 0) {
+        this.mostrarResultado(resultKey, 'Error: Tipo Impresión debe ser un número mayor a 0', 'error');
         return;
       }
 

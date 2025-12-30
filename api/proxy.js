@@ -52,7 +52,21 @@ export default async function handler(req, res) {
     }
     
     // Construir URL completa de Xubio
-    const url = `${XUBIO_BASE_URL}${path}`;
+    let url = `${XUBIO_BASE_URL}${path}`;
+    
+    // Pasar los query params a la URL de Xubio (excluyendo 'path' que es solo para el proxy)
+    if (req.query && typeof req.query === 'object') {
+      const queryParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(req.query)) {
+        if (key !== 'path' && value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      }
+      const queryString = queryParams.toString();
+      if (queryString) {
+        url += '?' + queryString;
+      }
+    }
     
     console.log(`[PROXY] ${req.method} ${url} (path: ${path})`);
 
