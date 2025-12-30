@@ -40,14 +40,29 @@
 </template>
 
 <script>
+/**
+ * @typedef {import('../types/models').Cliente} Cliente
+ * @typedef {import('../types/models').ClienteRaw} ClienteRaw
+ */
+
 import { formatearCUIT } from '../utils/formatters.js';
 import { filtrarClientes } from '../utils/domain-filters.js';
 import BaseSelector from './BaseSelector.vue';
 
+/**
+ * Obtiene el label de un cliente para mostrar
+ * @param {Cliente | ClienteRaw} cliente - Cliente normalizado o crudo
+ * @returns {string} Label del cliente
+ */
 function getClienteLabel(cliente) {
   return cliente.razonSocial || cliente.nombre || 'Sin nombre';
 }
 
+/**
+ * Obtiene la clave única de un cliente
+ * @param {Cliente | ClienteRaw} cliente - Cliente normalizado o crudo
+ * @returns {number | undefined} ID del cliente
+ */
 function getClienteKey(cliente) {
   return cliente.cliente_id || cliente.id || cliente.ID;
 }
@@ -58,10 +73,12 @@ export default {
     BaseSelector
   },
   props: {
+    /** @type {import('vue').PropType<(Cliente | ClienteRaw)[]>} */
     clientes: {
       type: Array,
       default: () => []
     },
+    /** @type {import('vue').PropType<Cliente | ClienteRaw | null>} */
     clienteSeleccionado: {
       type: Object,
       default: null
@@ -73,6 +90,10 @@ export default {
     getClienteLabel,
     getClienteKey,
     filtrarClientes,
+    /**
+     * Maneja la selección de un cliente
+     * @param {Cliente | ClienteRaw} cliente - Cliente seleccionado
+     */
     seleccionarCliente(cliente) {
       this.$emit('select-cliente', cliente);
     }

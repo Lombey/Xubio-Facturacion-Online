@@ -74,14 +74,29 @@
 </template>
 
 <script>
+/**
+ * @typedef {import('../types/models').Producto} Producto
+ * @typedef {import('../types/models').ProductoRaw} ProductoRaw
+ */
+
 import { formatearPrecio } from '../utils/formatters.js';
 import { filtrarProductos } from '../utils/domain-filters.js';
 import BaseSelector from './BaseSelector.vue';
 
+/**
+ * Obtiene el label de un producto para mostrar
+ * @param {Producto | ProductoRaw} producto - Producto normalizado o crudo
+ * @returns {string} Label del producto
+ */
 function getProductoLabel(producto) {
   return producto.nombre || producto.codigo || 'Sin nombre';
 }
 
+/**
+ * Obtiene la clave única de un producto
+ * @param {Producto | ProductoRaw} producto - Producto normalizado o crudo
+ * @returns {number | undefined} ID del producto
+ */
 function getProductoKey(producto) {
   return producto.id || producto.ID;
 }
@@ -92,10 +107,12 @@ export default {
     BaseSelector
   },
   props: {
+    /** @type {import('vue').PropType<(Producto | ProductoRaw)[]>} */
     productos: {
       type: Array,
       default: () => []
     },
+    /** @type {import('vue').PropType<Array<{producto: Producto | ProductoRaw, cantidad: number, descripcionPersonalizada?: string}>>} */
     productosSeleccionados: {
       type: Array,
       default: () => []
@@ -107,6 +124,10 @@ export default {
     getProductoLabel,
     getProductoKey,
     filtrarProductos,
+    /**
+     * Maneja la selección de un producto
+     * @param {Producto | ProductoRaw} producto - Producto seleccionado
+     */
     seleccionarProducto(producto) {
       this.$emit('select-producto', producto);
     }
