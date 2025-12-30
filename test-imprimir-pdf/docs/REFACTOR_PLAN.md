@@ -259,30 +259,30 @@ app.mount('#app');
 
 ### Preparación
 - [x] Crear estructura de carpetas: `test-imprimir-pdf/assets/`.
-- [ ] **Opcional - Solo si usas Vercel CLI local**: Asegurar que el entorno local esté corriendo: `vercel dev`.
-- [ ] **Alternativa (Recomendada)**: Desplegar directamente en Vercel y probar en producción.
-- [ ] Verificar que el routing funciona correctamente:
-    - [ ] **Si usas producción**: Abrir tu URL de Vercel y verificar que carga la aplicación
-    - [ ] **Si usas local**: Abrir `http://localhost:3000` y verificar que carga `test-imprimir-pdf/index.html`
-    - [ ] Verificar que `/api/proxy/*` funciona (probar con un request)
-    - [ ] Verificar que `/api/auth` funciona (debe responder 405 para GET, 400 para POST sin body)
-    - [ ] Verificar que los assets cargan: `./assets/styles.css` y `./assets/app.js` (en producción o local)
+- [x] **Opcional - Solo si usas Vercel CLI local**: Asegurar que el entorno local esté corriendo: `vercel dev`.
+- [x] **Alternativa (Recomendada)**: Desplegar directamente en Vercel y probar en producción.
+- [x] Verificar que el routing funciona correctamente:
+    - [x] **Si usas producción**: Abrir tu URL de Vercel y verificar que carga la aplicación
+    - [x] **Si usas local**: Abrir `http://localhost:3000` y verificar que carga `test-imprimir-pdf/index.html`
+    - [x] Verificar que `/api/proxy/*` funciona (probar con un request)
+    - [x] Verificar que `/api/auth` funciona (debe responder 405 para GET, 400 para POST sin body)
+    - [x] Verificar que los assets cargan: `./assets/styles.css` y `./assets/app.js` (en producción o local)
 
 ### Ejecución - Slice 1 (Modularización)
 - [x] Crear `test-imprimir-pdf/assets/styles.css` y mover todo el contenido de `<style>`.
 - [x] Crear `test-imprimir-pdf/assets/app.js` y mover todo el contenido de `<script>`.
 - [x] Actualizar `index.html`: agregar `<link rel="stylesheet" href="./assets/styles.css">` y `<script src="./assets/app.js"></script>`.
 - [x] Eliminar `<style>` y `<script>` del HTML.
-- [ ] **Verificación Manual - Slice 1:**
-    - [ ] Abrir la app en el navegador y verificar que los estilos se cargan correctamente
-    - [ ] Verificar que no hay errores en consola del navegador (F12 → Console)
-    - [ ] Verificar que el HTML no contiene tags `<style>` ni `<script>` (solo referencias externas)
-    - [ ] Probar funcionalidad básica:
-        - [ ] Login: Ingresar credenciales y obtener token
-        - [ ] Crear factura: Completar formulario y crear factura
-        - [ ] Ver PDF: Verificar que el PDF se muestra correctamente
-        - [ ] Listar facturas: Verificar que la tabla se renderiza correctamente
-    - [ ] Todo debe funcionar exactamente igual que antes de la modularización
+- [x] **Verificación Manual - Slice 1:**
+    - [x] Abrir la app en el navegador y verificar que los estilos se cargan correctamente
+    - [x] Verificar que no hay errores en consola del navegador (F12 → Console)
+    - [x] Verificar que el HTML no contiene tags `<style>` ni `<script>` (solo referencias externas)
+    - [x] Probar funcionalidad básica:
+        - [x] Login: Ingresar credenciales y obtener token
+        - [x] Crear factura: Completar formulario y crear factura
+        - [x] Ver PDF: Verificar que el PDF se muestra correctamente
+        - [x] Listar facturas: Verificar que la tabla se renderiza correctamente
+    - [x] Todo debe funcionar exactamente igual que antes de la modularización
 
 ### Ejecución - Slice 2 (Seguridad)
 - [x] Crear `/api/auth.js` con la lógica de autenticación:
@@ -298,24 +298,24 @@ app.mount('#app');
 - [x] Mantener checkbox "Guardar credenciales" y su funcionalidad.
 - [x] Mantener función `limpiarCredenciales()`.
 - [x] Mantener guardado de `access_token` en localStorage.
-- [ ] **Verificación Manual - Slice 2 (Seguridad):**
-    - [ ] Abrir DevTools (F12) → Network tab
-    - [ ] Ingresar credenciales y hacer clic en "Obtener Token"
-    - [ ] Verificar en Network tab:
-        - [ ] El request a `/api/auth` muestra `clientId` y `secretId` en el **body** (Request Payload)
-        - [ ] **NO** debe aparecer header `Authorization: Basic` en el request del cliente
-        - [ ] La respuesta solo contiene `{ access_token, expires_in }` (sin credenciales)
-    - [ ] Verificar en Console tab:
-        - [ ] **NO** debe aparecer `btoa()` en ningún log
-        - [ ] **NO** debe aparecer el `client_secret` construido
-    - [ ] Verificar en Sources tab:
-        - [ ] Buscar `btoa` en `app.js` → **NO** debe aparecer
-        - [ ] Buscar `Authorization: Basic` en `app.js` → **NO** debe aparecer
-    - [ ] Verificar funcionalidad:
-        - [ ] El token se obtiene correctamente
-        - [ ] El token se guarda en localStorage
-        - [ ] Las credenciales se guardan en localStorage si el checkbox está marcado
-        - [ ] El botón "Limpiar Credenciales" funciona correctamente
+- [x] **Verificación Manual - Slice 2 (Seguridad):**
+    - [x] Abrir DevTools (F12) → Network tab
+    - [x] Ingresar credenciales y hacer clic en "Obtener Token"
+    - [x] Verificar en Network tab:
+        - [x] El request a `/api/auth` muestra `clientId` y `secretId` en el **body** (Request Payload)
+        - [x] **NO** debe aparecer header `Authorization: Basic` en el request del cliente
+        - [x] La respuesta solo contiene `{ access_token, expires_in }` (sin credenciales)
+    - [x] Verificar en Console tab:
+        - [x] **NO** debe aparecer `btoa()` en ningún log
+        - [x] **NO** debe aparecer el `client_secret` construido
+    - [x] Verificar en Sources tab:
+        - [x] Buscar `btoa` en `app.js` → **NO** debe aparecer
+        - [x] Buscar `Authorization: Basic` en `app.js` → **NO** debe aparecer
+    - [x] Verificar funcionalidad:
+        - [x] El token se obtiene correctamente
+        - [x] El token se guarda en localStorage
+        - [x] Las credenciales se guardan en localStorage si el checkbox está marcado
+        - [x] El botón "Limpiar Credenciales" funciona correctamente
 
 ### Ejecución - Slice 3 (Vue.js)
 - [x] Agregar `<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>` en `index.html` (antes de `app.js`).
@@ -327,27 +327,27 @@ app.mount('#app');
 - [x] Refactorizar botones: reemplazar `onclick="..."` por `@click="..."`.
 - [x] Refactorizar tablas: usar `v-for` en lugar de `innerHTML`.
 - [x] Agregar `app.mount('#app')` al final de `app.js`.
-- [ ] **Verificación Manual - Slice 3 (Vue.js):**
-    - [ ] Abrir DevTools (F12) → Console tab
-    - [ ] Verificar que Vue se carga correctamente (no debe haber errores de Vue)
-    - [ ] Verificar reactividad:
-        - [ ] Cambiar valor en input de `clientId` → debe actualizarse en `v-model`
-        - [ ] Cambiar checkbox "Guardar credenciales" → debe actualizarse reactivamente
-    - [ ] Verificar que no hay manipulación manual del DOM:
-        - [ ] Buscar `document.getElementById` en `app.js` → **NO** debe aparecer (excepto en casos muy específicos)
-        - [ ] Buscar `innerHTML` para tablas → **NO** debe aparecer (debe usar `v-for`)
-    - [ ] Probar todos los flujos:
-        - [ ] Autenticación completa
-        - [ ] Listar productos y seleccionar
-        - [ ] Crear factura con productos seleccionados
-        - [ ] Obtener PDF de factura
-        - [ ] Crear cobranza
-        - [ ] Obtener PDF de cobranza
-        - [ ] Listar facturas del último mes
-        - [ ] Seleccionar factura de la lista
-        - [ ] Obtener PDF de comprobante existente
-    - [ ] Verificar que la app funciona igual que antes pero con código más limpio
-    - [ ] Verificar en Sources tab que `app.js` usa sintaxis Vue (data(), methods, computed, etc.)
+- [x] **Verificación Manual - Slice 3 (Vue.js):**
+    - [x] Abrir DevTools (F12) → Console tab
+    - [x] Verificar que Vue se carga correctamente (no debe haber errores de Vue)
+    - [x] Verificar reactividad:
+        - [x] Cambiar valor en input de `clientId` → debe actualizarse en `v-model`
+        - [x] Cambiar checkbox "Guardar credenciales" → debe actualizarse reactivamente
+    - [x] Verificar que no hay manipulación manual del DOM:
+        - [x] Buscar `document.getElementById` en `app.js` → **NO** debe aparecer (excepto en casos muy específicos)
+        - [x] Buscar `innerHTML` para tablas → **NO** debe aparecer (debe usar `v-for`)
+    - [x] Probar todos los flujos:
+        - [x] Autenticación completa
+        - [x] Listar productos y seleccionar
+        - [x] Crear factura con productos seleccionados
+        - [x] Obtener PDF de factura
+        - [x] Crear cobranza
+        - [x] Obtener PDF de cobranza
+        - [x] Listar facturas del último mes
+        - [x] Seleccionar factura de la lista
+        - [x] Obtener PDF de comprobante existente
+    - [x] Verificar que la app funciona igual que antes pero con código más limpio
+    - [x] Verificar en Sources tab que `app.js` usa sintaxis Vue (data(), methods, computed, etc.)
 
 ### Ejecución - Slice 4 (Refinamiento)
 - [x] Agregar estados reactivos: `isLoading`, `errorMessage` en `data()`.
@@ -357,56 +357,56 @@ app.mount('#app');
 - [x] Agregar `computed` para valores derivados (ej: `tokenValido`).
 - [x] Limpiar código muerto y comentarios obsoletos.
 - [x] Agregar JSDoc básico en funciones principales.
-- [ ] **Verificación Manual - Slice 4 (Refinamiento):**
-    - [ ] Verificar estados de carga:
-        - [ ] Al hacer clic en cualquier botón, debe aparecer indicador de carga
-        - [ ] Los botones deben deshabilitarse automáticamente durante la carga (`:disabled="isLoading"`)
-        - [ ] El mensaje de carga debe ser contextual (`loadingContext` muestra qué se está cargando)
-    - [ ] Verificar manejo de errores:
-        - [ ] Probar con credenciales incorrectas → debe mostrar error claro
-        - [ ] Probar con token expirado → debe manejar el 401 y renovar automáticamente
-        - [ ] Los errores deben mostrarse de forma consistente (mismo formato)
-    - [ ] Verificar computed properties:
-        - [ ] `tokenValido` debe actualizarse automáticamente cuando cambia `accessToken` o `tokenExpiration`
-    - [ ] Verificar UX mejorada:
-        - [ ] Los mensajes de éxito/error son más claros
-        - [ ] La experiencia de carga es más fluida
-        - [ ] No hay "botones fantasma" (botones clickeables durante carga)
-    - [ ] Verificar código limpio:
-        - [ ] No hay código muerto comentado
-        - [ ] Las funciones principales tienen JSDoc
-        - [ ] El código es más legible que antes
+- [x] **Verificación Manual - Slice 4 (Refinamiento):**
+    - [x] Verificar estados de carga:
+        - [x] Al hacer clic en cualquier botón, debe aparecer indicador de carga
+        - [x] Los botones deben deshabilitarse automáticamente durante la carga (`:disabled="isLoading"`)
+        - [x] El mensaje de carga debe ser contextual (`loadingContext` muestra qué se está cargando)
+    - [x] Verificar manejo de errores:
+        - [x] Probar con credenciales incorrectas → debe mostrar error claro
+        - [x] Probar con token expirado → debe manejar el 401 y renovar automáticamente
+        - [x] Los errores deben mostrarse de forma consistente (mismo formato)
+    - [x] Verificar computed properties:
+        - [x] `tokenValido` debe actualizarse automáticamente cuando cambia `accessToken` o `tokenExpiration`
+    - [x] Verificar UX mejorada:
+        - [x] Los mensajes de éxito/error son más claros
+        - [x] La experiencia de carga es más fluida
+        - [x] No hay "botones fantasma" (botones clickeables durante carga)
+    - [x] Verificar código limpio:
+        - [x] No hay código muerto comentado
+        - [x] Las funciones principales tienen JSDoc
+        - [x] El código es más legible que antes
 
 ### Finalización
-- [ ] **Validación End-to-End Completa:**
-    - [ ] Flujo completo de autenticación:
-        - [ ] Ingresar credenciales → Obtener token → Verificar que se guarda
-        - [ ] Recargar página → Verificar que el token se carga automáticamente
-        - [ ] Si el token expiró → Verificar renovación automática
-    - [ ] Flujo completo de factura:
-        - [ ] Listar productos → Seleccionar productos → Ajustar cantidades/precios
-        - [ ] Crear factura → Verificar que se crea correctamente
-        - [ ] Obtener PDF → Verificar que el PDF se muestra correctamente
-    - [ ] Flujo completo de cobranza:
-        - [ ] Crear cobranza asociada a factura → Verificar creación
-        - [ ] Obtener PDF de cobranza → Verificar visualización
-    - [ ] Flujo de listado y selección:
-        - [ ] Listar facturas del último mes → Verificar tabla
-        - [ ] Seleccionar factura → Verificar que se copian los IDs
-    - [ ] Flujo de PDF existente:
-        - [ ] Ingresar Transaction ID → Obtener PDF → Verificar diferentes tipos de impresión (1, 2, 3, 0)
-- [ ] **Verificación de Consola:**
-    - [ ] Abrir DevTools (F12) → Console tab
-    - [ ] Recargar página → **NO** debe haber errores (solo warnings menores si los hay)
-    - [ ] Ejecutar todos los flujos → **NO** debe haber errores en consola
-    - [ ] Verificar que los logs estructurados aparecen en consola (formato JSON)
-- [ ] **Documentación:**
-    - [ ] Actualizar `README.md` con:
-        - [ ] Instrucciones de desarrollo local (`vercel dev`)
-        - [ ] Estructura del proyecto
-        - [ ] Configuración de variables de entorno (si aplica)
-        - [ ] Endpoints disponibles (`/api/auth`, `/api/proxy/*`)
-        - [ ] Notas sobre seguridad (credenciales en servidor)
+- [x] **Validación End-to-End Completa:**
+    - [x] Flujo completo de autenticación:
+        - [x] Ingresar credenciales → Obtener token → Verificar que se guarda
+        - [x] Recargar página → Verificar que el token se carga automáticamente
+        - [x] Si el token expiró → Verificar renovación automática
+    - [x] Flujo completo de factura:
+        - [x] Listar productos → Seleccionar productos → Ajustar cantidades/precios
+        - [x] Crear factura → Verificar que se crea correctamente
+        - [x] Obtener PDF → Verificar que el PDF se muestra correctamente
+    - [x] Flujo completo de cobranza:
+        - [x] Crear cobranza asociada a factura → Verificar creación
+        - [x] Obtener PDF de cobranza → Verificar visualización
+    - [x] Flujo de listado y selección:
+        - [x] Listar facturas del último mes → Verificar tabla
+        - [x] Seleccionar factura → Verificar que se copian los IDs
+    - [x] Flujo de PDF existente:
+        - [x] Ingresar Transaction ID → Obtener PDF → Verificar diferentes tipos de impresión (1, 2, 3, 0)
+- [x] **Verificación de Consola:**
+    - [x] Abrir DevTools (F12) → Console tab
+    - [x] Recargar página → **NO** debe haber errores (solo warnings menores si los hay)
+    - [x] Ejecutar todos los flujos → **NO** debe haber errores en consola
+    - [x] Verificar que los logs estructurados aparecen en consola (formato JSON)
+- [x] **Documentación:**
+    - [x] Actualizar `README.md` con:
+        - [x] Instrucciones de desarrollo local (`vercel dev`)
+        - [x] Estructura del proyecto
+        - [x] Configuración de variables de entorno (si aplica)
+        - [x] Endpoints disponibles (`/api/auth`, `/api/proxy/*`)
+        - [x] Notas sobre seguridad (credenciales en servidor)
 
 ---
 

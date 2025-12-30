@@ -8,18 +8,49 @@ Aplicación web desplegada en **Vercel** para testing y gestión de la API de Xu
 
 ### 🚀 Despliegue
 
-La aplicación está configurada para funcionar en **Vercel**:
+La aplicación está configurada para funcionar en **Vercel** con **auto-deploy** en cada push.
 
-1. **Conectar repositorio**: 
+#### Primera Vez (Configuración Inicial)
+
+1. **Conectar repositorio a Vercel** (solo una vez):
    - Ve a https://vercel.com
-   - Importa el repositorio `Lombey/Xubio-Facturacion-Online`
-   - Vercel detectará automáticamente la configuración
+   - Haz clic en "Add New Project"
+   - Importa el repositorio `Lombey/Xubio-Facturacion-Online` (o el tuyo)
+   - Vercel detectará automáticamente la configuración desde `vercel.json`
+   - Haz clic en "Deploy"
 
-2. **Credenciales**:
-   - Las credenciales están en `.xubio-credentials.md` (no se sube a git)
-   - Cópialas en la aplicación web después del despliegue
+2. **Configuración automática**:
+   - Vercel detecta `vercel.json` y configura el routing automáticamente
+   - Los endpoints `/api/*` se configuran como serverless functions
+   - La app se despliega en tu dominio de Vercel (ej: `tu-app.vercel.app`)
 
-3. **URL**: La aplicación estará disponible en tu dominio de Vercel
+#### Despliegues Automáticos (Después de la Primera Vez)
+
+**✅ Cada push a la rama principal despliega automáticamente:**
+
+```bash
+# Hacer cambios en tu código
+git add .
+git commit -m "Descripción de los cambios"
+git push origin main  # o master, según tu rama principal
+```
+
+**Vercel automáticamente:**
+- Detecta el push
+- Ejecuta el build (si es necesario)
+- Despliega la nueva versión
+- La app queda disponible en ~1-2 minutos
+
+**Ver el estado del deploy:**
+- Ve a tu dashboard de Vercel
+- Verás el estado de cada deploy (Building → Ready)
+- Puedes ver los logs si hay errores
+
+#### Credenciales
+
+- Las credenciales están en `.xubio-credentials.md` (no se sube a git - está en `.gitignore`)
+- Después del primer deploy, copia las credenciales en la aplicación web
+- Opcionalmente, marca "Guardar credenciales" para no tener que ingresarlas cada vez
 
 ### ✨ Funcionalidades
 
