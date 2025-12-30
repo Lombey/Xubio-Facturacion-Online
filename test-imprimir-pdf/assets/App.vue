@@ -249,7 +249,7 @@
           </div>
           <div>
             <strong>Punto de Venta:</strong><br>
-            <span style="color: #666;">{{ puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre || 'No disponible' }}</span>
+            <span style="color: #666;">{{ puntoVentaSeleccionado.puntoVenta || puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre || 'No disponible' }}</span>
           </div>
           <div>
             <strong>Circuito Contable:</strong><br>
@@ -377,7 +377,7 @@
             <div><strong>Vencimiento:</strong> {{ fechaVencimiento }}</div>
             <div><strong>Punto de Venta:</strong> 
               <span :style="puntoVentaValido ? '' : 'color: #dc3545; font-weight: bold;'">
-                {{ puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre || 'No disponible' }}
+                {{ puntoVentaSeleccionado.puntoVenta || puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre || 'No disponible' }}
               </span>
               <span v-if="!puntoVentaValido" style="color: #dc3545; font-size: 11px; margin-left: 5px;">⚠️ Inválido</span>
             </div>
@@ -423,7 +423,7 @@
           <div>Centro de Costo: {{ centroDeCostoSeleccionado.nombre }}</div>
           <div>Depósito: {{ depositoSeleccionado.nombre }}</div>
           <div>Vendedor: {{ vendedorSeleccionado.nombre }}</div>
-          <div>Punto de Venta: {{ puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre }}</div>
+          <div>Punto de Venta: {{ puntoVentaSeleccionado.puntoVenta || puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre }}</div>
         </div>
       </div>
       

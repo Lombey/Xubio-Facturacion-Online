@@ -222,7 +222,8 @@ export const appOptions = {
       return {
         id: puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id,
         nombre: puntoVenta.nombre || 'No disponible',
-        codigo: puntoVenta.codigo || ''
+        codigo: puntoVenta.codigo || '',
+        puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '' // Campo "Punto de Venta" que contiene "00004"
       };
     },
     
@@ -2294,7 +2295,6 @@ export const appOptions = {
             const nombre = puntoVentaPorId.nombre || puntoVentaPorId.puntoVenta || 'N/A';
             this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID 212819 (${nombre}) encontrado y será usado por defecto`, 'success');
           } else if (puntoVenta00004) {
-            const nombre = puntoVenta00004.nombre || puntoVenta00004.puntoVenta || 'N/A';
             this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta con valor ${puntoVenta00004.puntoVenta || '00004'} encontrado y será usado por defecto`, 'success');
           } else {
             this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta ID 212819 o valor 00004 no encontrado. Se usará el primero disponible.`, 'info');
@@ -2384,7 +2384,7 @@ export const appOptions = {
         if (puntosEditableSugerido.length === 0) {
           console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
           // Retornar null para que la validación falle
-          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
+          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
         }
         
         // Buscar primero por ID específico (212819), luego por nombre 0004/00004
@@ -2403,7 +2403,8 @@ export const appOptions = {
               id: puntoVentaId,
               puntoVentaId: puntoVentaId,
               nombre: puntoVentaPorId.nombre || '',
-              codigo: puntoVentaPorId.codigo || puntoVentaPorId.puntoVenta || '',
+              codigo: puntoVentaPorId.codigo || '',
+              puntoVenta: puntoVentaPorId.puntoVenta || puntoVentaPorId.codigo || '', // Campo "Punto de Venta" que contiene "00004"
               // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
               editable: true,
               sugerido: true,
@@ -2428,7 +2429,8 @@ export const appOptions = {
               id: puntoVentaId,
               puntoVentaId: puntoVentaId,
               nombre: puntoVenta00004.nombre || '',
-              codigo: puntoVenta00004.codigo || puntoVenta00004.puntoVenta || '',
+              codigo: puntoVenta00004.codigo || '',
+              puntoVenta: puntoVenta00004.puntoVenta || puntoVenta00004.codigo || '', // Campo "Punto de Venta" que contiene "00004"
               // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
               editable: true,
               sugerido: true,
@@ -2448,7 +2450,8 @@ export const appOptions = {
             id: puntoVentaId,
             puntoVentaId: puntoVentaId,
             nombre: puntoVenta.nombre || '',
-            codigo: puntoVenta.codigo || puntoVenta.puntoVenta || '',
+            codigo: puntoVenta.codigo || '',
+            puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '', // Campo "Punto de Venta" que contiene "00004"
             // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
             editable: true,
             sugerido: true,
@@ -2457,11 +2460,11 @@ export const appOptions = {
         }
         // Si no tiene ID válido, retornar null para que la validación falle
         console.error('❌ Punto de venta editable-sugerido sin ID válido');
-        return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
+        return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
       }
       // Fallback si no hay puntos de venta cargados - retornar null para que la validación falle
       console.error('❌ No hay puntos de venta cargados');
-      return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
+      return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
     },
 
     /**
