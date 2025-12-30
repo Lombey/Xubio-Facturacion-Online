@@ -115,6 +115,10 @@ const app = createApp({
       busquedaCliente: '',
       mostrarDropdownClientes: false,
       clienteSeleccionado: null,
+      clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
+      
+      // Cotización
+      cotizacionActualizada: null, // Timestamp de última actualización
       
       // Valores de configuración (maestros)
       centrosDeCosto: [],
@@ -138,6 +142,17 @@ const app = createApp({
              this.tokenExpiration && 
              // @ts-ignore
              Date.now() < this.tokenExpiration - 60000;
+    },
+    
+    /**
+     * Calcula el total de productos seleccionados
+     */
+    totalProductosSeleccionados() {
+      return this.productosSeleccionados.reduce((total, item) => {
+        const cantidad = parseFloat(item.cantidad) || 0;
+        const precio = parseFloat(item.precio) || 0;
+        return total + (cantidad * precio);
+      }, 0);
     }
   },
   async mounted() {
@@ -175,6 +190,20 @@ const app = createApp({
     
     // Limpiar caches expirados al iniciar
     this.limpiarCachesExpirados();
+    
+    // Obtener cotización automáticamente al cargar (si hay token)
+    if (this.accessToken || (savedClientId && savedSecretId)) {
+      // Esperar un poco para que el token se obtenga si es necesario
+      setTimeout(async () => {
+        if (this.accessToken) {
+          try {
+            await this.obtenerCotizacionBCRA(true); // true = silencioso (sin mostrar mensajes)
+          } catch (error) {
+            console.warn('⚠️ No se pudo obtener cotización automáticamente:', error);
+          }
+        }
+      }, 2000); // Esperar 2 segundos para que el token se obtenga
+    }
   },
   methods: {
     /**
@@ -628,6 +657,7 @@ const app = createApp({
           clienteId = (clienteEncontrado.cliente_id || clienteEncontrado.id || clienteEncontrado.ID).toString();
           this.facturaClienteId = clienteId;
           this.clienteSeleccionado = clienteEncontrado;
+          this.clienteSeleccionadoParaFactura = clienteEncontrado; // Actualizar el card
         } else {
           // Si no está en la lista cargada, intentar buscar en la API
           try {
@@ -641,6 +671,7 @@ const app = createApp({
               clienteId = (cliente.cliente_id || cliente.id || cliente.ID).toString();
               this.facturaClienteId = clienteId;
               this.clienteSeleccionado = cliente;
+              this.clienteSeleccionadoParaFactura = cliente; // Actualizar el card
             } else {
               this.mostrarResultado('factura', 
                 `Error: No se encontró un cliente con CUIT ${clienteId}. Asegúrate de haber listado los clientes primero.`, 
@@ -846,6 +877,7 @@ const app = createApp({
         if (clienteEncontrado) {
           clienteId = (clienteEncontrado.cliente_id || clienteEncontrado.id || clienteEncontrado.ID).toString();
           this.facturaClienteId = clienteId;
+          this.clienteSeleccionadoParaFactura = clienteEncontrado; // Actualizar el card
         } else {
           // Si no está en la lista cargada, intentar buscar en la API
           try {
@@ -858,6 +890,7 @@ const app = createApp({
               const cliente = data[0];
               clienteId = (cliente.cliente_id || cliente.id || cliente.ID).toString();
               this.facturaClienteId = clienteId;
+              this.clienteSeleccionadoParaFactura = cliente; // Actualizar el card
             } else {
               this.mostrarResultado('factura', 
                 `Error: No se encontró un cliente con CUIT ${clienteId}. Asegúrate de haber listado los clientes primero.`, 
@@ -1411,11 +1444,14 @@ const app = createApp({
 
     /**
      * Obtiene la cotización del dólar vendedor del día desde dolarapi.com
+     * @param {boolean} silencioso - Si es true, no muestra mensajes (útil para carga automática)
      */
-    async obtenerCotizacionBCRA() {
-      this.isLoading = true;
-      this.loadingContext = 'Obteniendo cotización del dólar...';
-      this.mostrarResultado('factura', 'Obteniendo cotización del dólar vendedor del día...', 'info');
+    async obtenerCotizacionBCRA(silencioso = false) {
+      if (!silencioso) {
+        this.isLoading = true;
+        this.loadingContext = 'Obteniendo cotización del dólar...';
+        this.mostrarResultado('factura', 'Obteniendo cotización del dólar vendedor del día...', 'info');
+      }
 
       try {
         // Usar dolarapi.com para obtener dólar OFICIAL vendedor
@@ -1443,12 +1479,19 @@ const app = createApp({
           const precio = parseFloat(data.venta);
           if (!isNaN(precio) && precio > 0) {
             const fecha = data.fechaActualizacion ? new Date(data.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy';
+            const hora = data.fechaActualizacion ? new Date(data.fechaActualizacion).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
             
             this.facturaCotizacion = precio.toFixed(2);
-            this.mostrarResultado('factura', 
-              `✅ Cotización OFICIAL vendedor obtenida: $${precio.toFixed(2)} (actualizada ${fecha})`, 
-              'success'
-            );
+            this.cotizacionActualizada = `${fecha} ${hora}`;
+            
+            if (!silencioso) {
+              this.mostrarResultado('factura', 
+                `✅ Cotización OFICIAL vendedor obtenida: $${precio.toFixed(2)} (actualizada ${fecha} ${hora})`, 
+                'success'
+              );
+            } else {
+              console.log(`✅ Cotización actualizada automáticamente: $${precio.toFixed(2)}`);
+            }
             return;
           }
         }
@@ -1456,13 +1499,17 @@ const app = createApp({
         throw new Error('No se pudo obtener la cotización vendedor. La respuesta no contiene el formato esperado.');
       } catch (error) {
         console.error('❌ Error obteniendo cotización del dólar:', error);
-        this.mostrarResultado('factura', 
-          `❌ Error obteniendo cotización del dólar:\n\n${error.message}\n\n💡 Puedes ingresar la cotización manualmente.`, 
-          'error'
-        );
+        if (!silencioso) {
+          this.mostrarResultado('factura', 
+            `❌ Error obteniendo cotización del dólar:\n\n${error.message}\n\n💡 Puedes ingresar la cotización manualmente.`, 
+            'error'
+          );
+        }
       } finally {
-        this.isLoading = false;
-        this.loadingContext = '';
+        if (!silencioso) {
+          this.isLoading = false;
+          this.loadingContext = '';
+        }
       }
     },
 
@@ -2117,14 +2164,24 @@ const app = createApp({
         this.facturaClienteId = clienteId.toString();
         this.cobranzaClienteId = clienteId.toString();
         this.clienteSeleccionado = cliente;
+        this.clienteSeleccionadoParaFactura = cliente; // Para mostrar en el card de factura
         this.busquedaCliente = '';
         this.mostrarDropdownClientes = false;
         
         this.mostrarResultado('clientesList', 
-          `✅ Cliente seleccionado: ${cliente.razonSocial || cliente.nombre || 'Sin nombre'}\nCUIT: ${this.formatearCUIT(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A'}\nID: ${clienteId}\n\n💡 El ID se copió a los campos de factura y cobranza.`, 
+          `✅ Cliente seleccionado: ${cliente.razonSocial || cliente.nombre || 'Sin nombre'}\nCUIT: ${this.formatearCUIT(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A'}\nID: ${clienteId}\n\n💡 El cliente se asignó a la factura.`, 
           'success'
         );
       }
+    },
+    
+    /**
+     * Limpia el cliente seleccionado para la factura
+     */
+    limpiarClienteFactura() {
+      this.clienteSeleccionadoParaFactura = null;
+      this.facturaClienteId = '';
+      this.clienteSeleccionado = null;
     },
 
     /**

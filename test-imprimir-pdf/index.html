@@ -209,18 +209,80 @@
             <div class="info">
                 💡 Este flujo crea una factura y automáticamente obtiene su PDF
             </div>
-            <div class="form-group">
-                <label for="facturaClienteId">Cliente ID:</label>
-                <input 
-                    type="text" 
-                    id="facturaClienteId" 
-                    v-model="facturaClienteId" 
-                    placeholder="ID del cliente (se completa automáticamente al seleccionar)"
-                    @input="formatearCUITInput($event)"
-                    style="width: 100%;">
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                    💡 Puedes ingresar el ID directamente o usar la búsqueda de clientes arriba. Si ingresas solo números, se formateará como CUIT automáticamente.
+            
+            <!-- Cliente ID oculto (funcional pero no visible) -->
+            <input 
+                type="hidden" 
+                id="facturaClienteId" 
+                v-model="facturaClienteId" 
+                @input="formatearCUITInput($event)">
+            
+            <!-- Card de Cliente Seleccionado -->
+            <div v-if="clienteSeleccionadoParaFactura" style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">👤 Cliente</div>
+                        <div style="font-size: 20px; font-weight: bold; margin-bottom: 8px;">
+                            {{ clienteSeleccionadoParaFactura.razonSocial || clienteSeleccionadoParaFactura.nombre || 'Sin nombre' }}
+                        </div>
+                        <div style="font-size: 14px; opacity: 0.9;">
+                            <strong>CUIT:</strong> {{ formatearCUIT(clienteSeleccionadoParaFactura.cuit || clienteSeleccionadoParaFactura.identificacionTributaria?.numero || '') || 'N/A' }}
+                        </div>
+                    </div>
+                    <button 
+                        @click="limpiarClienteFactura()" 
+                        style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                        title="Cambiar cliente">
+                        ✕ Cambiar
+                    </button>
                 </div>
+            </div>
+            
+            <!-- Mensaje si no hay cliente seleccionado -->
+            <div v-if="!clienteSeleccionadoParaFactura" style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404;">
+                <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No hay cliente seleccionado</div>
+                <div style="font-size: 14px;">Por favor, selecciona un cliente desde la sección "2.5. Clientes" arriba.</div>
+            </div>
+            
+            <!-- Card de Productos Seleccionados -->
+            <div v-if="productosSeleccionados.length > 0" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #495057;">
+                    📦 Productos en la Factura ({{ productosSeleccionados.length }})
+                </div>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #dee2e6;">
+                                <th style="text-align: left; padding: 8px; font-size: 12px; color: #6c757d;">Producto</th>
+                                <th style="text-align: right; padding: 8px; font-size: 12px; color: #6c757d;">Cant.</th>
+                                <th style="text-align: right; padding: 8px; font-size: 12px; color: #6c757d;">Precio Unit.</th>
+                                <th style="text-align: right; padding: 8px; font-size: 12px; color: #6c757d;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(item, index) in productosSeleccionados" :key="index" style="border-bottom: 1px solid #e9ecef;">
+                                <td style="padding: 8px; font-size: 14px;">{{ item.producto.nombre || item.producto.codigo || 'Sin nombre' }}</td>
+                                <td style="text-align: right; padding: 8px; font-size: 14px;">{{ item.cantidad }}</td>
+                                <td style="text-align: right; padding: 8px; font-size: 14px;">${{ formatearPrecio(item.precio) }}</td>
+                                <td style="text-align: right; padding: 8px; font-size: 14px; font-weight: bold;">${{ formatearPrecio(item.cantidad * item.precio) }}</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid #dee2e6;">
+                                <td colspan="3" style="text-align: right; padding: 8px; font-weight: bold; font-size: 16px;">Total:</td>
+                                <td style="text-align: right; padding: 8px; font-weight: bold; font-size: 16px; color: #28a745;">
+                                    ${{ formatearPrecio(totalProductosSeleccionados) }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Mensaje si no hay productos -->
+            <div v-if="productosSeleccionados.length === 0" style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; color: #856404;">
+                <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No hay productos seleccionados</div>
+                <div style="font-size: 14px;">Por favor, selecciona productos desde la sección "2. Productos y Lista de Precios" arriba.</div>
             </div>
             <div class="form-group">
                 <label for="facturaTipoimpresion">Tipo Impresión (para PDF):</label>
@@ -236,11 +298,11 @@
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="number" id="facturaCotizacion" v-model.number="facturaCotizacion" step="0.01" min="0.01" placeholder="Ej: 1.00" style="flex: 1;">
                     <button class="test-btn" @click="obtenerCotizacionBCRA()" :disabled="isLoading">
-                        💱 Obtener Cotización
+                        💱 Actualizar
                     </button>
                 </div>
                 <div style="font-size: 12px; color: #666; margin-top: 5px;">
-                    💡 Cotización del dólar. Valor por defecto: 1.00. Usa el botón para obtener la cotización vendedor del día desde el BCRA.
+                    💡 Cotización del dólar. Se actualiza automáticamente al cargar la página. Última actualización: <span v-if="cotizacionActualizada">{{ cotizacionActualizada }}</span><span v-else>No disponible</span>
                 </div>
             </div>
             <div class="form-group">
