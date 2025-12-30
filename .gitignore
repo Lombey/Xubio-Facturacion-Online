@@ -18,3 +18,8 @@ Thumbs.db
 # Dependencias
 node_modules/
 
+# Documentación cerrada/archivada
+test-imprimir-pdf/docs/cerrados/
+docs/cerrados/
+cerrados/
+
