@@ -12,7 +12,7 @@ if (typeof document !== 'undefined') {
   }
 }
 
-// Importar la app (que ahora usará el template capturado)
+// Importar la función factory de la app
 import appFactory from './app.js';
 
 // Función para montar la aplicación con manejo de errores
@@ -26,21 +26,23 @@ async function mountApp() {
     }
     
     console.log('✅ Elemento #app encontrado');
-    console.log('📦 Contenido HTML antes de montar:', appElement.innerHTML.substring(0, 200) + '...');
     
-    // IMPORTANTE: En Vue 3, cuando montas una app sin template explícito,
-    // Vue reemplaza el contenido HTML. Necesitamos capturar el HTML y usarlo como template.
-    const existingHTML = appElement.innerHTML;
+    // Capturar el template del DOM (por si no se capturó antes)
+    const templateToUse = templateHTML || appElement.innerHTML;
+    console.log('📦 Template a usar:', templateToUse.substring(0, 200) + '...');
     
-    // Guardar el HTML original para restaurarlo si es necesario
-    appElement.setAttribute('data-original-html', existingHTML);
+    // Crear la app de Vue con el template
+    console.log('📦 Creando aplicación Vue con template...');
+    const app = appFactory(templateToUse);
     
+    if (!app || typeof app.mount !== 'function') {
+      throw new Error('La función factory no retornó una instancia válida de Vue app');
+    }
+    
+    console.log('✅ Aplicación Vue creada correctamente');
     console.log('📦 Montando aplicación Vue...');
-    console.log('💡 Vue usará el contenido HTML existente como template');
     
     // Montar la aplicación
-    // Vue 3 debería usar el contenido HTML existente, pero si no lo hace,
-    // necesitamos restaurarlo después del montaje
     const mountedApp = app.mount('#app');
     
     // Verificar si el contenido desapareció y restaurarlo si es necesario
