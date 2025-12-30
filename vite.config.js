@@ -16,7 +16,7 @@ export default defineConfig({
     })
   ],
   build: {
-    outDir: 'dist',
+    outDir: resolve(__dirname, 'test-imprimir-pdf/dist'),
     assetsDir: 'assets',
     rollupOptions: {
       input: {
