@@ -112,17 +112,17 @@
             <tr 
               v-for="pv in puntosDeVenta" 
               :key="pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id"
-              :style="(pv.puntoVenta === '00004' || pv.codigo === '00004' || pv.nombre === '00004' || (pv.nombre && pv.nombre.includes('00004'))) ? 'background-color: #e8f5e9; font-weight: bold;' : ''">
+              :style="(pv.puntoVenta === '00004' || (pv.puntoVenta && pv.puntoVenta.includes('00004'))) ? 'background-color: #e8f5e9; font-weight: bold;' : ''">
               <td>{{ pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id || 'N/A' }}</td>
               <td>{{ pv.codigo || 'N/A' }}</td>
               <td>{{ pv.nombre || 'N/A' }}</td>
               <td>
-                <strong v-if="pv.puntoVenta === '00004' || pv.codigo === '00004' || pv.nombre === '00004' || (pv.nombre && pv.nombre.includes('00004'))">⭐ {{ pv.nombre || pv.puntoVenta || pv.codigo || 'N/A' }}</strong>
+                <strong v-if="pv.puntoVenta === '00004' || (pv.puntoVenta && pv.puntoVenta.includes('00004'))">⭐ {{ pv.puntoVenta || 'N/A' }}</strong>
                 <span v-else>{{ pv.puntoVenta || pv.codigo || 'N/A' }}</span>
               </td>
               <td>{{ pv.activo === 1 || pv.activo === true ? '✅ Activo' : '❌ Inactivo' }}</td>
               <td>
-                <span v-if="pv.puntoVenta === '00004' || pv.codigo === '00004' || pv.nombre === '00004' || (pv.nombre && pv.nombre.includes('00004'))" style="color: #4caf50; font-weight: bold;">
+                <span v-if="pv.puntoVenta === '00004' || (pv.puntoVenta && pv.puntoVenta.includes('00004'))" style="color: #4caf50; font-weight: bold;">
                   ⭐ Usado por defecto
                 </span>
                 <span v-else style="color: #999;">-</span>
