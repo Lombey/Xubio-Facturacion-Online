@@ -71,8 +71,9 @@ import ClienteSelector from './components/ClienteSelector.vue';
 // Nota: El template se maneja restaurando el HTML después del mount (ver main.js)
 export default function createAppWithTemplate(template) {
   const app = createApp({
-    // NO definir template - Vue montará en el elemento pero reemplazará el contenido
-    // El HTML se restaura inmediatamente después del mount en main.js
+    // Pasar el template directamente a Vue según la documentación oficial
+    // Vue 3 renderizará este template cuando se monte
+    template: template,
     data() {
     return {
       // Autenticación
@@ -472,13 +473,30 @@ export default function createAppWithTemplate(template) {
     /**
      * Maneja el submit del formulario de token
      */
-    handleTokenSubmit() {
+    handleTokenSubmit(event) {
+      // Prevenir comportamiento por defecto del formulario
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      
       console.log('📝 Formulario de token enviado');
       console.log('📝 Valores:', { 
         clientId: this.clientId ? this.clientId.substring(0, 5) + '...' : 'vacío',
         hasSecretId: !!this.secretId,
         isLoading: this.isLoading
       });
+      
+      // Validar que hay credenciales antes de intentar obtener token
+      if (!this.clientId || !this.clientId.trim()) {
+        this.mostrarResultado('token', 'Error: Ingresa el Client ID', 'error');
+        return;
+      }
+      if (!this.secretId || !this.secretId.trim()) {
+        this.mostrarResultado('token', 'Error: Ingresa el Secret ID', 'error');
+        return;
+      }
+      
       this.obtenerToken();
     },
 

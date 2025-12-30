@@ -41,35 +41,37 @@ async function mountApp() {
     // Capturar el template del DOM (por si no se capturó antes)
     const templateToUse = templateHTML || appElement.innerHTML;
     
-    // Crear la app de Vue
+    if (!templateToUse || templateToUse.trim() === '') {
+      throw new Error('No se pudo capturar el template del DOM');
+    }
+    
+    console.log('📋 Template capturado, longitud:', templateToUse.length);
+    
+    // Crear la app de Vue con el template
+    // Según la documentación de Vue 3, el template se pasa en la configuración
     const app = appFactory(templateToUse);
     
     if (!app || typeof app.mount !== 'function') {
       throw new Error('La función factory no retornó una instancia válida de Vue app');
     }
     
-    // IMPORTANTE: En Vue 3, cuando montas sin template, Vue reemplaza el contenido del elemento
-    // Solución: Guardar el HTML, montar Vue, y restaurar el HTML inmediatamente
-    const htmlBeforeMount = appElement.innerHTML;
+    // Limpiar el contenido del elemento antes de montar
+    // Vue 3 reemplazará el contenido con el template renderizado
+    appElement.innerHTML = '';
     
-    // Montar la aplicación (Vue reemplazará el contenido)
+    // Montar la aplicación (Vue renderizará el template que pasamos en la configuración)
     const mountedApp = app.mount('#app');
     
-    // Restaurar el HTML INMEDIATAMENTE después del mount
-    // Vue ya está montado y debería poder trabajar con el HTML restaurado
-    const appEl = document.getElementById('app');
-    if (appEl) {
-      appEl.innerHTML = htmlBeforeMount;
-    }
+    console.log('✅ Vue montado correctamente');
+    console.log('📋 Instancia de Vue:', mountedApp);
     
-    // Verificar si el contenido desapareció (fallback de seguridad)
-    setTimeout(() => {
-      const appEl = document.getElementById('app');
-      if (appEl && (appEl.innerHTML.trim() === '' || appEl.innerHTML.trim() === '<!---->')) {
-        console.warn('⚠️ El contenido HTML desapareció después de montar Vue. Restaurando...');
-        appEl.innerHTML = htmlBeforeMount;
-      }
-    }, 100);
+    // Verificar que los métodos estén disponibles
+    if (mountedApp && typeof mountedApp.handleTokenSubmit === 'function') {
+      console.log('✅ Método handleTokenSubmit está disponible');
+    } else {
+      console.warn('⚠️ Método handleTokenSubmit NO está disponible');
+      console.warn('⚠️ Métodos disponibles:', Object.keys(mountedApp || {}));
+    }
     
     // Remover v-cloak después de montar
     requestAnimationFrame(() => {
