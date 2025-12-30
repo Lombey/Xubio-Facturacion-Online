@@ -18,8 +18,22 @@ Thumbs.db
 # Dependencias
 node_modules/
 
+# Builds generados (Vercel hace su propio build)
+dist/
+test-imprimir-pdf/dist/
+
+# Cache
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# Coverage de tests
+coverage/
+
 # Documentación cerrada/archivada
 test-imprimir-pdf/docs/cerrados/
 docs/cerrados/
 cerrados/
 
+# IDE - Cursor (descomentar si no quieres compartir config)
+# .cursor/
