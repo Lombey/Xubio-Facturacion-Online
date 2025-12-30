@@ -126,8 +126,6 @@ export const appOptions = {
       productosListResult: { message: '', type: '', visible: false },
       listaPrecioAGDP: null,
       productosSeleccionados: [], // Array de { producto, cantidad, precio, producto_id }
-      busquedaProducto: '',
-      mostrarDropdownProductos: false,
       
       // Clientes
       clientesList: [],
@@ -135,8 +133,6 @@ export const appOptions = {
       
       // Puntos de Venta
       puntosDeVentaResult: { message: '', type: '', visible: false },
-      busquedaCliente: '',
-      mostrarDropdownClientes: false,
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
       
@@ -469,11 +465,30 @@ export const appOptions = {
     },
     
     /**
+     * Formatea mensajes con saltos de línea HTML
      * @param {string} mensaje
      * @returns {string}
      */
     formatoMensaje(mensaje) {
       return formatoMensajeUtil(mensaje);
+    },
+
+    /**
+     * Formatea un precio a 2 decimales
+     * @param {number|string} precio
+     * @returns {string}
+     */
+    formatearPrecio(precio) {
+      return formatearPrecioUtil(precio);
+    },
+
+    /**
+     * Formatea un CUIT con guiones (formato: XX-XXXXXXXX-X)
+     * @param {string} cuit - CUIT sin formato o con formato
+     * @returns {string} CUIT formateado
+     */
+    formatearCUIT(cuit) {
+      return formatearCUITUtil(cuit);
     },
     
     /**
@@ -1094,7 +1109,7 @@ export const appOptions = {
           mensaje += `• Transaction ID: ${transaccionId}\n`;
           mensaje += `• Número: ${data.numeroComprobante || data.numero || 'N/A'}\n`;
           mensaje += `• Cliente: ${this.clienteSeleccionadoParaFactura?.razonSocial || this.clienteSeleccionadoParaFactura?.nombre || 'N/A'}\n`;
-          mensaje += `• Total: $${this.formatearPrecio(this.totalProductosSeleccionados)} ${this.facturaMoneda}\n`;
+          mensaje += `• Total: $${formatearPrecioUtil(this.totalProductosSeleccionados)} ${this.facturaMoneda}\n`;
           mensaje += `• Moneda: ${this.facturaMoneda}\n\n`;
           mensaje += `Obteniendo PDF...\n\n`;
 
@@ -2127,53 +2142,57 @@ export const appOptions = {
     },
 
     /**
+     * Obtiene el primer item de una lista o un valor por defecto
+     * @param {Array} lista - Lista de items
+     * @param {string} idField - Nombre del campo ID (default: 'ID')
+     * @param {number} fallbackId - ID por defecto si la lista está vacía (default: 1)
+     * @param {string} idFieldAlternativo - Campo ID alternativo para buscar (ej: 'centroDeCosto_id')
+     * @returns {Object} Objeto con ID, id, nombre y codigo
+     */
+    obtenerPorDefecto(lista, idField = 'ID', fallbackId = 1, idFieldAlternativo = null) {
+      if (lista && lista.length > 0) {
+        const item = lista[0];
+        const itemId = item[idField] || item.id || (idFieldAlternativo ? item[idFieldAlternativo] : null) || fallbackId;
+        return {
+          [idField]: itemId,
+          id: item.id || item[idField] || itemId,
+          nombre: item.nombre || '',
+          codigo: item.codigo || ''
+        };
+      }
+      // Fallback si no hay items
+      return { 
+        [idField]: fallbackId, 
+        id: fallbackId,
+        nombre: '',
+        codigo: ''
+      };
+    },
+
+    /**
      * Obtiene el primer centro de costo disponible o uno por defecto
      */
     obtenerCentroDeCostoPorDefecto() {
-      if (this.centrosDeCosto && this.centrosDeCosto.length > 0) {
-        const centro = this.centrosDeCosto[0];
-        return {
-          ID: centro.ID || centro.id || centro.centroDeCosto_id || 1,
-          id: centro.id || centro.ID || centro.centroDeCosto_id || 1,
-          nombre: centro.nombre || '',
-          codigo: centro.codigo || ''
-        };
-      }
-      // Fallback si no hay centros de costo cargados
-      return { ID: 1, id: 1 };
+      return this.obtenerPorDefecto(this.centrosDeCosto, 'ID', 1, 'centroDeCosto_id');
     },
 
     /**
      * Obtiene el primer depósito disponible o uno por defecto
      */
     obtenerDepositoPorDefecto() {
-      if (this.depositos && this.depositos.length > 0) {
-        const deposito = this.depositos[0];
-        return {
-          ID: deposito.ID || deposito.id || deposito.deposito_id || 1,
-          id: deposito.id || deposito.ID || deposito.deposito_id || 1,
-          nombre: deposito.nombre || '',
-          codigo: deposito.codigo || ''
-        };
+      const resultado = this.obtenerPorDefecto(this.depositos, 'ID', 1, 'deposito_id');
+      // Depósito es opcional, retornar null si no hay items
+      if (!this.depositos || this.depositos.length === 0) {
+        return null;
       }
-      return null; // Depósito es opcional
+      return resultado;
     },
 
     /**
      * Obtiene el primer circuito contable disponible o uno por defecto
      */
     obtenerCircuitoContablePorDefecto() {
-      if (this.circuitosContables && this.circuitosContables.length > 0) {
-        const circuito = this.circuitosContables[0];
-        return {
-          ID: circuito.circuitoContable_id || circuito.ID || circuito.id || 1,
-          id: circuito.id || circuito.circuitoContable_id || circuito.ID || 1,
-          nombre: circuito.nombre || '',
-          codigo: circuito.codigo || ''
-        };
-      }
-      // Fallback si no hay circuitos contables cargados
-      return { ID: 1 };
+      return this.obtenerPorDefecto(this.circuitosContables, 'ID', 1, 'circuitoContable_id');
     },
 
     /**
@@ -2252,17 +2271,7 @@ export const appOptions = {
      * Obtiene el primer vendedor disponible o uno por defecto
      */
     obtenerVendedorPorDefecto() {
-      if (this.vendedores && this.vendedores.length > 0) {
-        const vendedor = this.vendedores[0];
-        return {
-          ID: vendedor.ID || vendedor.id || vendedor.vendedor_id || 1,
-          id: vendedor.id || vendedor.ID || vendedor.vendedor_id || 1,
-          nombre: vendedor.nombre || '',
-          codigo: vendedor.codigo || ''
-        };
-      }
-      // Fallback si no hay vendedores cargados
-      return { ID: 1 };
+      return this.obtenerPorDefecto(this.vendedores, 'ID', 1, 'vendedor_id');
     },
 
     /**
@@ -2428,9 +2437,6 @@ export const appOptions = {
     /**
      * Formatea el precio para mostrar
      */
-    formatearPrecio(precio) {
-      return formatearPrecioUtil(precio);
-    },
     
     /**
      * Calcula el IVA de un item de producto
@@ -2451,8 +2457,6 @@ export const appOptions = {
      */
     seleccionarProductoDelDropdown(producto) {
       this.agregarProducto(producto);
-      this.busquedaProducto = '';
-      this.mostrarDropdownProductos = false;
     },
 
     /**
@@ -2488,7 +2492,7 @@ export const appOptions = {
       
       this.productosSeleccionados.push(item);
       const mensaje = precio > 0 
-        ? `✅ Producto "${producto.nombre || producto.codigo || 'Sin nombre'}" agregado con precio $${this.formatearPrecio(precio)}`
+        ? `✅ Producto "${producto.nombre || producto.codigo || 'Sin nombre'}" agregado con precio $${formatearPrecioUtil(precio)}`
         : `✅ Producto "${producto.nombre || producto.codigo || 'Sin nombre'}" agregado (precio: $0.00 - editar manualmente)`;
       
       this.mostrarResultado('productosList', mensaje, 'success');
@@ -2501,22 +2505,6 @@ export const appOptions = {
       this.productosSeleccionados.splice(index, 1);
     },
 
-    /**
-     * Filtra productos según búsqueda
-     */
-    productosFiltrados() {
-      if (!this.busquedaProducto.trim()) {
-        return this.productosList;
-      }
-      
-      const busqueda = this.busquedaProducto.toLowerCase();
-      return this.productosList.filter(p => {
-        const nombre = (p.nombre || '').toLowerCase();
-        const codigo = (p.codigo || '').toLowerCase();
-        const descripcion = (p.descripcion || '').toLowerCase();
-        return nombre.includes(busqueda) || codigo.includes(busqueda) || descripcion.includes(busqueda);
-      });
-    },
 
     /**
      * Lista clientes activos (con cache)
@@ -2659,27 +2647,6 @@ export const appOptions = {
       }
     },
 
-    /**
-     * Filtra clientes según búsqueda (por CUIT, razón social o nombre)
-     */
-    clientesFiltrados() {
-      if (!this.busquedaCliente.trim()) {
-        return this.clientesList;
-      }
-      
-      const busqueda = this.busquedaCliente.toLowerCase().replace(/[-\s]/g, '');
-      return this.clientesList.filter(c => {
-        const razonSocial = (c.razonSocial || '').toLowerCase();
-        const nombre = (c.nombre || '').toLowerCase();
-        const cuit = this.formatearCUIT(c.cuit || c.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
-        const cuitSinFormato = (c.cuit || c.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
-        
-        return razonSocial.includes(busqueda) || 
-               nombre.includes(busqueda) || 
-               cuit.includes(busqueda) ||
-               cuitSinFormato.includes(busqueda);
-      });
-    },
 
     /**
      * Selecciona un cliente del dropdown y lo asigna al campo de factura
@@ -2691,11 +2658,9 @@ export const appOptions = {
         this.cobranzaClienteId = clienteId.toString();
         this.clienteSeleccionado = cliente;
         this.clienteSeleccionadoParaFactura = cliente; // Para mostrar en el card de factura
-        this.busquedaCliente = '';
-        this.mostrarDropdownClientes = false;
         
         this.mostrarResultado('clientesList', 
-          `✅ Cliente seleccionado: ${cliente.razonSocial || cliente.nombre || 'Sin nombre'}\nCUIT: ${this.formatearCUIT(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A'}\nID: ${clienteId}\n\n💡 El cliente se asignó a la factura.`, 
+          `✅ Cliente seleccionado: ${cliente.razonSocial || cliente.nombre || 'Sin nombre'}\nCUIT: ${formatearCUITUtil(cliente.cuit || cliente.identificacionTributaria?.numero || '') || 'N/A'}\nID: ${clienteId}\n\n💡 El cliente se asignó a la factura.`, 
           'success'
         );
       }
@@ -2715,35 +2680,7 @@ export const appOptions = {
      * @param {string} cuit - CUIT sin formato o con formato
      * @returns {string} CUIT formateado
      */
-    formatearCUIT(cuit) {
-      return formatearCUITUtil(cuit);
-    },
 
-    /**
-     * Oculta el dropdown de productos con un pequeño delay para permitir clicks
-     */
-    ocultarDropdownProductos() {
-      if (typeof window !== 'undefined' && window.setTimeout) {
-        window.setTimeout(() => {
-          this.mostrarDropdownProductos = false;
-        }, 200);
-      } else {
-        this.mostrarDropdownProductos = false;
-      }
-    },
-
-    /**
-     * Oculta el dropdown de clientes con un pequeño delay para permitir clicks
-     */
-    ocultarDropdownClientes() {
-      if (typeof window !== 'undefined' && window.setTimeout) {
-        window.setTimeout(() => {
-          this.mostrarDropdownClientes = false;
-        }, 200);
-      } else {
-        this.mostrarDropdownClientes = false;
-      }
-    },
 
     /**
      * Obtiene facturas pendientes de un cliente
@@ -2813,7 +2750,7 @@ export const appOptions = {
         this.obtenerDatosFactura(this.cobranzaIdComprobante);
         
         this.mostrarResultado('cobranza', 
-          `✅ Factura seleccionada: ${factura.numeroComprobante || factura.numero}\nSaldo: $${this.formatearPrecio(parseFloat(this.cobranzaImporte))}`, 
+          `✅ Factura seleccionada: ${factura.numeroComprobante || factura.numero}\nSaldo: $${formatearPrecioUtil(parseFloat(this.cobranzaImporte))}`, 
           'success'
         );
       } catch (error) {

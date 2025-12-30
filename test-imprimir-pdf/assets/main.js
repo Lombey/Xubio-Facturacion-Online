@@ -8,6 +8,12 @@ import App from './App.vue';
 // Intercepta addEventListener para hacer pasivos los listeners de touch cuando sea apropiado
 if (typeof EventTarget !== 'undefined' && typeof window !== 'undefined') {
   const originalAddEventListener = EventTarget.prototype.addEventListener;
+  /**
+   * @param {string} type
+   * @param {EventListenerOrEventListenerObject | null} listener
+   * @param {boolean | AddEventListenerOptions | undefined} options
+   * @returns {void}
+   */
   EventTarget.prototype.addEventListener = function(type, listener, options) {
     // Si es un evento touchstart/touchmove/touchend y no se especificó passive explícitamente
     if ((type === 'touchstart' || type === 'touchmove' || type === 'touchend') && 
@@ -32,12 +38,18 @@ function mountApp() {
     const app = createApp(App);
     
     // Configurar error handler global para Vue
+    /**
+     * @param {Error | unknown} err
+     * @param {import('vue').ComponentPublicInstance | null} instance
+     * @param {string} info
+     */
     app.config.errorHandler = (err, instance, info) => {
+      const error = err instanceof Error ? err : new Error(String(err));
       console.error('🚨 Error global de Vue:', {
         error: err,
         component: instance?.$options?.name || 'Unknown',
         info: info,
-        stack: err?.stack
+        stack: error.stack
       });
       
       // Mostrar mensaje amigable al usuario si hay un método disponible

@@ -5,3 +5,10 @@ declare const Vue: {
   };
 };
 
+// Declaración de módulos Vue SFC
+declare module '*.vue' {
+  import { DefineComponent } from 'vue';
+  const component: DefineComponent<{}, {}, any>;
+  export default component;
+}
+

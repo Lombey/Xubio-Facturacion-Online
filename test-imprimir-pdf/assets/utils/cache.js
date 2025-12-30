@@ -1,11 +1,29 @@
 /**
+ * @typedef {Object} CacheEntry
+ * @property {any} data - Datos cacheados
+ * @property {number} timestamp - Timestamp de cuando se guardó
+ * @property {number} ttl - Tiempo de vida en milisegundos
+ */
+
+/**
+ * @typedef {Object} CacheStats
+ * @property {number} currentSize - Tamaño actual en bytes
+ * @property {number} maxSize - Tamaño máximo en bytes
+ * @property {number} usagePercent - Porcentaje de uso
+ * @property {number} entries - Número de entradas en cache
+ */
+
+/**
  * Sistema de Cache con TTL y límite de tamaño
  * Reemplaza el sistema actual en app.js (líneas 320-456)
  */
 class CacheManager {
   constructor() {
+    /** @type {number} */
     this.maxSize = 10 * 1024 * 1024; // 10MB límite total
+    /** @type {number} */
     this.currentSize = 0;
+    /** @type {string} */
     this.prefix = 'xubio_cache_';
     
     // TTL por tipo de dato (reutilizado de app.js)
@@ -219,7 +237,8 @@ class CacheManager {
   
   /**
    * Obtiene el TTL recomendado para un tipo de dato
-   * @param {string} tipo
+   * @param {string} tipo - Tipo de dato
+   * @returns {number} TTL en milisegundos
    */
   getTTL(tipo) {
     return this.ttlMap[tipo] || 60 * 60 * 1000; // Default: 1 hora
@@ -227,6 +246,7 @@ class CacheManager {
   
   /**
    * Limpia todos los caches manualmente
+   * @returns {number} Número de caches limpiados
    */
   limpiarTodosLosCaches() {
     const keys = Object.keys(localStorage);
@@ -246,6 +266,7 @@ class CacheManager {
   
   /**
    * Obtiene estadísticas del cache
+   * @returns {CacheStats} Estadísticas del cache
    */
   getStats() {
     return {

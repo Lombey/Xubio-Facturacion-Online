@@ -4,9 +4,11 @@
  */
 
 export function useAuth() {
-  /** @type {{ accessToken: string|null, tokenExpiration: number|null, clientId: string, secretId: string, guardarCredenciales: boolean }} */
+  /** @type {{ accessToken: string | null, tokenExpiration: number | null, clientId: string, secretId: string, guardarCredenciales: boolean }} */
   const state = {
+    /** @type {string | null} */
     accessToken: null,
+    /** @type {number | null} */
     tokenExpiration: null,
     clientId: '',
     secretId: '',
@@ -15,15 +17,17 @@ export function useAuth() {
 
   /**
    * Verifica si el token es válido
+   * @returns {boolean} true si el token es válido, false en caso contrario
    */
   function tokenValido() {
-    return state.accessToken && 
-           state.tokenExpiration && 
+    return state.accessToken !== null && 
+           state.tokenExpiration !== null && 
            Date.now() < state.tokenExpiration - 60000; // 1 minuto de margen
   }
 
   /**
    * Carga credenciales desde localStorage
+   * @returns {boolean} true si se cargó un token válido, false en caso contrario
    */
   function cargarCredenciales() {
     const savedClientId = localStorage.getItem('xubio_clientId');
@@ -46,13 +50,35 @@ export function useAuth() {
   }
 
   /**
+   * @typedef {Function} MostrarResultadoCallback
+   * @param {string} seccion - Sección donde mostrar el resultado
+   * @param {string} mensaje - Mensaje a mostrar
+   * @param {string} tipo - Tipo de mensaje ('success', 'error', 'info')
+   * @returns {void}
+   */
+
+  /**
+   * @typedef {Function} HandleErrorCallback
+   * @param {Error | unknown} error - Error a manejar
+   * @param {string} contexto - Contexto del error
+   * @param {string} seccion - Sección donde ocurrió el error
+   * @returns {void}
+   */
+
+  /**
+   * @typedef {Function} AsyncCallback
+   * @returns {Promise<void>}
+   */
+
+  /**
    * Obtiene un token de acceso de Xubio
-   * @param {boolean} forceRefresh - Si es true, fuerza la renovación del token
-   * @param {Function} mostrarResultado - Función para mostrar resultados
-   * @param {Function} handleError - Función para manejar errores
-   * @param {Function} cargarValoresConfiguracion - Función para cargar valores después del token
-   * @param {Function} obtenerMonedas - Función para obtener monedas
-   * @param {Function} obtenerCuentas - Función para obtener cuentas
+   * @param {boolean} [forceRefresh=false] - Si es true, fuerza la renovación del token
+   * @param {MostrarResultadoCallback} [mostrarResultado] - Función para mostrar resultados
+   * @param {HandleErrorCallback} [handleError] - Función para manejar errores
+   * @param {AsyncCallback} [cargarValoresConfiguracion] - Función para cargar valores después del token
+   * @param {AsyncCallback} [obtenerMonedas] - Función para obtener monedas
+   * @param {AsyncCallback} [obtenerCuentas] - Función para obtener cuentas
+   * @returns {Promise<string | null | undefined>} Token de acceso, null o undefined si falla
    */
   async function obtenerToken(forceRefresh = false, mostrarResultado, handleError, cargarValoresConfiguracion, obtenerMonedas, obtenerCuentas) {
     let clientId = state.clientId.trim();
@@ -160,6 +186,7 @@ export function useAuth() {
 
   /**
    * Limpia credenciales y token
+   * @returns {void}
    */
   function limpiarCredenciales() {
     localStorage.removeItem('xubio_clientId');
@@ -170,6 +197,8 @@ export function useAuth() {
     state.secretId = '';
     state.accessToken = null;
     state.tokenExpiration = null;
+    // @ts-ignore - null es válido para estos campos
+    return;
   }
 
   return {

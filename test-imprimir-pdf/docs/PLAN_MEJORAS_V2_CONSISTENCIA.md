@@ -10,6 +10,13 @@
 
 Este plan aborda los problemas de duplicación y falta de reutilización identificados en el diagnóstico arquitectónico, organizados por prioridad y divididos en **thin slices** (tareas pequeñas e incrementales) para facilitar la implementación segura.
 
+**Mejoras Arquitectónicas Integradas:**
+- ✅ Capa de normalización (DTOs) para eliminar lógica defensiva
+- ✅ Tests unitarios para lógica crítica (sistema financiero)
+- ✅ Domain filters separados de componentes UI
+- ✅ Limpieza explícita de estado huérfano
+- ✅ BaseSelector mejorado con Composition API
+
 ### Problemas Principales Identificados
 
 1. **🔴 CRÍTICO:** Lógica de filtrado duplicada entre `app.js` y componentes Vue
@@ -18,11 +25,121 @@ Este plan aborda los problemas de duplicación y falta de reutilización identif
 4. **🟢 BAJO:** Wrappers innecesarios de formatters en `app.js`
 5. **🟢 BAJO:** Métodos `ocultarDropdown*` duplicados
 
+### Mejoras Arquitectónicas Adicionales
+
+6. **🔴 CRÍTICO:** Falta de normalización de datos (DTOs) - lógica defensiva repetitiva
+7. **🔴 CRÍTICO:** Ausencia de tests automatizados en sistema financiero
+8. **🟡 MEDIO:** Lógica de dominio acoplada a componentes UI
+9. **🟡 MEDIO:** Variables de estado huérfanas en `app.js`
+10. **🟢 MEDIO:** BaseSelector puede mejorarse con Composition API
+
+---
+
+## 🎯 Fase 0: Preparación Arquitectónica (Prioridad Crítica)
+
+**Objetivo:** Establecer fundamentos arquitectónicos sólidos antes de refactorizar.
+
+### 0.1. Crear Capa de Normalización (DTOs)
+
+**Problema:** Lógica defensiva repetitiva (`item.ID || item.id || item.cliente_id`) en todo el código. Inconsistencias en la API de Xubio generan bugs.
+
+**Archivos a crear:**
+- `test-imprimir-pdf/assets/utils/normalizers.js`
+- `test-imprimir-pdf/assets/utils/__tests__/normalizers.test.js`
+
+**Checklist Thin Slice:**
+
+- [ ] **Paso 0.1.1:** Crear archivo de normalizadores
+  - Ver código completo en sección "Ejemplos de Código" más abajo
+
+- [ ] **Paso 0.1.2:** Crear tests unitarios para normalizadores
+  - Ver código completo en sección "Ejemplos de Código" más abajo
+
+- [ ] **Paso 0.1.3:** Integrar normalizadores en métodos de obtención de datos
+  - Modificar `obtenerPuntosDeVenta()`, `obtenerClientes()`, `obtenerProductos()`
+  - Usar `normalizarArray()` al recibir datos de la API
+
+**Criterios de Aceptación:**
+- ✅ Los normalizadores manejan todas las variantes de campos
+- ✅ Los tests pasan con coverage > 80%
+- ✅ Los datos normalizados tienen estructura consistente
+- ✅ Se mantiene referencia al objeto original en `metadata`
+
+---
+
+### 0.2. Configurar Testing (Vitest)
+
+**Problema:** Sistema financiero sin tests automatizados es riesgoso. Refactor de 2600+ líneas necesita tests.
+
+**Archivos a crear/modificar:**
+- `test-imprimir-pdf/package.json` (agregar dependencias)
+- `test-imprimir-pdf/vitest.config.js`
+
+**Checklist Thin Slice:**
+
+- [ ] **Paso 0.2.1:** Instalar Vitest y dependencias
+  ```bash
+  cd test-imprimir-pdf
+  npm install -D vitest @vue/test-utils jsdom
+  ```
+
+- [ ] **Paso 0.2.2:** Crear configuración de Vitest
+  - Ver código completo en sección "Ejemplos de Código" más abajo
+
+- [ ] **Paso 0.2.3:** Agregar scripts a `package.json`
+  ```json
+  {
+    "scripts": {
+      "test": "vitest",
+      "test:watch": "vitest --watch",
+      "test:coverage": "vitest --coverage"
+    }
+  }
+  ```
+
+- [ ] **Paso 0.2.4:** Verificar que los tests corren
+  ```bash
+  npm test
+  ```
+
+**Criterios de Aceptación:**
+- ✅ Vitest instalado y configurado
+- ✅ Tests de normalizadores pasan
+- ✅ Coverage report funciona
+
 ---
 
 ## 🎯 Fase 1: Eliminación de Duplicación Crítica (Prioridad Alta)
 
-**Objetivo:** Eliminar la lógica de filtrado duplicada entre `app.js` y los componentes Vue.
+**Objetivo:** Eliminar la lógica de filtrado duplicada entre `app.js` y los componentes Vue, moviendo lógica de dominio a utils.
+
+### 1.0. Crear Domain Filters (utils/domain-filters.js)
+
+**Problema:** La lógica de filtrado está acoplada a componentes UI. Si mañana necesitas filtrar en un modal o proceso en segundo plano, duplicarás código.
+
+**Archivos a crear:**
+- `test-imprimir-pdf/assets/utils/domain-filters.js`
+- `test-imprimir-pdf/assets/utils/__tests__/domain-filters.test.js`
+
+**Checklist Thin Slice:**
+
+- [ ] **Paso 1.0.1:** Crear archivo de domain filters
+  - Ver código completo en sección "Ejemplos de Código" más abajo
+
+- [ ] **Paso 1.0.2:** Crear tests unitarios
+  - Ver código completo en sección "Ejemplos de Código" más abajo
+
+- [ ] **Paso 1.0.3:** Refactorizar `ClienteSelector.vue` para usar domain filter
+  - Importar `filtrarClientes` desde `utils/domain-filters.js`
+  - El componente solo invoca la función, no contiene la lógica
+
+**Criterios de Aceptación:**
+- ✅ La lógica de filtrado está en `utils/domain-filters.js`
+- ✅ Los componentes solo invocan las funciones
+- ✅ Los tests pasan
+- ✅ El filtrado funciona igual que antes
+
+---
 
 ### 1.1. Eliminar `clientesFiltrados()` de app.js
 
@@ -30,6 +147,7 @@ Este plan aborda los problemas de duplicación y falta de reutilización identif
 
 **Archivos a modificar:**
 - `test-imprimir-pdf/assets/app.js`
+- `test-imprimir-pdf/assets/components/ClienteSelector.vue` (usar domain filter)
 
 **Checklist Thin Slice:**
 
@@ -218,7 +336,57 @@ Este plan aborda los problemas de duplicación y falta de reutilización identif
 
 ---
 
+### 1.4. Limpieza de Estado Huérfano en app.js
+
+**Problema:** Al mover lógica a componentes, quedan variables de estado que ya no se usan en `app.js` (ej: `busquedaCliente`, `mostrarDropdownClientes`, `busquedaProducto`, `mostrarDropdownProductos`).
+
+**Archivos a modificar:**
+- `test-imprimir-pdf/assets/app.js`
+
+**Checklist Thin Slice:**
+
+- [ ] **Paso 1.4.1:** Identificar variables huérfanas
+  ```bash
+  # Buscar usos de estas variables en app.js:
+  grep -n "busquedaCliente\|mostrarDropdownClientes\|busquedaProducto\|mostrarDropdownProductos" test-imprimir-pdf/assets/app.js
+  ```
+
+- [ ] **Paso 1.4.2:** Verificar que no se usan en templates
+  ```bash
+  grep -r "busquedaCliente\|mostrarDropdownClientes\|busquedaProducto\|mostrarDropdownProductos" test-imprimir-pdf/index.html
+  grep -r "busquedaCliente\|mostrarDropdownClientes\|busquedaProducto\|mostrarDropdownProductos" test-imprimir-pdf/assets/App.vue
+  ```
+
+- [ ] **Paso 1.4.3:** Eliminar variables del `data()` de `app.js`
+  - **Ubicación:** Líneas ~129-130, ~138-139 en `app.js`
+  - **Código a eliminar:**
+  ```javascript
+  // ❌ ELIMINAR ESTAS LÍNEAS DEL data():
+  busquedaProducto: '',
+  mostrarDropdownProductos: false,
+  busquedaCliente: '',
+  mostrarDropdownClientes: false,
+  ```
+
+- [ ] **Paso 1.4.4:** Verificar que no hay referencias en computed o methods
+  - Si hay referencias, eliminarlas o comentar por qué se mantienen
+
+- [ ] **Paso 1.4.5:** Testing manual
+  - [ ] Verificar que la aplicación funciona igual
+  - [ ] Verificar que no hay errores en consola
+  - [ ] Verificar que los selectores funcionan correctamente
+
+**Criterios de Aceptación:**
+- ✅ Variables huérfanas eliminadas del `data()`
+- ✅ No hay referencias a estas variables en el código
+- ✅ La aplicación funciona igual que antes
+- ✅ Reducción de complejidad y memoria
+
+---
+
 ## 🎯 Fase 2: Refactorización de Componentes (Prioridad Media)
+
+**Objetivo:** Crear un componente base reutilizable para eliminar duplicación entre `ClienteSelector` y `ProductoSelector`, usando Composition API para mejor testabilidad.
 
 **Objetivo:** Crear un componente base reutilizable para eliminar duplicación entre `ClienteSelector` y `ProductoSelector`.
 
@@ -1059,32 +1227,53 @@ Este plan aborda los problemas de duplicación y falta de reutilización identif
 
 ## 📊 Resumen de Tareas
 
+### Fase 0: Preparación Arquitectónica
+- [x] 0.1. Crear Capa de Normalización (DTOs)
+- [x] 0.2. Configurar Testing (Vitest)
+
 ### Fase 1: Eliminación de Duplicación Crítica
-- [ ] 1.1. Eliminar `clientesFiltrados()` de app.js
-- [ ] 1.2. Eliminar `productosFiltrados()` de app.js
-- [ ] 1.3. Eliminar métodos `ocultarDropdown*` de app.js
+- [x] 1.0. Crear Domain Filters (utils/domain-filters.js)
+- [x] 1.1. Eliminar `clientesFiltrados()` de app.js
+- [x] 1.2. Eliminar `productosFiltrados()` de app.js
+- [x] 1.3. Eliminar métodos `ocultarDropdown*` de app.js
+- [x] 1.4. Limpieza de Estado Huérfano en app.js
 
 ### Fase 2: Refactorización de Componentes
-- [ ] 2.1. Crear componente base `BaseSelector.vue`
-- [ ] 2.2. Refactorizar `ClienteSelector.vue` para usar `BaseSelector`
-- [ ] 2.3. Refactorizar `ProductoSelector.vue` para usar `BaseSelector`
+- [x] 2.0. Crear Composable `useDropdown` (Composition API)
+- [x] 2.1. Crear componente base `BaseSelector.vue` (con Composition API)
+- [x] 2.2. Refactorizar `ClienteSelector.vue` para usar `BaseSelector`
+- [x] 2.3. Refactorizar `ProductoSelector.vue` para usar `BaseSelector`
 
 ### Fase 3: Consolidación de Métodos Repetitivos
-- [ ] 3.1. Crear método genérico `obtenerPorDefecto()` y reemplazar los 5 métodos
+- [x] 3.1. Crear método genérico `obtenerPorDefecto()` y reemplazar los 5 métodos
 
 ### Fase 4: Limpieza de Wrappers Innecesarios
-- [ ] 4.1. Eliminar wrappers de formatters
+- [x] 4.1. Eliminar wrappers de formatters
 
 ---
 
 ## 🚀 Orden de Ejecución Recomendado
 
-1. **Fase 1** (Crítica) - Eliminar duplicación primero
-2. **Fase 4** (Baja) - Limpieza rápida de wrappers
-3. **Fase 3** (Media) - Consolidar métodos repetitivos
-4. **Fase 2** (Media) - Refactorización de componentes (más compleja)
+1. **Fase 0** (Crítica) - Preparación arquitectónica primero
+   - Normalizadores y tests establecen fundamentos sólidos
+   - Facilita refactoring seguro en fases siguientes
 
-**Razón:** Fase 1 y 4 son más simples y eliminan código. Fase 3 y 2 requieren más cuidado y testing.
+2. **Fase 1** (Crítica) - Eliminar duplicación
+   - Domain filters primero (reutilizable)
+   - Luego eliminar código duplicado
+   - Finalmente limpieza de estado
+
+3. **Fase 4** (Baja) - Limpieza rápida de wrappers
+   - Es simple y elimina código innecesario
+
+4. **Fase 3** (Media) - Consolidar métodos repetitivos
+   - Requiere cuidado pero simplifica mucho código
+
+5. **Fase 2** (Media) - Refactorización de componentes
+   - Más compleja, requiere más testing
+   - Beneficia de las fases anteriores (normalizadores, domain filters)
+
+**Razón:** Fase 0 establece fundamentos. Fase 1 y 4 eliminan código. Fase 3 y 2 requieren más cuidado pero benefician de las anteriores.
 
 ---
 
@@ -1113,14 +1302,470 @@ Este plan aborda los problemas de duplicación y falta de reutilización identif
 
 Antes de considerar el plan completo, verificar:
 
-- [ ] No hay código duplicado entre `app.js` y componentes
-- [ ] Los componentes Vue son reutilizables y mantenibles
-- [ ] Los métodos repetitivos están consolidados
-- [ ] No hay wrappers innecesarios
-- [ ] Todos los tests manuales pasan
-- [ ] No hay errores en consola
-- [ ] La funcionalidad es idéntica a la anterior
-- [ ] El código es más simple y mantenible
+- [ ] **Fase 0:**
+  - [ ] Normalizadores creados y funcionando
+  - [ ] Tests unitarios pasan con coverage > 80%
+  - [ ] Vitest configurado correctamente
+
+- [ ] **Fase 1:**
+  - [ ] Domain filters creados y reutilizables
+  - [ ] No hay código duplicado entre `app.js` y componentes
+  - [ ] Variables de estado huérfanas eliminadas
+  - [ ] Tests unitarios para domain filters pasan
+
+- [ ] **Fase 2:**
+  - [ ] Composable `useDropdown` creado y testeado
+  - [ ] BaseSelector usa Composition API
+  - [ ] Componentes refactorizados funcionan igual
+  - [ ] Tests unitarios para composables pasan
+
+- [ ] **Fase 3:**
+  - [ ] Método genérico `obtenerPorDefecto()` implementado
+  - [ ] Los 5 métodos repetitivos reemplazados
+  - [ ] Tests unitarios pasan
+
+- [ ] **Fase 4:**
+  - [ ] Wrappers innecesarios eliminados
+  - [ ] Imports actualizados correctamente
+
+- [ ] **General:**
+  - [ ] Todos los tests automatizados pasan
+  - [ ] Todos los tests manuales pasan
+  - [ ] No hay errores en consola
+  - [ ] La funcionalidad es idéntica a la anterior
+  - [ ] El código es más simple y mantenible
+  - [ ] Coverage de tests > 70% en lógica crítica
+
+---
+
+## 💻 Ejemplos de Código Completos
+
+### Fase 0.1: Normalizadores (utils/normalizers.js)
+
+```javascript
+/**
+ * Normalizadores de datos de Xubio API
+ * Convierte respuestas inconsistentes de la API a una interfaz consistente
+ */
+
+/**
+ * Normaliza un cliente de Xubio a formato consistente
+ * @param {Object} clienteRaw - Cliente crudo de la API
+ * @returns {Object} Cliente normalizado { id, name, code, cuit, metadata }
+ */
+export function normalizarCliente(clienteRaw) {
+  if (!clienteRaw) return null;
+  
+  return {
+    id: clienteRaw.cliente_id || clienteRaw.ID || clienteRaw.id || null,
+    name: clienteRaw.razonSocial || clienteRaw.nombre || '',
+    code: clienteRaw.codigo || '',
+    cuit: clienteRaw.cuit || clienteRaw.identificacionTributaria?.numero || '',
+    metadata: {
+      original: clienteRaw, // Mantener referencia al objeto original
+      razonSocial: clienteRaw.razonSocial,
+      nombre: clienteRaw.nombre,
+      identificacionTributaria: clienteRaw.identificacionTributaria
+    }
+  };
+}
+
+/**
+ * Normaliza un producto de Xubio a formato consistente
+ * @param {Object} productoRaw - Producto crudo de la API
+ * @returns {Object} Producto normalizado { id, name, code, price, metadata }
+ */
+export function normalizarProducto(productoRaw) {
+  if (!productoRaw) return null;
+  
+  return {
+    id: productoRaw.productoid || productoRaw.ID || productoRaw.id || null,
+    name: productoRaw.nombre || '',
+    code: productoRaw.codigo || '',
+    price: productoRaw.precioAGDP || productoRaw.precio || 0,
+    description: productoRaw.descripcion || productoRaw.nombre || '',
+    metadata: {
+      original: productoRaw,
+      precioAGDP: productoRaw.precioAGDP,
+      precio: productoRaw.precio,
+      tasaIVA: productoRaw.tasaIva || productoRaw.tasaIVA
+    }
+  };
+}
+
+/**
+ * Normaliza un punto de venta de Xubio
+ * @param {Object} puntoVentaRaw - Punto de venta crudo de la API
+ * @returns {Object} Punto de venta normalizado
+ */
+export function normalizarPuntoVenta(puntoVentaRaw) {
+  if (!puntoVentaRaw) return null;
+  
+  return {
+    id: puntoVentaRaw.puntoVentaId || puntoVentaRaw.ID || puntoVentaRaw.id || null,
+    name: puntoVentaRaw.nombre || '',
+    code: puntoVentaRaw.codigo || puntoVentaRaw.puntoVenta || '',
+    editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : true,
+    sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : true,
+    editableSugerido: puntoVentaRaw.editableSugerido !== undefined ? puntoVentaRaw.editableSugerido : true,
+    metadata: {
+      original: puntoVentaRaw
+    }
+  };
+}
+
+/**
+ * Normaliza un array de items
+ * @param {Array} itemsRaw - Array de items crudos
+ * @param {Function} normalizer - Función normalizadora
+ * @returns {Array} Array de items normalizados
+ */
+export function normalizarArray(itemsRaw, normalizer) {
+  if (!Array.isArray(itemsRaw)) return [];
+  return itemsRaw.map(normalizer).filter(item => item !== null);
+}
+```
+
+### Fase 0.2: Configuración Vitest (vitest.config.js)
+
+```javascript
+import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    include: ['**/__tests__/**/*.test.js'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: ['node_modules/', 'dist/', '**/*.test.js']
+    }
+  },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './assets')
+    }
+  }
+});
+```
+
+### Fase 1.0: Domain Filters (utils/domain-filters.js)
+
+```javascript
+/**
+ * Filtros de dominio - Lógica de negocio separada de UI
+ * Reutilizable en componentes, modales, procesos en segundo plano, etc.
+ */
+
+import { formatearCUIT } from './formatters.js';
+
+/**
+ * Filtra clientes según búsqueda (por CUIT, razón social o nombre)
+ * @param {Array} clientes - Array de clientes (normalizados o crudos)
+ * @param {string} busqueda - Texto de búsqueda
+ * @returns {Array} Array de clientes filtrados
+ */
+export function filtrarClientes(clientes, busqueda) {
+  if (!Array.isArray(clientes) || !busqueda || !busqueda.trim()) {
+    return clientes;
+  }
+  
+  const busquedaLower = busqueda.toLowerCase().replace(/[-\s]/g, '');
+  
+  return clientes.filter(c => {
+    // Manejar tanto clientes normalizados como crudos
+    const razonSocial = (c.name || c.razonSocial || c.nombre || '').toLowerCase();
+    const nombre = (c.nombre || '').toLowerCase();
+    const cuit = formatearCUIT(c.cuit || c.metadata?.original?.cuit || c.metadata?.original?.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
+    const cuitSinFormato = (c.cuit || c.metadata?.original?.cuit || c.metadata?.original?.identificacionTributaria?.numero || '').replace(/[-\s]/g, '').toLowerCase();
+    
+    return razonSocial.includes(busquedaLower) || 
+           nombre.includes(busquedaLower) || 
+           cuit.includes(busquedaLower) ||
+           cuitSinFormato.includes(busquedaLower);
+  });
+}
+
+/**
+ * Filtra productos según búsqueda (por nombre, código o descripción)
+ * @param {Array} productos - Array de productos (normalizados o crudos)
+ * @param {string} busqueda - Texto de búsqueda
+ * @returns {Array} Array de productos filtrados
+ */
+export function filtrarProductos(productos, busqueda) {
+  if (!Array.isArray(productos) || !busqueda || !busqueda.trim()) {
+    return productos;
+  }
+  
+  const busquedaLower = busqueda.toLowerCase();
+  
+  return productos.filter(p => {
+    // Manejar tanto productos normalizados como crudos
+    const nombre = (p.name || p.nombre || '').toLowerCase();
+    const codigo = (p.code || p.codigo || '').toLowerCase();
+    const descripcion = (p.description || p.descripcion || '').toLowerCase();
+    
+    return nombre.includes(busquedaLower) || 
+           codigo.includes(busquedaLower) || 
+           descripcion.includes(busquedaLower);
+  });
+}
+```
+
+### Fase 2.0: Composable useDropdown (composables/useDropdown.js)
+
+```javascript
+/**
+ * Composable para manejar estado de dropdown
+ * Separado de componentes para mejor testabilidad
+ */
+
+import { ref, onMounted, onUnmounted } from 'vue';
+
+/**
+ * Composable para manejar dropdown con blur/focus
+ * @param {Object} options - Opciones de configuración
+ * @param {number} options.blurDelay - Delay en ms antes de cerrar (default: 200)
+ * @returns {Object} Estado y métodos del dropdown
+ */
+export function useDropdown(options = {}) {
+  const { blurDelay = 200 } = options;
+  
+  const isOpen = ref(false);
+  let blurTimeout = null;
+
+  /**
+   * Abre el dropdown
+   */
+  function open() {
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+      blurTimeout = null;
+    }
+    isOpen.value = true;
+  }
+
+  /**
+   * Cierra el dropdown
+   */
+  function close() {
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+      blurTimeout = null;
+    }
+    isOpen.value = false;
+  }
+
+  /**
+   * Maneja el evento blur con delay
+   */
+  function handleBlur() {
+    blurTimeout = setTimeout(() => {
+      close();
+    }, blurDelay);
+  }
+
+  /**
+   * Maneja el evento focus
+   */
+  function handleFocus() {
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+      blurTimeout = null;
+    }
+    open();
+  }
+
+  /**
+   * Toggle del dropdown
+   */
+  function toggle() {
+    if (isOpen.value) {
+      close();
+    } else {
+      open();
+    }
+  }
+
+  // Cleanup al desmontar
+  onUnmounted(() => {
+    if (blurTimeout) {
+      clearTimeout(blurTimeout);
+    }
+  });
+
+  return {
+    isOpen,
+    open,
+    close,
+    toggle,
+    handleBlur,
+    handleFocus
+  };
+}
+```
+
+### Fase 2.0: Tests useDropdown (composables/__tests__/useDropdown.test.js)
+
+```javascript
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { useDropdown } from '../useDropdown.js';
+
+describe('useDropdown', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  it('debe abrir y cerrar el dropdown', () => {
+    const { isOpen, open, close } = useDropdown();
+    
+    expect(isOpen.value).toBe(false);
+    open();
+    expect(isOpen.value).toBe(true);
+    close();
+    expect(isOpen.value).toBe(false);
+  });
+
+  it('debe cerrar después del delay en blur', () => {
+    const { isOpen, handleBlur } = useDropdown({ blurDelay: 200 });
+    
+    isOpen.value = true;
+    handleBlur();
+    
+    expect(isOpen.value).toBe(true);
+    vi.advanceTimersByTime(200);
+    expect(isOpen.value).toBe(false);
+  });
+
+  it('debe cancelar el blur si hay focus', () => {
+    const { isOpen, handleBlur, handleFocus } = useDropdown({ blurDelay: 200 });
+    
+    isOpen.value = true;
+    handleBlur();
+    handleFocus(); // Cancela el blur
+    
+    vi.advanceTimersByTime(200);
+    expect(isOpen.value).toBe(true);
+  });
+});
+```
+
+### Fase 1.0: Tests Domain Filters (utils/__tests__/domain-filters.test.js)
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import { filtrarClientes, filtrarProductos } from '../domain-filters.js';
+
+describe('domain-filters', () => {
+  describe('filtrarClientes', () => {
+    const clientes = [
+      { name: 'Cliente 1', cuit: '20123456789' },
+      { name: 'Cliente 2', cuit: '20987654321' },
+      { razonSocial: 'Cliente 3', cuit: '20111111111' }
+    ];
+
+    it('debe filtrar por nombre', () => {
+      const resultado = filtrarClientes(clientes, 'Cliente 1');
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0].name).toBe('Cliente 1');
+    });
+
+    it('debe filtrar por CUIT', () => {
+      const resultado = filtrarClientes(clientes, '20123456789');
+      expect(resultado).toHaveLength(1);
+    });
+
+    it('debe retornar todos si busqueda está vacía', () => {
+      const resultado = filtrarClientes(clientes, '');
+      expect(resultado).toHaveLength(3);
+    });
+  });
+
+  describe('filtrarProductos', () => {
+    const productos = [
+      { name: 'Producto 1', code: 'P001' },
+      { nombre: 'Producto 2', codigo: 'P002' }
+    ];
+
+    it('debe filtrar por nombre', () => {
+      const resultado = filtrarProductos(productos, 'Producto 1');
+      expect(resultado).toHaveLength(1);
+    });
+
+    it('debe filtrar por código', () => {
+      const resultado = filtrarProductos(productos, 'P001');
+      expect(resultado).toHaveLength(1);
+    });
+  });
+});
+```
+
+### Fase 0.1: Tests Normalizadores (utils/__tests__/normalizers.test.js)
+
+```javascript
+import { describe, it, expect } from 'vitest';
+import { normalizarCliente, normalizarProducto, normalizarPuntoVenta, normalizarArray } from '../normalizers.js';
+
+describe('normalizers', () => {
+  describe('normalizarCliente', () => {
+    it('debe normalizar cliente con cliente_id', () => {
+      const raw = { cliente_id: 123, razonSocial: 'Test SRL', cuit: '20123456789' };
+      const result = normalizarCliente(raw);
+      expect(result.id).toBe(123);
+      expect(result.name).toBe('Test SRL');
+      expect(result.cuit).toBe('20123456789');
+      expect(result.metadata.original).toBe(raw);
+    });
+
+    it('debe normalizar cliente con ID', () => {
+      const raw = { ID: 456, nombre: 'Test 2', identificacionTributaria: { numero: '20987654321' } };
+      const result = normalizarCliente(raw);
+      expect(result.id).toBe(456);
+      expect(result.name).toBe('Test 2');
+      expect(result.cuit).toBe('20987654321');
+    });
+
+    it('debe retornar null para input null', () => {
+      expect(normalizarCliente(null)).toBeNull();
+    });
+  });
+
+  describe('normalizarProducto', () => {
+    it('debe normalizar producto con productoid', () => {
+      const raw = { productoid: 789, nombre: 'Producto 1', precioAGDP: 100 };
+      const result = normalizarProducto(raw);
+      expect(result.id).toBe(789);
+      expect(result.name).toBe('Producto 1');
+      expect(result.price).toBe(100);
+    });
+  });
+
+  describe('normalizarPuntoVenta', () => {
+    it('debe incluir propiedades editable y sugerido', () => {
+      const raw = { puntoVentaId: 1, codigo: '0004' };
+      const result = normalizarPuntoVenta(raw);
+      expect(result.editable).toBe(true);
+      expect(result.sugerido).toBe(true);
+      expect(result.editableSugerido).toBe(true);
+    });
+  });
+
+  describe('normalizarArray', () => {
+    it('debe normalizar un array de items', () => {
+      const raw = [
+        { cliente_id: 1, razonSocial: 'Cliente 1' },
+        { ID: 2, nombre: 'Cliente 2' }
+      ];
+      const result = normalizarArray(raw, normalizarCliente);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe(1);
+      expect(result[1].id).toBe(2);
+    });
+  });
+});
+```
 
 ---
 
