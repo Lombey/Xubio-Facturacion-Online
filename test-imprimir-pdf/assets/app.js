@@ -67,24 +67,12 @@ import ClienteSelector from './components/ClienteSelector.vue';
  */
 
 // @ts-ignore - Vue component definition
-// Función factory para crear la app con el template
+// Función factory para crear la app de Vue
+// Nota: El template se maneja restaurando el HTML después del mount (ver main.js)
 export default function createAppWithTemplate(template) {
-  console.log('🏭 Factory: Creando app con template');
-  console.log('- Template recibido length:', template?.length || 0);
-  console.log('- Template recibido (primeros 200 chars):', template?.substring(0, 200) || 'undefined');
-  
-  // PROBLEMA: En Vue 3, cuando pasas un template string, Vue necesita compilarlo en runtime
-  // pero el compilador de templates en runtime no está incluido por defecto en builds de producción.
-  // 
-  // SOLUCIÓN: Usar una función render que retorne el contenido del DOM existente
-  // o simplemente NO definir template/render y dejar que Vue monte en el elemento existente.
-  // 
-  // En Vue 3, cuando montas sin template/render, Vue intenta usar el contenido del elemento
-  // como template, pero luego lo reemplaza. Necesitamos una estrategia diferente.
-  
   const app = createApp({
-    // NO definir template ni render - Vue montará en el elemento pero reemplazará el contenido
-    // La solución es restaurar el HTML después del mount (se hace en main.js)
+    // NO definir template - Vue montará en el elemento pero reemplazará el contenido
+    // El HTML se restaura inmediatamente después del mount en main.js
     data() {
     return {
       // Autenticación
@@ -341,7 +329,8 @@ export default function createAppWithTemplate(template) {
       // Obtener cotización automáticamente al cargar (si hay token)
       if (this.accessToken || (savedClientId && savedSecretId)) {
         // Esperar un poco para que el token se obtenga si es necesario
-        setTimeout(async () => {
+        // Guardar el timeout ID para cleanup si es necesario
+        this._cotizacionTimeout = setTimeout(async () => {
           if (this.accessToken) {
             try {
               await this.obtenerCotizacionBCRA(true); // true = silencioso (sin mostrar mensajes)
@@ -358,6 +347,13 @@ export default function createAppWithTemplate(template) {
         `❌ Error al inicializar la aplicación: ${error.message}\n\nPor favor, recarga la página. Si el problema persiste, verifica la consola del navegador.`,
         'error'
       );
+    }
+  },
+  beforeUnmount() {
+    // Cleanup: limpiar timeouts pendientes
+    if (this._cotizacionTimeout) {
+      clearTimeout(this._cotizacionTimeout);
+      this._cotizacionTimeout = null;
     }
   },
   components: {
@@ -2518,11 +2514,13 @@ export default function createAppWithTemplate(template) {
 }
 
 // Manejar errores no capturados de Promises (solo una vez, no por cada instancia)
+// Este handler se registra globalmente y no necesita cleanup ya que es para toda la app
 if (!window.__vueErrorHandlersInitialized) {
   window.__vueErrorHandlersInitialized = true;
-  window.addEventListener('unhandledrejection', (event) => {
+  const unhandledRejectionHandler = (event) => {
     console.error('🚨 Promise rechazada no manejada:', event.reason);
-    // Prevenir que aparezca en consola del navegador (opcional)
-    // event.preventDefault();
-  });
+  };
+  window.addEventListener('unhandledrejection', unhandledRejectionHandler);
+  // Guardar referencia para posible cleanup futuro si es necesario
+  window.__vueUnhandledRejectionHandler = unhandledRejectionHandler;
 }

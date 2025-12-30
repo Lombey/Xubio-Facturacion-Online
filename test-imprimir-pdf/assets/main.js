@@ -8,7 +8,6 @@ if (typeof document !== 'undefined') {
   const appElement = document.getElementById('app');
   if (appElement) {
     templateHTML = appElement.innerHTML;
-    console.log('📋 Template capturado del DOM:', templateHTML.substring(0, 100) + '...');
   }
 }
 
@@ -17,106 +16,59 @@ import appFactory from './app.js';
 
 // Función para montar la aplicación con manejo de errores
 async function mountApp() {
-  console.log('🚀 Iniciando montaje de la aplicación...');
-  
   try {
     const appElement = document.getElementById('app');
     if (!appElement) {
       throw new Error('No se encontró el elemento #app');
     }
     
-    console.log('✅ Elemento #app encontrado');
-    
     // Capturar el template del DOM (por si no se capturó antes)
     const templateToUse = templateHTML || appElement.innerHTML;
-    console.log('📦 Template capturado del DOM:');
-    console.log('- Longitud:', templateToUse.length);
-    console.log('- Primeros 300 caracteres:', templateToUse.substring(0, 300));
-    console.log('- ¿Está vacío?', templateToUse.trim() === '');
     
-    // Crear la app de Vue con el template
-    console.log('📦 Creando aplicación Vue con template...');
+    // Crear la app de Vue
     const app = appFactory(templateToUse);
     
     if (!app || typeof app.mount !== 'function') {
       throw new Error('La función factory no retornó una instancia válida de Vue app');
     }
     
-    console.log('✅ Aplicación Vue creada correctamente');
-    console.log('📦 Montando aplicación Vue...');
-    console.log('📦 HTML antes de mount:', appElement.innerHTML.substring(0, 200) + '...');
-    console.log('💡 Vue debería usar el HTML existente como template automáticamente');
-    
     // IMPORTANTE: En Vue 3, cuando montas sin template, Vue reemplaza el contenido del elemento
-    // La solución es usar el contenido HTML existente como template mediante una función render
-    // Pero como el compilador de templates no está disponible en runtime, usamos otra estrategia:
-    // 1. Guardar el HTML
-    // 2. Montar Vue (que reemplazará el contenido)
-    // 3. Inmediatamente restaurar el HTML
-    // 4. Vue ya está montado y debería funcionar con el HTML restaurado
-    
+    // Solución: Guardar el HTML, montar Vue, y restaurar el HTML inmediatamente
     const htmlBeforeMount = appElement.innerHTML;
-    console.log('💾 HTML guardado antes de mount (length:', htmlBeforeMount.length + ')');
     
-    // Montar la aplicación
-    // Vue reemplazará el contenido, pero lo restauraremos inmediatamente
+    // Montar la aplicación (Vue reemplazará el contenido)
     const mountedApp = app.mount('#app');
     
     // Restaurar el HTML INMEDIATAMENTE después del mount
     // Vue ya está montado y debería poder trabajar con el HTML restaurado
     const appEl = document.getElementById('app');
     if (appEl) {
-      console.log('🔄 Restaurando HTML después de mount...');
       appEl.innerHTML = htmlBeforeMount;
-      console.log('✅ HTML restaurado. Vue debería funcionar ahora.');
-      console.log('📦 HTML restaurado (primeros 200 chars):', appEl.innerHTML.substring(0, 200) + '...');
     }
     
-    console.log('📦 HTML después de mount:', appElement.innerHTML.substring(0, 200) + '...');
-    
-    // Verificar si el contenido desapareció y restaurarlo si es necesario
-    // (Esto no debería pasar ahora que tenemos el template definido, pero lo dejamos como fallback)
+    // Verificar si el contenido desapareció (fallback de seguridad)
     setTimeout(() => {
       const appEl = document.getElementById('app');
       if (appEl && (appEl.innerHTML.trim() === '' || appEl.innerHTML.trim() === '<!---->')) {
-        console.warn('⚠️ El contenido HTML desapareció después de montar Vue');
-        console.warn('💡 Esto no debería pasar con el template definido. Revisa la configuración.');
+        console.warn('⚠️ El contenido HTML desapareció después de montar Vue. Restaurando...');
+        appEl.innerHTML = htmlBeforeMount;
       }
     }, 100);
     
-    console.log('✅ Vue montado correctamente');
-    console.log('📦 Contenido HTML después de montar:', appElement.innerHTML.substring(0, 200) + '...');
-    
-    // Remover v-cloak inmediatamente después de montar
-    // Usar requestAnimationFrame para asegurar que el DOM esté actualizado
+    // Remover v-cloak después de montar
     requestAnimationFrame(() => {
       const appEl = document.getElementById('app');
       if (appEl && appEl.hasAttribute('v-cloak')) {
-        console.log('🔓 Removiendo v-cloak...');
         appEl.removeAttribute('v-cloak');
-        console.log('✅ v-cloak removido, contenido visible');
-      } else {
-        console.log('ℹ️ v-cloak ya fue removido o no estaba presente');
       }
     });
     
-    // Fallback: remover v-cloak después de 500ms por si acaso
+    // Fallback: remover v-cloak después de 500ms
     setTimeout(() => {
       const appEl = document.getElementById('app');
       if (appEl && appEl.hasAttribute('v-cloak')) {
-        console.warn('⚠️ v-cloak todavía presente después de 500ms, removiendo forzadamente...');
         appEl.removeAttribute('v-cloak');
       }
-      
-      // Diagnóstico: verificar el estado del contenido
-      console.log('🔍 Diagnóstico del contenido:');
-      console.log('- Elemento #app existe:', !!appEl);
-      console.log('- Contenido HTML length:', appEl?.innerHTML?.length || 0);
-      console.log('- Estilos computed:', appEl ? window.getComputedStyle(appEl).display : 'N/A');
-      console.log('- Visibility:', appEl ? window.getComputedStyle(appEl).visibility : 'N/A');
-      console.log('- Opacity:', appEl ? window.getComputedStyle(appEl).opacity : 'N/A');
-      console.log('- Height:', appEl ? window.getComputedStyle(appEl).height : 'N/A');
-      console.log('- Primer hijo:', appEl?.firstElementChild?.tagName || 'N/A');
     }, 500);
     
     return mountedApp;

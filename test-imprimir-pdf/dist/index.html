@@ -6,7 +6,7 @@
     <title>Test Xubio - Imprimir PDF</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon-CcJLBgrP.svg">
     <link rel="alternate icon" href="./assets/favicon-DMPmiEVi.ico">
-  <script type="module" crossorigin src="./assets/main-EJFlVZKx.js"></script>
+  <script type="module" crossorigin src="./assets/main-Bdv_ZPZ-.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/main-QDTbRO3G.css">
 </head>
 <body>
@@ -22,20 +22,22 @@
                 💡 Las credenciales están en el archivo <code>.xubio-credentials.md</code><br>
                 ✅ Desplegado en Vercel - El proxy API funciona automáticamente
             </div>
-            <div class="form-group">
-                <label for="clientId">Client ID:</label>
-                <input type="text" id="clientId" v-model="clientId" placeholder="Ingresa tu Client ID">
-            </div>
-            <div class="form-group">
-                <label for="secretId">Secret ID:</label>
-                <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID">
-            </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
-                <label for="guardarCredenciales" style="font-weight: normal; margin: 0;">Guardar credenciales en localStorage</label>
-            </div>
-            <button @click="obtenerToken()" :disabled="isLoading">Obtener Token</button>
-            <button class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
+            <form @submit.prevent="obtenerToken()" novalidate>
+                <div class="form-group">
+                    <label for="clientId">Client ID:</label>
+                    <input type="text" id="clientId" v-model="clientId" placeholder="Ingresa tu Client ID">
+                </div>
+                <div class="form-group">
+                    <label for="secretId">Secret ID:</label>
+                    <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID">
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
+                    <label for="guardarCredenciales" style="font-weight: normal; margin: 0;">Guardar credenciales en localStorage</label>
+                </div>
+                <button type="submit" :disabled="isLoading">Obtener Token</button>
+                <button type="button" class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
+            </form>
             <div v-if="isLoading && loadingContext.includes('token')" class="info">⏳ {{ loadingContext }}...</div>
             <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
         </div>
