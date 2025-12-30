@@ -271,6 +271,65 @@ export const appOptions = {
      */
     fechaVencimiento() {
       return new Date().toISOString().split('T')[0];
+    },
+    
+    /**
+     * Valida si se puede crear una factura (todos los requisitos cumplidos)
+     * @returns {boolean}
+     */
+    puedeCrearFactura() {
+      // 1. Validar token válido
+      if (!this.tokenValido) {
+        return false;
+      }
+      
+      // 2. Validar cliente seleccionado
+      if (!this.clienteSeleccionadoParaFactura || !this.facturaClienteId) {
+        return false;
+      }
+      
+      // 3. Validar productos seleccionados o JSON manual
+      if (!this.facturaJson.trim() && this.productosSeleccionados.length === 0) {
+        return false;
+      }
+      
+      // 4. Validar moneda seleccionada
+      if (!this.facturaMoneda) {
+        return false;
+      }
+      
+      // 5. Validar punto de venta válido (no el fallback)
+      if (!this.puntoVentaValido) {
+        return false;
+      }
+      
+      // 6. Validar cotización si es moneda extranjera
+      if (this.facturaMoneda && 
+          this.facturaMoneda !== 'ARS' && 
+          this.facturaMoneda !== 'PESOS_ARGENTINOS') {
+        const cotizacion = parseFloat(this.facturaCotizacion);
+        if (!cotizacion || cotizacion <= 0) {
+          return false;
+        }
+      }
+      
+      return true;
+    },
+    
+    /**
+     * Valida si el punto de venta es válido (no el fallback)
+     * @returns {boolean}
+     */
+    puntoVentaValido() {
+      if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
+        return false;
+      }
+      
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+      
+      // Verificar que no sea el fallback (ID: 1 sin nombre/código)
+      return puntoVentaId && !(puntoVentaId === 1 && (!puntoVenta.nombre && !puntoVenta.codigo));
     }
   },
   async mounted() {

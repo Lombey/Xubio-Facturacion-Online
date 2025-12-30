@@ -34,6 +34,28 @@ Un ADR es un documento que captura:
 - Aliases de imports para mejor DX
 - Code splitting manual con lazy loading
 
+### [ADR-003: Optimizaciones Vite](./ADR-003-optimizaciones-vite.md)
+**Estado:** Aceptado  
+**Fecha:** 2024-12-19  
+**Resumen:** Optimizaciones de build con Vite para mejorar performance y reducir bundle size.
+
+### [ADR-004: Decisión de usar JSDoc + TypeScript checkJs para tipos en archivos .vue](./ADR-004-decision-tipos-vue-jsdoc.md)
+**Estado:** Aceptado  
+**Fecha:** 2024-12-30  
+**Resumen:** Decisión de implementar type safety para componentes Vue usando JSDoc + TypeScript `checkJs`, con separación de responsabilidades entre tipos de dominio y shim de Vue.
+
+**Decisiones clave:**
+- Usar JSDoc + TypeScript `checkJs` (Opción 4 Híbrida)
+- Separar tipos de dominio en `types/models.d.ts`
+- Mantener `vue-global.d.ts` solo para shim de Vue
+- Agregar JSDoc a componentes Vue con tipos de `models.d.ts`
+- Usar `PropType` de Vue para props tipadas
+
+**Resultado:**
+- ✅ 0 errores de type checking (antes: 95)
+- ✅ Type safety mejorado sin migrar a TypeScript completo
+- ✅ Arquitectura escalable y mantenible
+
 ## Formato de ADRs
 
 Los ADRs siguen este formato estándar:

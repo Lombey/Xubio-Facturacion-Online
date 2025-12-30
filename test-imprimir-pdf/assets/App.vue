@@ -375,6 +375,12 @@
             <div v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS'"><strong>Cotización:</strong> ${{ formatearPrecio(facturaCotizacion) }}</div>
             <div><strong>Fecha:</strong> {{ new Date().toISOString().split('T')[0] }}</div>
             <div><strong>Vencimiento:</strong> {{ fechaVencimiento }}</div>
+            <div><strong>Punto de Venta:</strong> 
+              <span :style="puntoVentaValido ? '' : 'color: #dc3545; font-weight: bold;'">
+                {{ puntoVentaSeleccionado.codigo || puntoVentaSeleccionado.nombre || 'No disponible' }}
+              </span>
+              <span v-if="!puntoVentaValido" style="color: #dc3545; font-size: 11px; margin-left: 5px;">⚠️ Inválido</span>
+            </div>
           </div>
         </div>
         
@@ -422,8 +428,23 @@
       </div>
       
       <div class="flow-buttons">
-        <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading">🚀 Crear Factura y Obtener PDF</button>
-        <button @click="soloCrearFactura()" :disabled="isLoading">Solo Crear Factura</button>
+        <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading || !puedeCrearFactura">🚀 Crear Factura y Obtener PDF</button>
+        <button @click="soloCrearFactura()" :disabled="isLoading || !puedeCrearFactura">Solo Crear Factura</button>
+      </div>
+      <!-- Mensaje informativo cuando los botones están deshabilitados -->
+      <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404; font-size: 13px;">
+        <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No se puede crear la factura. Verifica:</div>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li v-if="!tokenValido">❌ Token de acceso válido</li>
+          <li v-if="!clienteSeleccionadoParaFactura || !facturaClienteId">❌ Cliente seleccionado</li>
+          <li v-if="!facturaJson.trim() && productosSeleccionados.length === 0">❌ Productos seleccionados o JSON manual</li>
+          <li v-if="!facturaMoneda">❌ Moneda seleccionada</li>
+          <li v-if="!puntosDeVenta || puntosDeVenta.length === 0">❌ Puntos de venta cargados (usa "Listar Puntos de Venta" en la sección 2.6)</li>
+          <li v-if="puntosDeVenta && puntosDeVenta.length > 0 && !puntoVentaValido">❌ Punto de venta válido (verifica que esté configurado correctamente en Xubio con editable y sugerido activos)</li>
+          <li v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS' && (!facturaCotizacion || parseFloat(facturaCotizacion) <= 0)">
+            ❌ Cotización válida para moneda extranjera
+          </li>
+        </ul>
       </div>
       <div v-if="facturaResult.visible" :class="['result', facturaResult.type]" v-html="formatoMensaje(facturaResult.message)"></div>
       <div v-if="facturaPdfViewerVisible" class="pdf-viewer" v-html="facturaPdfViewerHtml"></div>
