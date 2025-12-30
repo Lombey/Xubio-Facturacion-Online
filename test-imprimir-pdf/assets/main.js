@@ -1,7 +1,19 @@
 // Punto de entrada principal para Vite
 // Este archivo se importa desde index.html y maneja el montaje de Vue
 
-import app from './app.js';
+// IMPORTANTE: Capturar el template del DOM ANTES de importar la app
+// porque Vue necesita el template al crear la aplicación
+let templateHTML = '';
+if (typeof document !== 'undefined') {
+  const appElement = document.getElementById('app');
+  if (appElement) {
+    templateHTML = appElement.innerHTML;
+    console.log('📋 Template capturado del DOM:', templateHTML.substring(0, 100) + '...');
+  }
+}
+
+// Importar la app (que ahora usará el template capturado)
+import appFactory from './app.js';
 
 // Función para montar la aplicación con manejo de errores
 async function mountApp() {
@@ -15,11 +27,35 @@ async function mountApp() {
     
     console.log('✅ Elemento #app encontrado');
     console.log('📦 Contenido HTML antes de montar:', appElement.innerHTML.substring(0, 200) + '...');
+    
+    // IMPORTANTE: En Vue 3, cuando montas una app sin template explícito,
+    // Vue reemplaza el contenido HTML. Necesitamos capturar el HTML y usarlo como template.
+    const existingHTML = appElement.innerHTML;
+    
+    // Guardar el HTML original para restaurarlo si es necesario
+    appElement.setAttribute('data-original-html', existingHTML);
+    
     console.log('📦 Montando aplicación Vue...');
+    console.log('💡 Vue usará el contenido HTML existente como template');
     
     // Montar la aplicación
-    // Vue 3 usará el contenido HTML existente en #app como template
+    // Vue 3 debería usar el contenido HTML existente, pero si no lo hace,
+    // necesitamos restaurarlo después del montaje
     const mountedApp = app.mount('#app');
+    
+    // Verificar si el contenido desapareció y restaurarlo si es necesario
+    setTimeout(() => {
+      const appEl = document.getElementById('app');
+      if (appEl && (appEl.innerHTML.trim() === '' || appEl.innerHTML.trim() === '<!---->')) {
+        console.warn('⚠️ El contenido HTML desapareció después de montar Vue');
+        console.warn('🔄 Restaurando contenido HTML original...');
+        // Restaurar el HTML original
+        appEl.innerHTML = existingHTML;
+        // Remontar Vue con el template explícito
+        // Necesitamos recrear la app con el template
+        console.warn('💡 Necesitamos definir el template explícitamente en la app');
+      }
+    }, 100);
     
     console.log('✅ Vue montado correctamente');
     console.log('📦 Contenido HTML después de montar:', appElement.innerHTML.substring(0, 200) + '...');
