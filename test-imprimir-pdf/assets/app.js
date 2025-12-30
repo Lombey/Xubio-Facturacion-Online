@@ -172,8 +172,149 @@ const app = createApp({
         'info'
       );
     }
+    
+    // Limpiar caches expirados al iniciar
+    this.limpiarCachesExpirados();
   },
   methods: {
+    /**
+     * Sistema de Cache con TTL
+     * TTL por tipo de dato:
+     * - Clientes: 24 horas
+     * - Productos: 12 horas
+     * - Lista de Precios: 6 horas
+     * - Maestros: 7 días
+     */
+    
+    /**
+     * Obtiene datos del cache si no han expirado
+     * @param {string} key - Clave del cache
+     * @returns {any|null} Datos cacheados o null si expiró/no existe
+     */
+    getCachedData(key) {
+      try {
+        const cached = localStorage.getItem(`xubio_cache_${key}`);
+        if (!cached) return null;
+        
+        const { data, timestamp, ttl } = JSON.parse(cached);
+        const now = Date.now();
+        
+        // Si expiró, eliminar y retornar null
+        if (now - timestamp > ttl) {
+          localStorage.removeItem(`xubio_cache_${key}`);
+          console.log(`⏰ Cache expirado para: ${key}`);
+          return null;
+        }
+        
+        const edad = Math.floor((now - timestamp) / 1000 / 60); // minutos
+        console.log(`✅ Cache válido para: ${key} (edad: ${edad} minutos)`);
+        return data;
+      } catch (error) {
+        console.error(`❌ Error leyendo cache ${key}:`, error);
+        localStorage.removeItem(`xubio_cache_${key}`);
+        return null;
+      }
+    },
+    
+    /**
+     * Guarda datos en el cache con TTL
+     * @param {string} key - Clave del cache
+     * @param {any} data - Datos a cachear
+     * @param {number} ttl - TTL en milisegundos
+     */
+    setCachedData(key, data, ttl) {
+      try {
+        localStorage.setItem(`xubio_cache_${key}`, JSON.stringify({
+          data,
+          timestamp: Date.now(),
+          ttl
+        }));
+        console.log(`💾 Cache guardado para: ${key} (TTL: ${Math.floor(ttl / 1000 / 60)} minutos)`);
+      } catch (error) {
+        console.error(`❌ Error guardando cache ${key}:`, error);
+        // Si localStorage está lleno, intentar limpiar caches viejos
+        this.limpiarCachesExpirados();
+      }
+    },
+    
+    /**
+     * Invalida un cache específico
+     * @param {string} key - Clave del cache a invalidar
+     */
+    invalidarCache(key) {
+      localStorage.removeItem(`xubio_cache_${key}`);
+      console.log(`🗑️ Cache invalidado: ${key}`);
+    },
+    
+    /**
+     * Limpia todos los caches expirados
+     */
+    limpiarCachesExpirados() {
+      const keys = Object.keys(localStorage);
+      let limpiados = 0;
+      
+      keys.forEach(key => {
+        if (key.startsWith('xubio_cache_')) {
+          try {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+              const { timestamp, ttl } = JSON.parse(cached);
+              if (Date.now() - timestamp > ttl) {
+                localStorage.removeItem(key);
+                limpiados++;
+              }
+            }
+          } catch (error) {
+            // Si hay error parseando, eliminar
+            localStorage.removeItem(key);
+            limpiados++;
+          }
+        }
+      });
+      
+      if (limpiados > 0) {
+        console.log(`🧹 Limpiados ${limpiados} caches expirados`);
+      }
+    },
+    
+    /**
+     * Limpia todos los caches manualmente (útil para debugging)
+     */
+    limpiarTodosLosCaches() {
+      const keys = Object.keys(localStorage);
+      let limpiados = 0;
+      
+      keys.forEach(key => {
+        if (key.startsWith('xubio_cache_')) {
+          localStorage.removeItem(key);
+          limpiados++;
+        }
+      });
+      
+      // También limpiar datos en memoria
+      this.clientesList = [];
+      this.productosList = [];
+      this.listaPrecioAGDP = null;
+      
+      console.log(`🗑️ Limpiados ${limpiados} caches manualmente`);
+      return limpiados;
+    },
+    
+    /**
+     * Obtiene el TTL recomendado para un tipo de dato
+     * @param {string} tipo - 'clientes', 'productos', 'listaPrecios', 'maestros'
+     * @returns {number} TTL en milisegundos
+     */
+    getTTL(tipo) {
+      const ttlMap = {
+        'clientes': 24 * 60 * 60 * 1000,      // 24 horas
+        'productos': 12 * 60 * 60 * 1000,     // 12 horas
+        'listaPrecios': 6 * 60 * 60 * 1000,   // 6 horas
+        'maestros': 7 * 24 * 60 * 60 * 1000   // 7 días
+      };
+      return ttlMap[tipo] || 60 * 60 * 1000; // Default: 1 hora
+    },
+    
     /**
      * @param {string} mensaje
      * @returns {string}
@@ -1039,11 +1180,29 @@ const app = createApp({
     },
 
     /**
-     * Obtiene la lista de precios "AGDP" con sus precios
+     * Obtiene la lista de precios "AGDP" con sus precios (con cache)
+     * @param {boolean} forceRefresh - Si es true, fuerza la actualización desde la API
      */
-    async obtenerListaPrecioAGDP() {
+    async obtenerListaPrecioAGDP(forceRefresh = false) {
       if (!this.accessToken) {
         return null;
+      }
+
+      // Verificar cache en memoria
+      if (!forceRefresh && this.listaPrecioAGDP) {
+        return this.listaPrecioAGDP;
+      }
+
+      // Verificar cache en localStorage
+      if (!forceRefresh) {
+        const cached = this.getCachedData('listaPrecioAGDP');
+        if (cached) {
+          this.listaPrecioAGDP = cached;
+          console.log('✅ Lista de precios AGDP cargada desde cache');
+          return cached;
+        }
+      } else {
+        this.invalidarCache('listaPrecioAGDP');
       }
 
       try {
@@ -1087,12 +1246,15 @@ const app = createApp({
                   // Combinar la información de la lista con sus detalles
                   this.listaPrecioAGDP = { ...listaAGDP, ...detalleData };
                   
+                  // Guardar en cache
+                  this.setCachedData('listaPrecioAGDP', this.listaPrecioAGDP, this.getTTL('listaPrecios'));
+                  
                   // Verificar que listaPrecioItem existe y tiene datos
                   const itemsCount = Array.isArray(this.listaPrecioAGDP.listaPrecioItem) 
                     ? this.listaPrecioAGDP.listaPrecioItem.length 
                     : 0;
                   
-                  console.log('✅ Lista de precios AGDP con detalles obtenida:', {
+                  console.log('✅ Lista de precios AGDP con detalles obtenida desde la API:', {
                     nombre: this.listaPrecioAGDP.nombre,
                     listaPrecioID: this.listaPrecioAGDP.listaPrecioID,
                     itemsCount: itemsCount,
@@ -1113,7 +1275,8 @@ const app = createApp({
             
             // Si no se pudieron obtener detalles, usar la lista básica
             this.listaPrecioAGDP = listaAGDP;
-            console.log('✅ Lista de precios AGDP encontrada (sin detalles):', listaAGDP);
+            this.setCachedData('listaPrecioAGDP', listaAGDP, this.getTTL('listaPrecios'));
+            console.log('✅ Lista de precios AGDP encontrada (sin detalles) desde la API:', listaAGDP);
             return listaAGDP;
           } else {
             console.warn('⚠️ Lista de precios AGDP no encontrada. Listas disponibles:', data.map(lp => ({
@@ -1132,27 +1295,57 @@ const app = createApp({
     },
 
     /**
-     * Lista productos de venta activos
+     * Lista productos de venta activos (con cache)
+     * @param {boolean} forceRefresh - Si es true, fuerza la actualización desde la API
      */
-    async listarProductos() {
+    async listarProductos(forceRefresh = false) {
       if (!this.accessToken) {
         alert('Primero obtén un token de acceso');
         return;
       }
 
+      // 1. Verificar cache en memoria
+      if (!forceRefresh && this.productosList.length > 0) {
+        this.mostrarResultado('productosList', 
+          `✅ ${this.productosList.length} productos ya cargados en memoria`, 
+          'success'
+        );
+        return;
+      }
+
+      // 2. Verificar cache en localStorage
+      if (!forceRefresh) {
+        const cached = this.getCachedData('productos');
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+          this.productosList = cached;
+          const edad = Math.floor((Date.now() - JSON.parse(localStorage.getItem('xubio_cache_productos')).timestamp) / 1000 / 60);
+          this.mostrarResultado('productosList', 
+            `✅ ${cached.length} productos cargados desde cache (actualizado hace ${edad} minutos)\n\n💡 Haz clic en "Actualizar" para obtener datos frescos de la API`, 
+            'success'
+          );
+          
+          // Actualizar en background
+          this.actualizarProductosEnBackground();
+          return;
+        }
+      } else {
+        // Invalidar cache si se fuerza refresh
+        this.invalidarCache('productos');
+      }
+
       this.isLoading = true;
       this.loadingContext = 'Obteniendo productos...';
-      this.mostrarResultado('productosList', 'Obteniendo productos...', 'info');
+      this.mostrarResultado('productosList', 'Obteniendo productos desde la API...', 'info');
       this.productosList = [];
 
       try {
-        // Obtener productos activos
+        // 3. Consultar API
         const { response, data } = await this.requestXubio('/ProductoVentaBean', 'GET', null, {
           activo: 1
         });
 
         if (response.ok && Array.isArray(data)) {
-          console.log(`📦 Se obtuvieron ${data.length} productos activos`);
+          console.log(`📦 Se obtuvieron ${data.length} productos activos desde la API`);
           
           // Asegurar que la lista de precios AGDP esté cargada ANTES de enriquecer
           if (!this.listaPrecioAGDP) {
@@ -1164,9 +1357,12 @@ const app = createApp({
           const productosConPrecios = await this.enriquecerProductosConPrecios(data);
           this.productosList = productosConPrecios;
           
+          // Guardar en cache
+          this.setCachedData('productos', productosConPrecios, this.getTTL('productos'));
+          
           const productosConPrecio = productosConPrecios.filter(p => p.precioAGDP && p.precioAGDP > 0);
           const mensaje = productosConPrecio.length > 0
-            ? `✅ Se encontraron ${data.length} productos activos (${productosConPrecio.length} con precios de la lista AGDP)`
+            ? `✅ Se encontraron ${data.length} productos activos (${productosConPrecio.length} con precios de la lista AGDP) - Actualizados desde la API`
             : `✅ Se encontraron ${data.length} productos activos\n\n⚠️ No se encontraron precios en la lista AGDP. Verifica que:\n- La lista de precios "AGDP" existe\n- Los productos están incluidos en la lista\n- Revisa la consola (F12) para más detalles`;
           
           this.mostrarResultado('productosList', mensaje, productosConPrecio.length > 0 ? 'success' : 'info');
@@ -1181,6 +1377,35 @@ const app = createApp({
       } finally {
         this.isLoading = false;
         this.loadingContext = '';
+      }
+    },
+    
+    /**
+     * Actualiza productos en background sin bloquear la UI
+     */
+    async actualizarProductosEnBackground() {
+      try {
+        const { response, data } = await this.requestXubio('/ProductoVentaBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          // Asegurar lista de precios
+          if (!this.listaPrecioAGDP) {
+            await this.obtenerListaPrecioAGDP();
+          }
+          
+          const productosConPrecios = await this.enriquecerProductosConPrecios(data);
+          
+          // Actualizar solo si hay cambios
+          if (productosConPrecios.length !== this.productosList.length) {
+            this.productosList = productosConPrecios;
+            this.setCachedData('productos', productosConPrecios, this.getTTL('productos'));
+            console.log('🔄 Productos actualizados en background');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error actualizando productos en background:', error);
       }
     },
 
@@ -1732,30 +1957,59 @@ const app = createApp({
     },
 
     /**
-     * Lista clientes activos
+     * Lista clientes activos (con cache)
+     * @param {boolean} forceRefresh - Si es true, fuerza la actualización desde la API
      */
-    async listarClientes() {
+    async listarClientes(forceRefresh = false) {
       if (!this.accessToken) {
         alert('Primero obtén un token de acceso');
         return;
       }
 
+      // 1. Verificar cache en memoria (si ya está cargado y no se fuerza refresh)
+      if (!forceRefresh && this.clientesList.length > 0) {
+        this.mostrarResultado('clientesList', 
+          `✅ ${this.clientesList.length} clientes ya cargados en memoria`, 
+          'success'
+        );
+        return;
+      }
+
+      // 2. Verificar cache en localStorage
+      if (!forceRefresh) {
+        const cached = this.getCachedData('clientes');
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+          this.clientesList = cached;
+          const edad = Math.floor((Date.now() - JSON.parse(localStorage.getItem('xubio_cache_clientes')).timestamp) / 1000 / 60);
+          this.mostrarResultado('clientesList', 
+            `✅ ${cached.length} clientes cargados desde cache (actualizado hace ${edad} minutos)\n\n💡 Haz clic en "Actualizar" para obtener datos frescos de la API`, 
+            'success'
+          );
+          
+          // Actualizar en background sin bloquear UI
+          this.actualizarClientesEnBackground();
+          return;
+        }
+      } else {
+        // Invalidar cache si se fuerza refresh
+        this.invalidarCache('clientes');
+      }
+
       this.isLoading = true;
       this.loadingContext = 'Obteniendo clientes...';
-      this.mostrarResultado('clientesList', 'Obteniendo clientes...', 'info');
-      this.clientesList = [];
+      this.mostrarResultado('clientesList', 'Obteniendo clientes desde la API...', 'info');
 
       try {
-        // Obtener clientes activos
+        // 3. Consultar API
         const { response, data } = await this.requestXubio('/clienteBean', 'GET', null, {
           activo: 1
         });
 
         if (response.ok && Array.isArray(data)) {
-          console.log(`👥 Se obtuvieron ${data.length} clientes activos`);
+          console.log(`👥 Se obtuvieron ${data.length} clientes activos desde la API`);
           
           // Normalizar estructura de clientes
-          this.clientesList = data.map(cliente => {
+          const clientesNormalizados = data.map(cliente => {
             const clienteId = cliente.cliente_id || cliente.id || cliente.ID;
             const cuit = cliente.cuit || 
                         cliente.identificacionTributaria?.numero || 
@@ -1771,8 +2025,13 @@ const app = createApp({
             };
           });
           
+          this.clientesList = clientesNormalizados;
+          
+          // Guardar en cache
+          this.setCachedData('clientes', clientesNormalizados, this.getTTL('clientes'));
+          
           this.mostrarResultado('clientesList', 
-            `✅ Se encontraron ${data.length} clientes activos`, 
+            `✅ Se encontraron ${data.length} clientes activos (actualizados desde la API)`, 
             'success'
           );
         } else {
@@ -1786,6 +2045,44 @@ const app = createApp({
       } finally {
         this.isLoading = false;
         this.loadingContext = '';
+      }
+    },
+    
+    /**
+     * Actualiza clientes en background sin bloquear la UI
+     */
+    async actualizarClientesEnBackground() {
+      try {
+        const { response, data } = await this.requestXubio('/clienteBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          const clientesNormalizados = data.map(cliente => {
+            const clienteId = cliente.cliente_id || cliente.id || cliente.ID;
+            const cuit = cliente.cuit || 
+                        cliente.identificacionTributaria?.numero || 
+                        cliente.CUIT ||
+                        '';
+            
+            return {
+              ...cliente,
+              cliente_id: clienteId,
+              cuit: cuit,
+              razonSocial: cliente.razonSocial || cliente.nombre || '',
+              nombre: cliente.nombre || cliente.razonSocial || ''
+            };
+          });
+          
+          // Actualizar cache y memoria solo si hay cambios
+          if (clientesNormalizados.length !== this.clientesList.length) {
+            this.clientesList = clientesNormalizados;
+            this.setCachedData('clientes', clientesNormalizados, this.getTTL('clientes'));
+            console.log('🔄 Clientes actualizados en background');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Error actualizando clientes en background:', error);
       }
     },
 

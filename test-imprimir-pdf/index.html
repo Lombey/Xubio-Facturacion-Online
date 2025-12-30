@@ -43,7 +43,13 @@
             <div class="info">
                 💡 Lista productos activos y selecciona los que quieras incluir en la factura
             </div>
-            <button @click="listarProductos()" :disabled="isLoading">📦 Listar Productos Activos</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button @click="listarProductos()" :disabled="isLoading">📦 Listar Productos Activos</button>
+                <button @click="listarProductos(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar</button>
+            </div>
+            <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                💡 Los productos se cargan desde cache si están disponibles. Usa "Actualizar" para obtener datos frescos.
+            </div>
             <div v-if="productosListResult.visible" :class="['result', productosListResult.type]" v-html="formatoMensaje(productosListResult.message)"></div>
             
             <div v-if="productosList.length > 0" style="margin-top: 15px;">
@@ -131,7 +137,13 @@
             <div class="info">
                 💡 Lista clientes activos y selecciona el que quieras usar en la factura
             </div>
-            <button @click="listarClientes()" :disabled="isLoading">👥 Listar Clientes Activos</button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button @click="listarClientes()" :disabled="isLoading">👥 Listar Clientes Activos</button>
+                <button @click="listarClientes(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar</button>
+            </div>
+            <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                💡 Los clientes se cargan desde cache si están disponibles. Usa "Actualizar" para obtener datos frescos.
+            </div>
             <div v-if="clientesListResult.visible" :class="['result', clientesListResult.type]" v-html="formatoMensaje(clientesListResult.message)"></div>
             
             <div v-if="clientesList.length > 0" style="margin-top: 15px;">
