@@ -3,6 +3,10 @@
     margin: 0;
     padding: 0;
 }
+/* Ocultar contenido hasta que Vue esté montado */
+[v-cloak] {
+    display: none !important;
+}
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     max-width: 1000px;

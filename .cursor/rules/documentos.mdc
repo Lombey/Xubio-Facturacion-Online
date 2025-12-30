@@ -3,6 +3,8 @@ alwaysApply: true
 ---
 
 ESTRUCTURA DE DOCIMENTACION DEL PROYECTO PARA USAR CUANDO SE NECESITE CONSULTAR O CREAR UN NUEVO DOCUMENTO. uSAR ESAS CARPETAS CON ESOS CRITEROS PARA DOCUMENTOS NUEVOS.
+C:\dev\Sheets con xubio\test-imprimir-pdf\docs
+
 docs/
 ├── ADRS/                    → Decisiones arquitectónicas registradas
 ├── cerrados/                → Análisis y planes archivados completados

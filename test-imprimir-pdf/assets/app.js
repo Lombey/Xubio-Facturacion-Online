@@ -275,63 +275,72 @@ const app = createApp({
     }
   },
   async mounted() {
-    // Inicializar cliente Xubio
-    this.xubioClient = useXubio(
-      (forceRefresh) => this.obtenerToken(forceRefresh),
-      () => this.tokenValido,
-      () => this.accessToken
-    );
-    
-    // Cargar credenciales guardadas
-    const savedClientId = localStorage.getItem('xubio_clientId');
-    const savedSecretId = localStorage.getItem('xubio_secretId');
-    
-    if (savedClientId) {
-      this.clientId = savedClientId;
-    }
-    if (savedSecretId) {
-      this.secretId = savedSecretId;
-    }
-
-    // Intentar cargar token guardado primero
-    const savedToken = localStorage.getItem('xubio_token');
-    const savedExpiration = localStorage.getItem('xubio_tokenExpiration');
-
-    if (savedToken && savedExpiration && Date.now() < parseInt(savedExpiration) - 60000) {
-      this.accessToken = savedToken;
-      this.tokenExpiration = parseInt(savedExpiration);
-      this.mostrarResultado('token', 
-        `✅ Token cargado desde localStorage (válido hasta ${new Date(this.tokenExpiration).toLocaleString()})\n\n💡 Si el token expiró, haz clic en "Obtener Token" para renovarlo.`, 
-        'success'
+    try {
+      // Inicializar cliente Xubio
+      this.xubioClient = useXubio(
+        (forceRefresh) => this.obtenerToken(forceRefresh),
+        () => this.tokenValido,
+        () => this.accessToken
       );
-    } else if (savedClientId && savedSecretId) {
-      // Si hay credenciales guardadas pero no hay token válido, obtener uno nuevo automáticamente
-      await this.obtenerToken();
-    } else {
-      this.mostrarResultado('token',
-        '⚠️ Ingresa tus credenciales de Xubio y haz clic en "Obtener Token"\n\n💡 Las credenciales están en el archivo .xubio-credentials.md', 
-        'info'
-      );
-    }
-    
-    // Limpiar caches expirados al iniciar
-    this.limpiarCachesExpirados();
-    
-    // Inicializar fecha de vencimiento con fecha actual
-    this.facturaFechaVto = new Date().toISOString().split('T')[0];
-    
-    // Obtener cotización automáticamente al cargar (si hay token)
-    if (this.accessToken || (savedClientId && savedSecretId)) {
-      // Esperar un poco para que el token se obtenga si es necesario
-      setTimeout(async () => {
-        if (this.accessToken) {
-          try {
-            await this.obtenerCotizacionBCRA(true); // true = silencioso (sin mostrar mensajes)
-          } catch (error) {
-            console.warn('⚠️ No se pudo obtener cotización automáticamente:', error);
+      
+      // Cargar credenciales guardadas
+      const savedClientId = localStorage.getItem('xubio_clientId');
+      const savedSecretId = localStorage.getItem('xubio_secretId');
+      
+      if (savedClientId) {
+        this.clientId = savedClientId;
+      }
+      if (savedSecretId) {
+        this.secretId = savedSecretId;
+      }
+
+      // Intentar cargar token guardado primero
+      const savedToken = localStorage.getItem('xubio_token');
+      const savedExpiration = localStorage.getItem('xubio_tokenExpiration');
+
+      if (savedToken && savedExpiration && Date.now() < parseInt(savedExpiration) - 60000) {
+        this.accessToken = savedToken;
+        this.tokenExpiration = parseInt(savedExpiration);
+        this.mostrarResultado('token', 
+          `✅ Token cargado desde localStorage (válido hasta ${new Date(this.tokenExpiration).toLocaleString()})\n\n💡 Si el token expiró, haz clic en "Obtener Token" para renovarlo.`, 
+          'success'
+        );
+      } else if (savedClientId && savedSecretId) {
+        // Si hay credenciales guardadas pero no hay token válido, obtener uno nuevo automáticamente
+        await this.obtenerToken();
+      } else {
+        this.mostrarResultado('token',
+          '⚠️ Ingresa tus credenciales de Xubio y haz clic en "Obtener Token"\n\n💡 Las credenciales están en el archivo .xubio-credentials.md', 
+          'info'
+        );
+      }
+      
+      // Limpiar caches expirados al iniciar
+      this.limpiarCachesExpirados();
+      
+      // Inicializar fecha de vencimiento con fecha actual
+      this.facturaFechaVto = new Date().toISOString().split('T')[0];
+      
+      // Obtener cotización automáticamente al cargar (si hay token)
+      if (this.accessToken || (savedClientId && savedSecretId)) {
+        // Esperar un poco para que el token se obtenga si es necesario
+        setTimeout(async () => {
+          if (this.accessToken) {
+            try {
+              await this.obtenerCotizacionBCRA(true); // true = silencioso (sin mostrar mensajes)
+            } catch (error) {
+              console.warn('⚠️ No se pudo obtener cotización automáticamente:', error);
+            }
           }
-        }
-      }, 2000); // Esperar 2 segundos para que el token se obtenga
+        }, 2000); // Esperar 2 segundos para que el token se obtenga
+      }
+    } catch (error) {
+      // Manejar errores de inicialización para evitar pantalla blanca
+      console.error('🚨 Error en inicialización de la aplicación:', error);
+      this.mostrarResultado('token',
+        `❌ Error al inicializar la aplicación: ${error.message}\n\nPor favor, recarga la página. Si el problema persiste, verifica la consola del navegador.`,
+        'error'
+      );
     }
   },
   components: {
