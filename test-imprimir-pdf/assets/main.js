@@ -14,12 +14,15 @@ async function mountApp() {
     }
     
     console.log('✅ Elemento #app encontrado');
+    console.log('📦 Contenido HTML antes de montar:', appElement.innerHTML.substring(0, 200) + '...');
     console.log('📦 Montando aplicación Vue...');
     
     // Montar la aplicación
+    // Vue 3 usará el contenido HTML existente en #app como template
     const mountedApp = app.mount('#app');
     
     console.log('✅ Vue montado correctamente');
+    console.log('📦 Contenido HTML después de montar:', appElement.innerHTML.substring(0, 200) + '...');
     
     // Remover v-cloak inmediatamente después de montar
     // Usar requestAnimationFrame para asegurar que el DOM esté actualizado
@@ -41,6 +44,16 @@ async function mountApp() {
         console.warn('⚠️ v-cloak todavía presente después de 500ms, removiendo forzadamente...');
         appEl.removeAttribute('v-cloak');
       }
+      
+      // Diagnóstico: verificar el estado del contenido
+      console.log('🔍 Diagnóstico del contenido:');
+      console.log('- Elemento #app existe:', !!appEl);
+      console.log('- Contenido HTML length:', appEl?.innerHTML?.length || 0);
+      console.log('- Estilos computed:', appEl ? window.getComputedStyle(appEl).display : 'N/A');
+      console.log('- Visibility:', appEl ? window.getComputedStyle(appEl).visibility : 'N/A');
+      console.log('- Opacity:', appEl ? window.getComputedStyle(appEl).opacity : 'N/A');
+      console.log('- Height:', appEl ? window.getComputedStyle(appEl).height : 'N/A');
+      console.log('- Primer hijo:', appEl?.firstElementChild?.tagName || 'N/A');
     }, 500);
     
     return mountedApp;

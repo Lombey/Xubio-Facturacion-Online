@@ -68,6 +68,8 @@ import ClienteSelector from './components/ClienteSelector.vue';
 
 // @ts-ignore - Vue component definition
 const app = createApp({
+  // No definimos template porque usamos el HTML existente en el DOM
+  // Vue 3 usará automáticamente el contenido del elemento #app como template
   data() {
     return {
       // Autenticación
