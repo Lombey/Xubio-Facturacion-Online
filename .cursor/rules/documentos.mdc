@@ -2,4 +2,9 @@
 alwaysApply: true
 ---
 
-Salvo que haya otra regla los documentos se guardan en la carpeta ruta relativa: test-imprimir-pdf\docs y si hay suburtas utilizar la mas adecuada.
+ESTRUCTURA DE DOCIMENTACION DEL PROYECTO PARA USAR CUANDO SE NECESITE CONSULTAR O CREAR UN NUEVO DOCUMENTO. uSAR ESAS CARPETAS CON ESOS CRITEROS PARA DOCUMENTOS NUEVOS.
+docs/
+├── ADRS/                    → Decisiones arquitectónicas registradas
+├── cerrados/                → Análisis y planes archivados completados
+├── Consulta APIs/           → Documentación de APIs externas consultadas
+└── Guias/                   → Guías de uso (vacía actualmente)

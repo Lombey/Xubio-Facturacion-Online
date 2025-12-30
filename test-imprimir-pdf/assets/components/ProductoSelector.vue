@@ -82,6 +82,7 @@
 
 <script>
 import { formatearPrecio } from '../utils/formatters.js';
+import { debounce } from '../utils/debounce.js';
 
 export default {
   name: 'ProductoSelector',
@@ -99,16 +100,28 @@ export default {
   data() {
     return {
       busquedaProducto: '',
+      busquedaDebounced: '',
       mostrarDropdown: false
     };
   },
+  created() {
+    // Debounce de 300ms para la búsqueda
+    this.debouncedBusqueda = debounce((value) => {
+      this.busquedaDebounced = value;
+    }, 300);
+  },
+  watch: {
+    busquedaProducto(newValue) {
+      this.debouncedBusqueda(newValue);
+    }
+  },
   computed: {
     productosFiltrados() {
-      if (!this.busquedaProducto.trim()) {
+      if (!this.busquedaDebounced.trim()) {
         return this.productos;
       }
       
-      const busqueda = this.busquedaProducto.toLowerCase();
+      const busqueda = this.busquedaDebounced.toLowerCase();
       return this.productos.filter(p => {
         const nombre = (p.nombre || '').toLowerCase();
         const codigo = (p.codigo || '').toLowerCase();

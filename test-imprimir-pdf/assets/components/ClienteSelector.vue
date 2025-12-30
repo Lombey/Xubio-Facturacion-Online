@@ -60,6 +60,7 @@
 
 <script>
 import { formatearCUIT } from '../utils/formatters.js';
+import { debounce } from '../utils/debounce.js';
 
 export default {
   name: 'ClienteSelector',
@@ -77,16 +78,28 @@ export default {
   data() {
     return {
       busquedaCliente: '',
+      busquedaDebounced: '',
       mostrarDropdown: false
     };
   },
+  created() {
+    // Debounce de 300ms para la búsqueda
+    this.debouncedBusqueda = debounce((value) => {
+      this.busquedaDebounced = value;
+    }, 300);
+  },
+  watch: {
+    busquedaCliente(newValue) {
+      this.debouncedBusqueda(newValue);
+    }
+  },
   computed: {
     clientesFiltrados() {
-      if (!this.busquedaCliente.trim()) {
+      if (!this.busquedaDebounced.trim()) {
         return this.clientes;
       }
       
-      const busqueda = this.busquedaCliente.toLowerCase().replace(/[-\s]/g, '');
+      const busqueda = this.busquedaDebounced.toLowerCase().replace(/[-\s]/g, '');
       return this.clientes.filter(c => {
         const razonSocial = (c.razonSocial || '').toLowerCase();
         const nombre = (c.nombre || '').toLowerCase();
