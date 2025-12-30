@@ -61,7 +61,7 @@ En lugar de reescribir todo de una vez, aplicaremos cambios incrementales. Cada 
 *Objetivo: Eliminar el "Spaghetti Code" de manipulación del DOM usando Vue.js 3.*
 
 1.  **Setup:**
-    *   Importar Vue.js 3 via CDN en `index.html`: `<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>`.
+    *   Importar Vue.js 3 via CDN en `index.html`: `<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>` (versión específica + producción).
     *   Asegurar que se carga antes de `app.js`.
 
 2.  **Estado Global:**
@@ -259,15 +259,30 @@ app.mount('#app');
 
 ### Preparación
 - [x] Crear estructura de carpetas: `test-imprimir-pdf/assets/`.
-- [ ] Asegurar que el entorno local (Vercel CLI) esté corriendo: `vercel dev`.
-- [ ] Verificar que el routing de Vercel funciona correctamente.
+- [ ] **Opcional - Solo si usas Vercel CLI local**: Asegurar que el entorno local esté corriendo: `vercel dev`.
+- [ ] **Alternativa (Recomendada)**: Desplegar directamente en Vercel y probar en producción.
+- [ ] Verificar que el routing funciona correctamente:
+    - [ ] **Si usas producción**: Abrir tu URL de Vercel y verificar que carga la aplicación
+    - [ ] **Si usas local**: Abrir `http://localhost:3000` y verificar que carga `test-imprimir-pdf/index.html`
+    - [ ] Verificar que `/api/proxy/*` funciona (probar con un request)
+    - [ ] Verificar que `/api/auth` funciona (debe responder 405 para GET, 400 para POST sin body)
+    - [ ] Verificar que los assets cargan: `./assets/styles.css` y `./assets/app.js` (en producción o local)
 
 ### Ejecución - Slice 1 (Modularización)
 - [x] Crear `test-imprimir-pdf/assets/styles.css` y mover todo el contenido de `<style>`.
 - [x] Crear `test-imprimir-pdf/assets/app.js` y mover todo el contenido de `<script>`.
 - [x] Actualizar `index.html`: agregar `<link rel="stylesheet" href="./assets/styles.css">` y `<script src="./assets/app.js"></script>`.
 - [x] Eliminar `<style>` y `<script>` del HTML.
-- [ ] **Verificación Manual:** Probar login, crear factura, ver PDF, listar facturas. Todo debe funcionar igual que antes.
+- [ ] **Verificación Manual - Slice 1:**
+    - [ ] Abrir la app en el navegador y verificar que los estilos se cargan correctamente
+    - [ ] Verificar que no hay errores en consola del navegador (F12 → Console)
+    - [ ] Verificar que el HTML no contiene tags `<style>` ni `<script>` (solo referencias externas)
+    - [ ] Probar funcionalidad básica:
+        - [ ] Login: Ingresar credenciales y obtener token
+        - [ ] Crear factura: Completar formulario y crear factura
+        - [ ] Ver PDF: Verificar que el PDF se muestra correctamente
+        - [ ] Listar facturas: Verificar que la tabla se renderiza correctamente
+    - [ ] Todo debe funcionar exactamente igual que antes de la modularización
 
 ### Ejecución - Slice 2 (Seguridad)
 - [x] Crear `/api/auth.js` con la lógica de autenticación:
@@ -283,10 +298,27 @@ app.mount('#app');
 - [x] Mantener checkbox "Guardar credenciales" y su funcionalidad.
 - [x] Mantener función `limpiarCredenciales()`.
 - [x] Mantener guardado de `access_token` en localStorage.
-- [ ] **Verificación Manual:** Probar que la autenticación funciona. El `client_secret` no debe aparecer en la consola del navegador ni en Network tab (solo en el body del request a `/api/auth`).
+- [ ] **Verificación Manual - Slice 2 (Seguridad):**
+    - [ ] Abrir DevTools (F12) → Network tab
+    - [ ] Ingresar credenciales y hacer clic en "Obtener Token"
+    - [ ] Verificar en Network tab:
+        - [ ] El request a `/api/auth` muestra `clientId` y `secretId` en el **body** (Request Payload)
+        - [ ] **NO** debe aparecer header `Authorization: Basic` en el request del cliente
+        - [ ] La respuesta solo contiene `{ access_token, expires_in }` (sin credenciales)
+    - [ ] Verificar en Console tab:
+        - [ ] **NO** debe aparecer `btoa()` en ningún log
+        - [ ] **NO** debe aparecer el `client_secret` construido
+    - [ ] Verificar en Sources tab:
+        - [ ] Buscar `btoa` en `app.js` → **NO** debe aparecer
+        - [ ] Buscar `Authorization: Basic` en `app.js` → **NO** debe aparecer
+    - [ ] Verificar funcionalidad:
+        - [ ] El token se obtiene correctamente
+        - [ ] El token se guarda en localStorage
+        - [ ] Las credenciales se guardan en localStorage si el checkbox está marcado
+        - [ ] El botón "Limpiar Credenciales" funciona correctamente
 
 ### Ejecución - Slice 3 (Vue.js)
-- [x] Agregar `<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>` en `index.html` (antes de `app.js`).
+- [x] Agregar `<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>` en `index.html` (antes de `app.js`).
 - [x] Envolver contenido del body en `<div id="app">...</div>`.
 - [x] Inicializar Vue app en `app.js`: `const app = Vue.createApp({ data() {...}, methods: {...} })`.
 - [x] Mover variables globales (`accessToken`, `tokenExpiration`) a `data()`.
@@ -295,7 +327,27 @@ app.mount('#app');
 - [x] Refactorizar botones: reemplazar `onclick="..."` por `@click="..."`.
 - [x] Refactorizar tablas: usar `v-for` en lugar de `innerHTML`.
 - [x] Agregar `app.mount('#app')` al final de `app.js`.
-- [ ] **Verificación Manual:** Probar todos los flujos. La app debe funcionar igual pero con código más limpio.
+- [ ] **Verificación Manual - Slice 3 (Vue.js):**
+    - [ ] Abrir DevTools (F12) → Console tab
+    - [ ] Verificar que Vue se carga correctamente (no debe haber errores de Vue)
+    - [ ] Verificar reactividad:
+        - [ ] Cambiar valor en input de `clientId` → debe actualizarse en `v-model`
+        - [ ] Cambiar checkbox "Guardar credenciales" → debe actualizarse reactivamente
+    - [ ] Verificar que no hay manipulación manual del DOM:
+        - [ ] Buscar `document.getElementById` en `app.js` → **NO** debe aparecer (excepto en casos muy específicos)
+        - [ ] Buscar `innerHTML` para tablas → **NO** debe aparecer (debe usar `v-for`)
+    - [ ] Probar todos los flujos:
+        - [ ] Autenticación completa
+        - [ ] Listar productos y seleccionar
+        - [ ] Crear factura con productos seleccionados
+        - [ ] Obtener PDF de factura
+        - [ ] Crear cobranza
+        - [ ] Obtener PDF de cobranza
+        - [ ] Listar facturas del último mes
+        - [ ] Seleccionar factura de la lista
+        - [ ] Obtener PDF de comprobante existente
+    - [ ] Verificar que la app funciona igual que antes pero con código más limpio
+    - [ ] Verificar en Sources tab que `app.js` usa sintaxis Vue (data(), methods, computed, etc.)
 
 ### Ejecución - Slice 4 (Refinamiento)
 - [x] Agregar estados reactivos: `isLoading`, `errorMessage` en `data()`.
@@ -305,9 +357,138 @@ app.mount('#app');
 - [x] Agregar `computed` para valores derivados (ej: `tokenValido`).
 - [x] Limpiar código muerto y comentarios obsoletos.
 - [x] Agregar JSDoc básico en funciones principales.
-- [ ] **Verificación Manual:** Probar flujos completos y verificar que la UX es mejor.
+- [ ] **Verificación Manual - Slice 4 (Refinamiento):**
+    - [ ] Verificar estados de carga:
+        - [ ] Al hacer clic en cualquier botón, debe aparecer indicador de carga
+        - [ ] Los botones deben deshabilitarse automáticamente durante la carga (`:disabled="isLoading"`)
+        - [ ] El mensaje de carga debe ser contextual (`loadingContext` muestra qué se está cargando)
+    - [ ] Verificar manejo de errores:
+        - [ ] Probar con credenciales incorrectas → debe mostrar error claro
+        - [ ] Probar con token expirado → debe manejar el 401 y renovar automáticamente
+        - [ ] Los errores deben mostrarse de forma consistente (mismo formato)
+    - [ ] Verificar computed properties:
+        - [ ] `tokenValido` debe actualizarse automáticamente cuando cambia `accessToken` o `tokenExpiration`
+    - [ ] Verificar UX mejorada:
+        - [ ] Los mensajes de éxito/error son más claros
+        - [ ] La experiencia de carga es más fluida
+        - [ ] No hay "botones fantasma" (botones clickeables durante carga)
+    - [ ] Verificar código limpio:
+        - [ ] No hay código muerto comentado
+        - [ ] Las funciones principales tienen JSDoc
+        - [ ] El código es más legible que antes
 
 ### Finalización
-- [ ] Validar flujo completo de principio a fin manualmente.
-- [ ] Verificar que no hay errores en consola del navegador.
-- [ ] Actualizar `README.md` con instrucciones de desarrollo y configuración de env vars.
+- [ ] **Validación End-to-End Completa:**
+    - [ ] Flujo completo de autenticación:
+        - [ ] Ingresar credenciales → Obtener token → Verificar que se guarda
+        - [ ] Recargar página → Verificar que el token se carga automáticamente
+        - [ ] Si el token expiró → Verificar renovación automática
+    - [ ] Flujo completo de factura:
+        - [ ] Listar productos → Seleccionar productos → Ajustar cantidades/precios
+        - [ ] Crear factura → Verificar que se crea correctamente
+        - [ ] Obtener PDF → Verificar que el PDF se muestra correctamente
+    - [ ] Flujo completo de cobranza:
+        - [ ] Crear cobranza asociada a factura → Verificar creación
+        - [ ] Obtener PDF de cobranza → Verificar visualización
+    - [ ] Flujo de listado y selección:
+        - [ ] Listar facturas del último mes → Verificar tabla
+        - [ ] Seleccionar factura → Verificar que se copian los IDs
+    - [ ] Flujo de PDF existente:
+        - [ ] Ingresar Transaction ID → Obtener PDF → Verificar diferentes tipos de impresión (1, 2, 3, 0)
+- [ ] **Verificación de Consola:**
+    - [ ] Abrir DevTools (F12) → Console tab
+    - [ ] Recargar página → **NO** debe haber errores (solo warnings menores si los hay)
+    - [ ] Ejecutar todos los flujos → **NO** debe haber errores en consola
+    - [ ] Verificar que los logs estructurados aparecen en consola (formato JSON)
+- [ ] **Documentación:**
+    - [ ] Actualizar `README.md` con:
+        - [ ] Instrucciones de desarrollo local (`vercel dev`)
+        - [ ] Estructura del proyecto
+        - [ ] Configuración de variables de entorno (si aplica)
+        - [ ] Endpoints disponibles (`/api/auth`, `/api/proxy/*`)
+        - [ ] Notas sobre seguridad (credenciales en servidor)
+
+---
+
+## ✅ Mejoras Aplicadas (Post-Review)
+
+### Mejoras de Performance y Seguridad
+
+#### 1. CDN de Vue.js - Versión Específica ✅
+**Problema:** Uso de `vue@3` sin version pinning podía causar breaking changes inesperados.
+
+**Solución Aplicada:**
+- Cambiado a `vue@3.4.21/dist/vue.global.prod.js` (versión específica + build de producción)
+- Beneficios:
+  - Evita breaking changes inesperados
+  - Bundle más pequeño (versión de producción)
+  - Mejor performance
+
+**Archivo modificado:** `test-imprimir-pdf/index.html`
+
+#### 2. Logging Estructurado ✅
+**Problema:** Logging básico dificultaba debugging en producción (Vercel Logs).
+
+**Solución Aplicada:**
+- Logging estructurado en JSON para fácil parsing en Vercel Logs
+- Eventos trackeados:
+  - `auth_success`: Autenticación exitosa con duración
+  - `auth_failed`: Fallo de autenticación con status y tipo de error
+  - `auth_error`: Errores de red/sistema
+  - `auth_validation_failed`: Validación de credenciales fallida
+
+**Beneficios:**
+- Fácil debugging en Vercel Dashboard
+- Métricas de performance (duración de requests)
+- Tracking de errores sin exponer credenciales
+
+**Archivo modificado:** `api/auth.js`
+
+#### 3. Validación Mejorada de Credenciales ✅
+**Problema:** Validación básica no detectaba strings vacíos después de trim.
+
+**Solución Aplicada:**
+- Validación de credenciales no vacías después de `trim()`
+- Mensajes de error más claros y específicos
+- Logging de razones de validación fallida
+
+**Archivo modificado:** `api/auth.js`
+
+### Decisiones Técnicas para Escala Pequeña (3 usuarios)
+
+**Optimizaciones NO aplicadas (por ahora):**
+- ❌ Rate Limiting: No necesario para 3 usuarios controlados
+- ❌ SRI (Subresource Integrity): Opcional para app privada
+- ❌ TypeScript: JSDoc es suficiente para escala pequeña
+- ❌ Tests automatizados: Verificación manual es suficiente
+- ❌ Cache en servidor: localStorage es suficiente
+
+**Razón:** Para una app de testing con máximo 3 usuarios, estas optimizaciones agregarían complejidad sin beneficio significativo. Se pueden implementar fácilmente si se necesita escalar en el futuro.
+
+### Próximos Pasos Opcionales
+
+Si en el futuro necesitas escalar o mejorar:
+
+1. **Rate Limiting** (si la app se vuelve pública):
+   - Implementar con Vercel Edge Config o middleware
+   - ~30 minutos de implementación
+
+2. **SRI para Vue.js** (si quieres seguridad extra):
+   - Agregar `integrity` y `crossorigin` al script tag
+   - ~5 minutos de implementación
+
+3. **TypeScript** (si el código crece):
+   - Migración gradual empezando por `/api/*.js`
+   - Mejor DX y type safety
+
+4. **Tests E2E** (si se vuelve crítico):
+   - Playwright o Cypress para flujos principales
+   - Útil para regresiones
+
+---
+
+## 📝 Notas de Implementación
+
+- **Contexto:** App de testing, máximo 3 usuarios en producción
+- **Prioridad:** Funcionalidad > Optimizaciones avanzadas
+- **Filosofía:** "Make it work, make it right, make it fast" (en ese orden)

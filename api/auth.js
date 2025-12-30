@@ -42,15 +42,43 @@ export default async function handler(req, res) {
   const clientId = body.clientId;
   const secretId = body.secretId;
 
+  // Validación mejorada de credenciales
   if (!clientId || !secretId) {
+    console.log(JSON.stringify({
+      event: 'auth_validation_failed',
+      reason: 'missing_credentials',
+      has_clientId: !!clientId,
+      has_secretId: !!secretId
+    }));
+    
     return res.status(400).json({ 
-      error: 'Missing credentials: clientId and secretId are required' 
+      error: 'Missing credentials',
+      message: 'clientId and secretId are required' 
+    });
+  }
+  
+  // Validación básica de formato (no vacíos después de trim)
+  const trimmedClientId = String(clientId).trim();
+  const trimmedSecretId = String(secretId).trim();
+  
+  if (!trimmedClientId || !trimmedSecretId) {
+    console.log(JSON.stringify({
+      event: 'auth_validation_failed',
+      reason: 'empty_credentials_after_trim'
+    }));
+    
+    return res.status(400).json({ 
+      error: 'Invalid credentials',
+      message: 'clientId and secretId cannot be empty' 
     });
   }
 
+  const startTime = Date.now();
+  
   try {
     // Construir Basic Auth EN EL SERVIDOR (nunca en el cliente)
-    const basic = Buffer.from(`${clientId}:${secretId}`).toString('base64');
+    // Usar valores validados y trimmeados
+    const basic = Buffer.from(`${trimmedClientId}:${trimmedSecretId}`).toString('base64');
     
     const response = await fetch('https://xubio.com/API/1.1/TokenEndpoint', {
       method: 'POST',
@@ -74,6 +102,15 @@ export default async function handler(req, res) {
     }
 
     if (!response.ok) {
+      // Logging estructurado para errores de autenticación
+      const duration = Date.now() - startTime;
+      console.log(JSON.stringify({
+        event: 'auth_failed',
+        duration_ms: duration,
+        status: response.status,
+        error_type: data.error || 'unknown'
+      }));
+      
       // No exponer detalles sensibles en el error
       return res.status(response.status).json({ 
         error: 'Failed to obtain token',
@@ -86,6 +123,14 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
 
+    // Logging estructurado simple (útil para debugging en Vercel)
+    const duration = Date.now() - startTime;
+    console.log(JSON.stringify({
+      event: 'auth_success',
+      duration_ms: duration,
+      expires_in: data.expires_in || 3600
+    }));
+
     // Devolver solo el token, nunca las credenciales
     return res.status(200).json({
       access_token: data.access_token || data.token,
@@ -94,7 +139,15 @@ export default async function handler(req, res) {
   } catch (error) {
     // No loguear credenciales en consola
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[AUTH] Error obtaining token:', errorMessage);
+    const duration = Date.now() - startTime;
+    
+    // Logging estructurado para errores de red/sistema
+    console.error(JSON.stringify({
+      event: 'auth_error',
+      duration_ms: duration,
+      error: errorMessage,
+      error_type: error instanceof Error ? error.constructor.name : 'UnknownError'
+    }));
     
     // Establecer headers CORS también en caso de error
     res.setHeader('Access-Control-Allow-Origin', '*');
