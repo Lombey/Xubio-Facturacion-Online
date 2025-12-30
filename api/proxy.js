@@ -38,7 +38,9 @@ export default async function handler(req, res) {
     
     // Si no viene en query, intentar desde la URL
     if (!path && req.url) {
-      path = req.url.replace('/api/proxy', '').replace(/^\//, '');
+      // Extraer el path de la URL, removiendo /api/proxy y los query params
+      const urlPath = req.url.split('?')[0]; // Remover query params de la URL
+      path = urlPath.replace('/api/proxy', '').replace(/^\//, '');
     }
     
     // Si aún no hay path, usar la raíz
@@ -64,7 +66,8 @@ export default async function handler(req, res) {
       }
       const queryString = queryParams.toString();
       if (queryString) {
-        url += '?' + queryString;
+        // Solo agregar ? si no hay ya query params en la URL
+        url += (url.includes('?') ? '&' : '?') + queryString;
       }
     }
     
