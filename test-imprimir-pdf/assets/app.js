@@ -109,6 +109,14 @@ const app = createApp({
       busquedaProducto: '',
       mostrarDropdownProductos: false,
       
+      // Valores de configuración (maestros)
+      centrosDeCosto: [],
+      depositos: [],
+      vendedores: [],
+      circuitosContables: [],
+      puntosDeVenta: [],
+      valoresCargados: false, // Flag para saber si ya se cargaron los valores
+      
       // Estados de carga y error
       isLoading: false,
       loadingContext: ''
@@ -266,6 +274,11 @@ const app = createApp({
             `✅ Token obtenido exitosamente!\n\nToken: ${this.accessToken.substring(0, 50)}...\nExpira en: ${expiresIn} segundos\nVálido hasta: ${new Date(this.tokenExpiration).toLocaleString()}`,
             'success'
           );
+          
+          // Cargar valores de configuración después de obtener el token
+          if (!this.valoresCargados) {
+            await this.cargarValoresConfiguracion();
+          }
         } else {
           const errorMsg = `❌ Error obteniendo token:\n\nStatus: ${response.status} ${response.statusText}\n\n${data.error || data.message || 'Error desconocido'}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
           this.mostrarResultado('token', errorMsg, 'error');
@@ -482,23 +495,44 @@ const app = createApp({
             this.obtenerDatosCliente(parseInt(clienteId))
           ]);
 
-          // Construir detalleComprobantes desde productos seleccionados
-          const detalleComprobantes = this.productosSeleccionados.map(item => {
+          // Construir transaccionProductoItems desde productos seleccionados
+          // Según Swagger: todos los campos son REQUERIDOS
+          const transaccionProductoItems = this.productosSeleccionados.map(item => {
+            const cantidad = parseFloat(item.cantidad) || 1;
+            const precio = parseFloat(item.precio) || 0;
+            const importe = cantidad * precio;
+            
+            // Obtener tasa IVA del producto (si está disponible)
+            const tasaIVA = item.producto?.tasaIva?.porcentaje || 
+                           item.producto?.tasaIVA?.porcentaje || 
+                           item.producto?.porcentajeIVA || 
+                           21; // Por defecto 21%
+            
+            // Calcular IVA (asumiendo que el precio ya incluye IVA)
+            // Si el precio incluye IVA: iva = importe - (importe / (1 + tasaIVA/100))
+            // Si el precio NO incluye IVA: iva = importe * (tasaIVA / 100)
+            // Por defecto asumimos que el precio incluye IVA
+            const iva = importe - (importe / (1 + tasaIVA / 100));
+            const total = importe; // Total con IVA incluido
+            
             const detalle = {
-              cantidad: item.cantidad,
-              precio: item.precio
+              cantidad: cantidad,
+              precio: precio,
+              descripcion: item.producto?.descripcion || item.producto?.nombre || 'Producto sin descripción',
+              producto: item.producto_id ? { id: item.producto_id } : undefined,
+              // Campos requeridos según Swagger
+              iva: parseFloat(iva.toFixed(2)),
+              importe: parseFloat(importe.toFixed(2)),
+              total: parseFloat(total.toFixed(2)),
+              montoExento: 0, // Por defecto, todo está gravado
+              porcentajeDescuento: 0, // Sin descuento por defecto
+              centroDeCosto: this.obtenerCentroDeCostoPorDefecto() // Centro de costo (requerido)
             };
             
-            // Agregar producto_id si está disponible
-            if (item.producto_id) {
-              detalle.producto = { id: item.producto_id };
-            }
-            
-            // Agregar descripción si está disponible
-            if (item.producto.descripcion) {
-              detalle.descripcion = item.producto.descripcion;
-            } else if (item.producto.nombre) {
-              detalle.descripcion = item.producto.nombre;
+            // Agregar depósito si está disponible (opcional pero recomendado)
+            const deposito = this.obtenerDepositoPorDefecto();
+            if (deposito) {
+              detalle.deposito = deposito;
             }
             
             return detalle;
@@ -506,11 +540,11 @@ const app = createApp({
 
           // Construir payload completo
           payload = {
-            circuitoContable: { ID: 1 },
+            circuitoContable: this.obtenerCircuitoContablePorDefecto(),
             comprobante: 1,
             cliente: { cliente_id: parseInt(clienteId) },
             fecha: new Date().toISOString().split('T')[0],
-            detalleComprobantes: detalleComprobantes
+            transaccionProductoItems: transaccionProductoItems
           };
 
           // Agregar moneda USD si se encontró
@@ -595,7 +629,17 @@ const app = createApp({
             comprobante: 1,
             cliente: { cliente_id: parseInt(clienteId) },
             fecha: new Date().toISOString().split('T')[0],
-            detalleComprobantes: [{ cantidad: 1, precio: 100 }]
+            transaccionProductoItems: [{
+              cantidad: 1,
+              precio: 100,
+              descripcion: 'Producto de prueba',
+              iva: parseFloat((100 - (100 / 1.21)).toFixed(2)), // IVA 21% incluido
+              importe: 100,
+              total: 100,
+              montoExento: 0,
+              porcentajeDescuento: 0,
+              centroDeCosto: { ID: 1, id: 1 }
+            }]
           };
         }
 
@@ -836,7 +880,7 @@ const app = createApp({
 
       try {
         // Primero obtener todas las listas de precios
-        const { response, data } = await this.requestXubio('/listaPrecio', 'GET');
+        const { response, data } = await this.requestXubio('/listaPrecioBean', 'GET');
         
         if (response.ok && Array.isArray(data)) {
           const listaAGDP = data.find(lp => 
@@ -852,7 +896,7 @@ const app = createApp({
             // Intentar obtener los detalles de la lista (precios de productos)
             if (listaId) {
               try {
-                const { response: detalleResponse, data: detalleData } = await this.requestXubio(`/listaPrecio/${listaId}`, 'GET');
+                const { response: detalleResponse, data: detalleData } = await this.requestXubio(`/listaPrecioBean/${listaId}`, 'GET');
                 if (detalleResponse.ok && detalleData) {
                   // Combinar la información de la lista con sus detalles
                   this.listaPrecioAGDP = { ...listaAGDP, ...detalleData };
@@ -896,7 +940,7 @@ const app = createApp({
 
       try {
         // Obtener productos activos
-        const { response, data } = await this.requestXubio('/productoVenta', 'GET', null, {
+        const { response, data } = await this.requestXubio('/ProductoVentaBean', 'GET', null, {
           activo: 1
         });
 
@@ -1014,6 +1058,190 @@ const app = createApp({
     },
 
     /**
+     * Carga todos los valores de configuración necesarios (centros de costo, depósitos, etc.)
+     */
+    async cargarValoresConfiguracion() {
+      if (!this.accessToken) {
+        console.warn('⚠️ No hay token, no se pueden cargar valores de configuración');
+        return;
+      }
+
+      console.log('🔄 Cargando valores de configuración...');
+      
+      try {
+        // Cargar todos los valores en paralelo
+        await Promise.all([
+          this.obtenerCentrosDeCosto(),
+          this.obtenerDepositos(),
+          this.obtenerVendedores(),
+          this.obtenerCircuitosContables(),
+          this.obtenerPuntosDeVenta()
+        ]);
+        
+        this.valoresCargados = true;
+        console.log('✅ Valores de configuración cargados exitosamente');
+      } catch (error) {
+        console.error('❌ Error cargando valores de configuración:', error);
+        // No bloqueamos el flujo si falla la carga de valores
+      }
+    },
+
+    /**
+     * Obtiene centros de costo activos
+     */
+    async obtenerCentrosDeCosto() {
+      try {
+        const { response, data } = await this.requestXubio('/centroDeCostoBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          this.centrosDeCosto = data;
+          console.log(`✅ ${data.length} centros de costo cargados`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo centros de costo:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene depósitos activos
+     */
+    async obtenerDepositos() {
+      try {
+        const { response, data } = await this.requestXubio('/depositos', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          this.depositos = data;
+          console.log(`✅ ${data.length} depósitos cargados`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo depósitos:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene vendedores activos
+     */
+    async obtenerVendedores() {
+      try {
+        const { response, data } = await this.requestXubio('/vendedorBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          this.vendedores = data;
+          console.log(`✅ ${data.length} vendedores cargados`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo vendedores:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene circuitos contables activos
+     */
+    async obtenerCircuitosContables() {
+      try {
+        const { response, data } = await this.requestXubio('/circuitoContableBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          this.circuitosContables = data;
+          console.log(`✅ ${data.length} circuitos contables cargados`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo circuitos contables:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene puntos de venta activos
+     */
+    async obtenerPuntosDeVenta() {
+      try {
+        const { response, data } = await this.requestXubio('/puntoVentaBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          this.puntosDeVenta = data;
+          console.log(`✅ ${data.length} puntos de venta cargados`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo puntos de venta:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene el primer centro de costo disponible o uno por defecto
+     */
+    obtenerCentroDeCostoPorDefecto() {
+      if (this.centrosDeCosto && this.centrosDeCosto.length > 0) {
+        const centro = this.centrosDeCosto[0];
+        return {
+          ID: centro.ID || centro.id || centro.centroDeCosto_id || 1,
+          id: centro.id || centro.ID || centro.centroDeCosto_id || 1,
+          nombre: centro.nombre || '',
+          codigo: centro.codigo || ''
+        };
+      }
+      // Fallback si no hay centros de costo cargados
+      return { ID: 1, id: 1 };
+    },
+
+    /**
+     * Obtiene el primer depósito disponible o uno por defecto
+     */
+    obtenerDepositoPorDefecto() {
+      if (this.depositos && this.depositos.length > 0) {
+        const deposito = this.depositos[0];
+        return {
+          ID: deposito.ID || deposito.id || deposito.deposito_id || 1,
+          id: deposito.id || deposito.ID || deposito.deposito_id || 1,
+          nombre: deposito.nombre || '',
+          codigo: deposito.codigo || ''
+        };
+      }
+      return null; // Depósito es opcional
+    },
+
+    /**
+     * Obtiene el primer circuito contable disponible o uno por defecto
+     */
+    obtenerCircuitoContablePorDefecto() {
+      if (this.circuitosContables && this.circuitosContables.length > 0) {
+        const circuito = this.circuitosContables[0];
+        return {
+          ID: circuito.circuitoContable_id || circuito.ID || circuito.id || 1,
+          id: circuito.id || circuito.circuitoContable_id || circuito.ID || 1,
+          nombre: circuito.nombre || '',
+          codigo: circuito.codigo || ''
+        };
+      }
+      // Fallback si no hay circuitos contables cargados
+      return { ID: 1 };
+    },
+
+    /**
      * Obtiene datos del cliente (incluyendo CUIT)
      */
     async obtenerDatosCliente(clienteId) {
@@ -1049,7 +1277,21 @@ const app = createApp({
         return 0;
       }
       
-      // Intentar diferentes estructuras posibles de la API
+      // Según Swagger: ListaPrecioBean tiene listaPrecioItem (array)
+      // Estructura correcta: listaPrecioItem con { producto: { id }, precio, codigo, referencia }
+      if (Array.isArray(this.listaPrecioAGDP.listaPrecioItem)) {
+        const item = this.listaPrecioAGDP.listaPrecioItem.find(i => {
+          if (i.producto) {
+            return i.producto.id === productoId || i.producto.ID === productoId;
+          }
+          return false;
+        });
+        if (item && item.precio) {
+          return parseFloat(item.precio) || 0;
+        }
+      }
+      
+      // Fallback: Intentar otras estructuras posibles (por compatibilidad)
       // Estructura 1: listaPrecioAGDP.precios[productoId]
       if (this.listaPrecioAGDP.precios && this.listaPrecioAGDP.precios[productoId]) {
         const precio = this.listaPrecioAGDP.precios[productoId];

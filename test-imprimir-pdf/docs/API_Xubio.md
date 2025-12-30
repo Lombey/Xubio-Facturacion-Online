@@ -205,7 +205,7 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
   - Fechas de servicio (`fechaDesdeServicios`, `fechaHastaServicios`), CAE
   - `transaccionId`, `externalId`
   - `cliente`
-  - Detalle de comprobantes (`detalleComprobantes`): lista de ítems con cantidad, precio, IVA, etc.
+  - **Items de productos (`transaccionProductoItems`)**: lista de ítems con cantidad, precio, IVA, etc. ⚠️ **NOTA:** El campo correcto es `transaccionProductoItems`, NO `detalleComprobantes`. Ver sección "Hallazgos del Swagger JSON" para estructura completa.
   - Moneda (`moneda`), cotización, total, etc.
 * **Respuesta:** Devuelve el comprobante creado.
 
@@ -444,3 +444,207 @@ La API incluye muchos más recursos (por ejemplo `listaPrecio`, `pais`, `percepc
 * **DELETE** para eliminar un elemento.
 
 Dado que la documentación completa es extensa y repetitiva, este archivo se centra en los recursos explorados directamente. Consulte la documentación oficial para más detalles sobre cada modelo o recurso específico.
+
+---
+
+## 🔍 Hallazgos del Swagger JSON (Actualización)
+
+**Fuente**: `https://xubio.com/API/1.1/swagger.json` (documentación técnica oficial)
+
+### Productos de Venta (`ProductoVentaBean`)
+
+#### GET `/ProductoVentaBean` – Obtener productos de venta
+* **Descripción:** Obtiene un array de productos de venta. El parámetro opcional `activo` acepta `1 = true` y `0 = false`.
+* **Parámetros de consulta:**
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `id` (int64, opcional) | ID del producto específico |
+  | `nombre` (string, opcional) | Filtro por nombre |
+  | `usrcode` (string, opcional) | Código de usuario |
+  | `categoriaProducto` (int32, opcional) | ID de categoría |
+  | `tasaIVAProducto` (int32, opcional) | ID de tasa IVA |
+  | `activo` (int32, opcional) | `1` = activo, `0` = inactivo |
+* **Headers opcionales:**
+  | Nombre | Descripción |
+  |-------|-------------|
+  | `minimalVersion` (boolean) | Versión minimalista del endpoint |
+* **Respuesta:** Array de objetos `ProductoVentaBean` con campos como `productoid`, `nombre`, `codigo`, `usrcode`, `codigoBarra`, `unidadMedida`, `categoria`, `tasaIva`, `activo`, etc.
+
+#### POST `/ProductoVentaBean` – Crear producto de venta
+* **Descripción:** Crea un nuevo producto de venta.
+* **Cuerpo:** Objeto `ProductoVentaBean` completo.
+
+#### PUT `/ProductoVentaBean/{id}` – Actualizar producto (todos los campos)
+* **Descripción:** Actualiza un producto existente. Exige todos los campos.
+
+#### PATCH `/ProductoVentaBean/{id}` – Actualizar producto (parcial)
+* **Descripción:** Actualiza un producto existente. Solo actualiza los campos enviados.
+
+#### DELETE `/ProductoVentaBean/{id}` – Eliminar producto
+* **Descripción:** Elimina un producto de venta.
+
+---
+
+### Lista de Precios (`listaPrecioBean`)
+
+#### GET `/listaPrecioBean` – Obtener listas de precios
+* **Descripción:** Obtiene un array de listas de precios.
+* **Parámetros de consulta:**
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `tipo` (int64, opcional) | `1` = Venta, `2` = Compra |
+  | `activo` (int64, opcional) | `1` = Activo, `0` = Inactivo |
+* **Respuesta:** Array de objetos `ListaPrecioBean` con:
+  - `listaPrecioID` (int64)
+  - `nombre` (string)
+  - `descripcion` (string)
+  - `activo` (boolean)
+  - `esDefault` (boolean)
+  - `moneda` (objeto MonedaBean)
+  - `tipo` (int32) - 1 = Venta, 2 = Compra
+  - `iva` (number)
+  - `listaPrecioItem` (array) - Array de items con precios
+
+#### GET `/listaPrecioBean/{id}` – Obtener lista de precios específica
+* **Descripción:** Devuelve una lista de precios con todos sus items (productos y precios).
+* **Parámetros de ruta:** `id` (int64, requerido)
+* **Respuesta:** Objeto `ListaPrecioBean` completo con `listaPrecioItem` que contiene:
+  ```json
+  {
+    "listaPrecioItem": [
+      {
+        "listaPrecioID": 123,
+        "producto": { "ID": 456, "id": 456, "nombre": "...", "codigo": "..." },
+        "precio": 100.50,
+        "codigo": "COD001",
+        "referencia": 1
+      }
+    ]
+  }
+  ```
+
+#### POST `/listaPrecioBean` – Crear lista de precios
+* **Descripción:** Crea una nueva lista de precios.
+
+#### PUT `/listaPrecioBean/{id}` – Actualizar lista (todos los campos)
+* **Descripción:** Actualiza una lista de precios. Exige todos los campos.
+
+#### PATCH `/listaPrecioBean/{id}` – Actualizar lista (parcial)
+* **Descripción:** Actualiza una lista de precios. Solo actualiza los campos enviados.
+
+#### DELETE `/listaPrecioBean/{id}` – Eliminar lista de precios
+* **Descripción:** Elimina una lista de precios.
+
+---
+
+### Estructura de `ComprobanteVentaBean` - Campos Requeridos
+
+#### Campo: `transaccionProductoItems` (NO `detalleComprobantes`)
+
+**⚠️ IMPORTANTE:** El campo correcto es `transaccionProductoItems`, NO `detalleComprobantes`.
+
+**Estructura completa según Swagger:**
+
+```json
+{
+  "transaccionProductoItems": [
+    {
+      "transaccionCVItemId": 0,  // Opcional (int64)
+      "transaccionId": 0,         // Opcional (int64)
+      "producto": {               // REQUERIDO
+        "ID": 123,
+        "id": 123,
+        "nombre": "Producto ejemplo",
+        "codigo": "PROD001"
+      },
+      "centroDeCosto": {          // REQUERIDO
+        "ID": 1,
+        "id": 1,
+        "nombre": "Centro de Costo",
+        "codigo": "CC001"
+      },
+      "deposito": {               // Opcional
+        "ID": 1,
+        "id": 1,
+        "nombre": "Depósito",
+        "codigo": "DEP001"
+      },
+      "descripcion": "Descripción del producto",  // REQUERIDO (string)
+      "cantidad": 10.0,           // REQUERIDO (number)
+      "precio": 333.33,           // REQUERIDO (number) - Precio con IVA incluido
+      "iva": 57.78,               // REQUERIDO (number)
+      "importe": 3333.30,         // REQUERIDO (number) - cantidad * precio
+      "total": 3333.30,           // REQUERIDO (number)
+      "montoExento": 0,          // REQUERIDO (number)
+      "porcentajeDescuento": 0,  // REQUERIDO (number)
+      "precioconivaincluido": 333.33  // Opcional (number)
+    }
+  ]
+}
+```
+
+**Campos Requeridos:**
+- ✅ `producto` (objeto) - Producto asociado
+- ✅ `centroDeCosto` (objeto) - Centro de costo (requerido)
+- ✅ `descripcion` (string) - Descripción del item
+- ✅ `cantidad` (number) - Cantidad del producto
+- ✅ `precio` (number) - Precio unitario (con IVA incluido según documentación)
+- ✅ `iva` (number) - Monto de IVA
+- ✅ `importe` (number) - Importe total (cantidad × precio)
+- ✅ `total` (number) - Total del item
+- ✅ `montoExento` (number) - Monto exento de impuestos
+- ✅ `porcentajeDescuento` (number) - Porcentaje de descuento
+
+**Campos Opcionales:**
+- `deposito` (objeto) - Depósito asociado
+- `transaccionCVItemId` (int64) - ID del item de transacción
+- `transaccionId` (int64) - ID de la transacción
+- `precioconivaincluido` (number) - Precio con IVA incluido
+
+**Notas importantes:**
+- El precio debe indicarse **con IVA incluido** según la documentación del Swagger.
+- El campo `centroDeCosto` es **REQUERIDO** y debe tener al menos `ID` e `id`.
+- Todos los campos numéricos deben ser números válidos (no strings).
+- El cálculo de IVA puede variar según si el precio incluye o no IVA.
+
+---
+
+### Otros campos requeridos en `ComprobanteVentaBean`
+
+Según el Swagger, los siguientes campos son **REQUERIDOS** al crear un comprobante de venta:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `cantComprobantesCancelados`` | int64 | Cantidad de comprobantes cancelados |
+| `cantComprobantesEmitidos` | int64 | Cantidad de comprobantes emitidos |
+| `cbuinformada` | boolean | Si se informó CBU |
+| `cliente` | objeto | Cliente (requerido) |
+| `condicionDePago` | int32 | 1 = Cuenta Corriente, 2 = Contado |
+| `cotizacion` | number | Cotización de moneda |
+| `cotizacionListaDePrecio` | number | Cotización de lista de precios |
+| `deposito` | objeto | Depósito |
+| `descripcion` | string | Descripción |
+| `externalId` | string | ID externo |
+| `facturaNoExportacion` | boolean | Si es factura de no exportación |
+| `fecha` | date | Fecha del comprobante |
+| `fechaVto` | date | Fecha de vencimiento |
+| `listaDePrecio` | objeto | Lista de precios |
+| `mailEstado` | string | Estado del mail |
+| `nombre` | string | Nombre del comprobante |
+| `numeroDocumento` | string | Número de documento |
+| `porcentajeComision` | number | Porcentaje de comisión |
+| `provincia` | objeto | Provincia |
+| `puntoVenta` | objeto | Punto de venta |
+| `tipo` | int32 | 1 = Factura, 2 = Nota de Débito, 3 = Nota de Crédito, 4 = Informe Z, 6 = Recibo |
+| `transaccionCobranzaItems` | array | Items de cobranza |
+| `transaccionPercepcionItems` | array | Items de percepción |
+| `transaccionProductoItems` | array | Items de productos (requerido) |
+| `vendedor` | objeto | Vendedor |
+
+**Campos opcionales importantes:**
+- `moneda` (objeto) - Moneda (requerido si `utilizaMonedaExtranjera = 1`)
+- `utilizaMonedaExtranjera` (int) - 1 = usa moneda extranjera
+- `observacion` (string) - Observaciones
+- `circuitoContable` (objeto) - Circuito contable
+- `comprobante` (int64) - ID del comprobante
+- `comprobanteAsociado` (int64) - ID del comprobante asociado
