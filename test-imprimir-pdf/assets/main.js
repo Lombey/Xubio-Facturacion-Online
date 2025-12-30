@@ -33,18 +33,35 @@ async function mountApp() {
       throw new Error('El elemento #app está vacío. Verifica que el HTML se haya cargado correctamente.');
     }
     
-    console.log('📋 Elemento #app encontrado, contenido presente');
+    // IMPORTANTE: Capturar el HTML ANTES de montar Vue
+    // Vue 3 reemplazará el contenido del elemento cuando se monte
+    const htmlTemplate = appElement.innerHTML;
+    console.log('📋 Template capturado, longitud:', htmlTemplate.length);
     
-    // Crear la app de Vue (sin pasar template - Vue usará el HTML del elemento)
-    const app = appFactory('');
+    // Crear la app de Vue con el template capturado
+    const app = appFactory(htmlTemplate);
     
     if (!app || typeof app.mount !== 'function') {
       throw new Error('La función factory no retornó una instancia válida de Vue app');
     }
     
-    // Montar la aplicación directamente en el elemento que ya tiene el HTML
-    // Vue 3 usará el HTML existente como template
+    // Limpiar el elemento antes de montar (Vue lo reemplazará con el template renderizado)
+    appElement.innerHTML = '';
+    
+    // Montar la aplicación - Vue renderizará el template
     const mountedApp = app.mount('#app');
+    
+    // Verificar que el contenido se haya renderizado
+    setTimeout(() => {
+      const appAfterMount = document.getElementById('app');
+      if (appAfterMount && (!appAfterMount.innerHTML || appAfterMount.innerHTML.trim() === '')) {
+        console.error('❌ El contenido no se renderizó después del mount');
+        // Restaurar el HTML original como fallback
+        appAfterMount.innerHTML = htmlTemplate;
+      } else {
+        console.log('✅ Contenido renderizado correctamente');
+      }
+    }, 100);
     
     console.log('✅ Vue montado correctamente');
     console.log('📋 Instancia de Vue:', mountedApp);
