@@ -92,6 +92,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // IMPORTANTE: Vue 3 con compilador de templates
+      // Necesario porque usamos template strings en createApp()
+      'vue': 'vue/dist/vue.esm-bundler.js',
       '@': resolve(__dirname, 'test-imprimir-pdf/assets'),
       '@utils': resolve(__dirname, 'test-imprimir-pdf/assets/utils'),
       '@composables': resolve(__dirname, 'test-imprimir-pdf/assets/composables')
