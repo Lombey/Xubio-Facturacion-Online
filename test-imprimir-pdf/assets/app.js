@@ -10,6 +10,7 @@ import useAuth from './composables/useAuth.js';
 // Importar componentes
 import ProductoSelector from './components/ProductoSelector.vue';
 import ClienteSelector from './components/ClienteSelector.vue';
+import PuntoVentaSelector from './components/PuntoVentaSelector.vue';
 
 /**
  * @typedef {Object} AppData
@@ -133,6 +134,8 @@ export const appOptions = {
       
       // Puntos de Venta
       puntosDeVentaResult: { message: '', type: '', visible: false },
+      puntoVentaSeleccionadoId: null, // ID del punto de venta seleccionado (similar a facturaMoneda)
+      puntoVentaSeleccionadoParaFactura: null, // Punto de venta seleccionado para la factura
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
       
@@ -215,15 +218,27 @@ export const appOptions = {
     },
     
     /**
-     * Obtiene el punto de venta seleccionado por defecto
+     * Obtiene el punto de venta seleccionado por defecto (para mostrar en resumen)
      */
     puntoVentaSeleccionado() {
+      // Si hay un punto de venta seleccionado manualmente, usarlo
+      if (this.puntoVentaSeleccionadoParaFactura) {
+        const pv = this.puntoVentaSeleccionadoParaFactura;
+        return {
+          id: pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id,
+          nombre: pv.nombre || 'No disponible',
+          codigo: pv.codigo || '',
+          puntoVenta: pv.puntoVenta || pv.codigo || ''
+        };
+      }
+      
+      // Si no, usar el método por defecto
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
       return {
         id: puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id,
         nombre: puntoVenta.nombre || 'No disponible',
         codigo: puntoVenta.codigo || '',
-        puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '' // Campo "Punto de Venta" que contiene "00004"
+        puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || ''
       };
     },
     
@@ -299,8 +314,14 @@ export const appOptions = {
         return false;
       }
       
-      // 5. Validar punto de venta válido (no el fallback)
+      // 5. Validar punto de venta válido (editable-sugerido)
+      // Puede estar seleccionado manualmente o automáticamente
       if (!this.puntoVentaValido) {
+        return false;
+      }
+      
+      // Verificar que haya un punto de venta seleccionado (manual o automático)
+      if (!this.puntoVentaSeleccionadoParaFactura && !this.obtenerPuntoVentaPorDefecto().puntoVentaId) {
         return false;
       }
       
@@ -322,6 +343,16 @@ export const appOptions = {
      * @returns {boolean}
      */
     puntoVentaValido() {
+      // Si hay un punto de venta seleccionado manualmente, validarlo
+      if (this.puntoVentaSeleccionadoParaFactura) {
+        const pv = this.puntoVentaSeleccionadoParaFactura;
+        const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        return puntoVentaId && ((esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1));
+      }
+      
+      // Si no hay selección manual, validar el automático
       if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
         return false;
       }
@@ -468,7 +499,8 @@ export const appOptions = {
   },
   components: {
     ProductoSelector,
-    ClienteSelector
+    ClienteSelector,
+    PuntoVentaSelector
   },
   methods: {
     /**
@@ -2028,6 +2060,62 @@ export const appOptions = {
     },
     
     /**
+     * Selecciona el punto de venta por defecto (ID 212819 o valor 00004, editable-sugerido)
+     * Similar a seleccionarMonedaDolaresPorDefecto()
+     */
+    seleccionarPuntoVentaPorDefecto() {
+      if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
+        console.log('⚠️ No hay puntos de venta cargados para seleccionar');
+        return;
+      }
+      
+      // Filtrar solo puntos editable-sugerido (requerido por la API)
+      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      });
+      
+      if (puntosEditableSugerido.length === 0) {
+        console.warn('⚠️ No se encontraron puntos de venta editable-sugerido');
+        this.puntoVentaSeleccionadoId = null;
+        this.puntoVentaSeleccionadoParaFactura = null;
+        return;
+      }
+      
+      // Buscar primero por ID 212819
+      let puntoVentaSeleccionado = puntosEditableSugerido.find(pv => {
+        const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+        return pvId === 212819 || pvId === '212819';
+      });
+      
+      // Si no se encuentra por ID, buscar por campo "Punto de Venta" que contenga 00004
+      if (!puntoVentaSeleccionado) {
+        puntoVentaSeleccionado = puntosEditableSugerido.find(pv => {
+          const puntoVenta = (pv.puntoVenta || '').toString().trim();
+          return puntoVenta === '00004' || puntoVenta.includes('00004');
+        });
+      }
+      
+      // Si tampoco se encuentra, usar el primero disponible
+      if (!puntoVentaSeleccionado) {
+        puntoVentaSeleccionado = puntosEditableSugerido[0];
+      }
+      
+      if (puntoVentaSeleccionado) {
+        const puntoVentaId = puntoVentaSeleccionado.puntoVentaId || puntoVentaSeleccionado.ID || puntoVentaSeleccionado.id || puntoVentaSeleccionado.puntoVenta_id;
+        const idAnterior = this.puntoVentaSeleccionadoId;
+        this.puntoVentaSeleccionadoId = puntoVentaId;
+        this.puntoVentaSeleccionadoParaFactura = puntoVentaSeleccionado;
+        console.log(`🏪 Punto de venta seleccionado por defecto: ID ${puntoVentaId} (antes: ${idAnterior})`, puntoVentaSeleccionado);
+      } else {
+        console.warn('⚠️ No se pudo seleccionar un punto de venta por defecto');
+        this.puntoVentaSeleccionadoId = null;
+        this.puntoVentaSeleccionadoParaFactura = null;
+      }
+    },
+    
+    /**
      * Selecciona la moneda DOLARES por defecto si existe
      */
     seleccionarMonedaDolaresPorDefecto() {
@@ -2262,6 +2350,8 @@ export const appOptions = {
           const cached = cacheManager.getCachedData('puntosDeVenta');
           if (cached && Array.isArray(cached) && cached.length > 0) {
             this.puntosDeVenta = cached;
+            // Preseleccionar punto de venta automáticamente
+            this.seleccionarPuntoVentaPorDefecto();
             const mensaje = `✅ ${cached.length} punto(s) de venta cargado(s) desde cache\n\n💡 Usa "Actualizar desde API" para obtener datos frescos.`;
             this.mostrarResultado('puntosDeVentaResult', mensaje, 'success');
             this.isLoading = false;
@@ -2279,25 +2369,16 @@ export const appOptions = {
           
           const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
           
-          // Buscar primero por ID 212819, luego por campo "Punto de Venta" que contiene 00004
-          const puntoVentaPorId = puntosDeVenta.find(pv => {
-            const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-            return pvId === 212819 || pvId === '212819';
-          });
+          // Preseleccionar punto de venta automáticamente (similar a moneda)
+          this.seleccionarPuntoVentaPorDefecto();
           
-          const puntoVenta00004 = puntosDeVenta.find(pv => {
-            const puntoVenta = (pv.puntoVenta || '').toString().trim();
-            // Buscar por campo "Punto de Venta" que contenga 00004
-            return puntoVenta === '00004' || puntoVenta.includes('00004');
-          });
-          
-          if (puntoVentaPorId) {
-            const nombre = puntoVentaPorId.nombre || puntoVentaPorId.puntoVenta || 'N/A';
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID 212819 (${nombre}) encontrado y será usado por defecto`, 'success');
-          } else if (puntoVenta00004) {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta con valor ${puntoVenta00004.puntoVenta || '00004'} encontrado y será usado por defecto`, 'success');
+          const puntoVentaSeleccionado = this.puntoVentaSeleccionadoParaFactura;
+          if (puntoVentaSeleccionado) {
+            const nombre = puntoVentaSeleccionado.nombre || puntoVentaSeleccionado.puntoVenta || 'N/A';
+            const id = puntoVentaSeleccionado.puntoVentaId || puntoVentaSeleccionado.ID || puntoVentaSeleccionado.id;
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID ${id} (${nombre}) seleccionado por defecto`, 'success');
           } else {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta ID 212819 o valor 00004 no encontrado. Se usará el primero disponible.`, 'info');
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ No se encontró punto de venta editable-sugerido válido. Selecciona uno manualmente.`, 'info');
           }
         } else {
           this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
@@ -2366,105 +2447,93 @@ export const appOptions = {
     },
 
     /**
-     * Obtiene el punto de venta 00004 por defecto, o el primero disponible si no existe
+     * Obtiene el punto de venta seleccionado (por ID) o el por defecto
+     * Si hay un puntoVentaSeleccionadoId, lo usa; sino busca automáticamente
      */
     obtenerPuntoVentaPorDefecto() {
-      if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
-        // Filtrar SOLO puntos de venta que sean editable-sugerido (requerido por la API)
-        // La API requiere que el punto de venta tenga editable: true y sugerido: true
-        const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-          // Verificar si tiene las propiedades editable y sugerido como booleanos true o números 1
-          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-          // Debe tener AMBOS editable Y sugerido, o tener editableSugerido activo
-          return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
-        });
-        
-        // CRÍTICO: Solo usar puntos editable-sugerido, NO hacer fallback a todos
-        if (puntosEditableSugerido.length === 0) {
-          console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
-          // Retornar null para que la validación falle
-          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
-        }
-        
-        // Buscar primero por ID específico (212819), luego por nombre 0004/00004
-        // Prioridad: 1) ID 212819, 2) Nombre 0004/00004 (columna "Punto de Venta"), 3) Primero disponible
-        const puntoVentaPorId = puntosEditableSugerido.find(pv => {
-          const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-          return pvId === 212819 || pvId === '212819';
-        });
-        
-        if (puntoVentaPorId) {
-          console.log('✅ Usando punto de venta con ID 212819 (editable-sugerido):', puntoVentaPorId);
-          const puntoVentaId = puntoVentaPorId.puntoVentaId || puntoVentaPorId.ID || puntoVentaPorId.id || puntoVentaPorId.puntoVenta_id;
-          if (puntoVentaId) {
-            return {
-              ID: puntoVentaId,
-              id: puntoVentaId,
-              puntoVentaId: puntoVentaId,
-              nombre: puntoVentaPorId.nombre || '',
-              codigo: puntoVentaPorId.codigo || '',
-              puntoVenta: puntoVentaPorId.puntoVenta || puntoVentaPorId.codigo || '', // Campo "Punto de Venta" que contiene "00004"
-              // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
-              editable: true,
-              sugerido: true,
-              editableSugerido: true
-            };
-          }
-        }
-        
-        // Si no se encuentra por ID, buscar por campo "Punto de Venta" que contenga 00004
-        const puntoVenta00004 = puntosEditableSugerido.find(pv => {
-          const puntoVenta = (pv.puntoVenta || '').toString().trim();
-          // Buscar por campo "Punto de Venta" que contenga 00004
-          return puntoVenta === '00004' || puntoVenta.includes('00004');
-        });
-        
-        if (puntoVenta00004) {
-          console.log('✅ Usando punto de venta con valor 00004 en campo "Punto de Venta" (editable-sugerido):', puntoVenta00004);
-          const puntoVentaId = puntoVenta00004.puntoVentaId || puntoVenta00004.ID || puntoVenta00004.id || puntoVenta00004.puntoVenta_id;
-          if (puntoVentaId) {
-            return {
-              ID: puntoVentaId,
-              id: puntoVentaId,
-              puntoVentaId: puntoVentaId,
-              nombre: puntoVenta00004.nombre || '',
-              codigo: puntoVenta00004.codigo || '',
-              puntoVenta: puntoVenta00004.puntoVenta || puntoVenta00004.codigo || '', // Campo "Punto de Venta" que contiene "00004"
-              // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
-              editable: true,
-              sugerido: true,
-              editableSugerido: true
-            };
-          }
-          console.warn('⚠️ Punto de venta 00004 encontrado pero sin ID válido, usando el primero disponible');
-        }
-        
-        // Si no existe 00004, usar el primero disponible de los puntos editable-sugerido
-        const puntoVenta = puntosEditableSugerido[0];
-        console.log('ℹ️ Usando el primer punto de venta editable-sugerido disponible:', puntoVenta);
-        const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
+      // Si hay un punto de venta seleccionado manualmente, usarlo
+      if (this.puntoVentaSeleccionadoId && this.puntoVentaSeleccionadoParaFactura) {
+        const pv = this.puntoVentaSeleccionadoParaFactura;
+        const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
         if (puntoVentaId) {
           return {
             ID: puntoVentaId,
             id: puntoVentaId,
             puntoVentaId: puntoVentaId,
-            nombre: puntoVenta.nombre || '',
-            codigo: puntoVenta.codigo || '',
-            puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '', // Campo "Punto de Venta" que contiene "00004"
+            nombre: pv.nombre || '',
+            codigo: pv.codigo || '',
+            puntoVenta: pv.puntoVenta || pv.codigo || '',
             // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
             editable: true,
             sugerido: true,
             editableSugerido: true
           };
         }
-        // Si no tiene ID válido, retornar null para que la validación falle
-        console.error('❌ Punto de venta editable-sugerido sin ID válido');
+      }
+      
+      // Si no hay selección manual, usar la lógica automática
+      if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
+        // Filtrar SOLO puntos de venta que sean editable-sugerido (requerido por la API)
+        const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+          return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+        });
+        
+        if (puntosEditableSugerido.length === 0) {
+          console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
+          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
+        }
+        
+        // Buscar primero por ID 212819, luego por campo "Punto de Venta" 00004
+        let puntoVenta = puntosEditableSugerido.find(pv => {
+          const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+          return pvId === 212819 || pvId === '212819';
+        });
+        
+        if (!puntoVenta) {
+          puntoVenta = puntosEditableSugerido.find(pv => {
+            const puntoVenta = (pv.puntoVenta || '').toString().trim();
+            return puntoVenta === '00004' || puntoVenta.includes('00004');
+          });
+        }
+        
+        if (!puntoVenta) {
+          puntoVenta = puntosEditableSugerido[0];
+        }
+        
+        if (puntoVenta) {
+          const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
+          if (puntoVentaId) {
+            return {
+              ID: puntoVentaId,
+              id: puntoVentaId,
+              puntoVentaId: puntoVentaId,
+              nombre: puntoVenta.nombre || '',
+              codigo: puntoVenta.codigo || '',
+              puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '',
+              editable: true,
+              sugerido: true,
+              editableSugerido: true
+            };
+          }
+        }
+        
         return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
       }
-      // Fallback si no hay puntos de venta cargados - retornar null para que la validación falle
-      console.error('❌ No hay puntos de venta cargados');
+      
       return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
+    },
+    
+    /**
+     * Maneja la selección manual de un punto de venta
+     * @param {Object} puntoVenta - Punto de venta seleccionado
+     */
+    seleccionarPuntoVentaDelDropdown(puntoVenta) {
+      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
+      this.puntoVentaSeleccionadoId = puntoVentaId;
+      this.puntoVentaSeleccionadoParaFactura = puntoVenta;
+      console.log('🏪 Punto de venta seleccionado manualmente:', puntoVenta);
     },
 
     /**

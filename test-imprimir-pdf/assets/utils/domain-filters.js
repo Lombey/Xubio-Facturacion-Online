@@ -79,3 +79,56 @@ export function filtrarProductos(productos, busqueda) {
            descripcion.includes(busquedaLower);
   });
 }
+
+/**
+ * @typedef {Object} PuntoVentaParaFiltro
+ * @property {string} [nombre]
+ * @property {string} [codigo]
+ * @property {string} [puntoVenta]
+ * @property {number} [puntoVentaId]
+ * @property {number} [ID]
+ * @property {number} [id]
+ * @property {boolean} [editable]
+ * @property {boolean} [sugerido]
+ * @property {boolean} [editableSugerido]
+ */
+
+/**
+ * Filtra puntos de venta según búsqueda (por nombre, código o punto de venta)
+ * Solo muestra puntos editable-sugerido (requerido por la API)
+ * @param {PuntoVentaParaFiltro[] | null | undefined} puntosDeVenta - Array de puntos de venta
+ * @param {string | null | undefined} busqueda - Texto de búsqueda
+ * @returns {PuntoVentaParaFiltro[] | null | undefined} Array de puntos de venta filtrados (solo editable-sugerido)
+ */
+export function filtrarPuntosDeVenta(puntosDeVenta, busqueda) {
+  if (!Array.isArray(puntosDeVenta)) {
+    return [];
+  }
+  
+  // Primero filtrar solo puntos editable-sugerido (requerido por la API)
+  const puntosEditableSugerido = puntosDeVenta.filter(pv => {
+    const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+    const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+    return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+  });
+  
+  // Si no hay búsqueda, retornar todos los editable-sugerido
+  if (!busqueda || !busqueda.trim()) {
+    return puntosEditableSugerido;
+  }
+  
+  // Filtrar por búsqueda
+  const busquedaLower = busqueda.toLowerCase();
+  
+  return puntosEditableSugerido.filter(pv => {
+    const nombre = (pv.nombre || '').toLowerCase();
+    const codigo = (pv.codigo || '').toLowerCase();
+    const puntoVenta = (pv.puntoVenta || '').toLowerCase();
+    const id = String(pv.puntoVentaId || pv.ID || pv.id || '').toLowerCase();
+    
+    return nombre.includes(busquedaLower) || 
+           codigo.includes(busquedaLower) || 
+           puntoVenta.includes(busquedaLower) ||
+           id.includes(busquedaLower);
+  });
+}
