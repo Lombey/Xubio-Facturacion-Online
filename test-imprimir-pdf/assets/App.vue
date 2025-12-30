@@ -312,19 +312,6 @@
         </div>
       </div>
       <div class="form-group">
-        <label for="facturaObservacion">Observaciones (opcional):</label>
-        <textarea 
-          id="facturaObservacion" 
-          v-model="facturaObservacion" 
-          placeholder="Datos bancarios, notas adicionales, etc."
-          rows="3"
-          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px;">
-        </textarea>
-        <div style="font-size: 12px; color: #666; margin-top: 5px;">
-          💡 Observaciones adicionales (CBU, alias, notas) - Campo no documentado oficialmente
-        </div>
-      </div>
-      <div class="form-group">
         <label for="facturaCondicionPago">Condición de Pago:</label>
         <select id="facturaCondicionPago" v-model="facturaCondicionPago" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
           <option :value="1">Cuenta Corriente</option>

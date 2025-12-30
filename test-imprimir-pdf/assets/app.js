@@ -84,7 +84,6 @@ export const appOptions = {
       facturaCotizacion: '1',
       facturaMoneda: '', // Moneda seleccionada para la factura (se selecciona DOLARES automáticamente al cargar)
       monedasList: [], // Lista de monedas disponibles desde la API
-      facturaObservacion: '', // Observaciones adicionales (CBU, alias, notas) - Campo no documentado oficialmente
       facturaDescripcion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5', // Descripción general de la factura (campo documentado en swagger)
       modoAvanzado: false, // Controla si se muestra el campo JSON manual
       facturaCondicionPago: 1, // 1 = Cuenta Corriente, 2 = Contado
@@ -889,7 +888,10 @@ export const appOptions = {
         this.loadingContext = 'Cargando configuración...';
         this.mostrarResultado('factura', 'Cargando configuración necesaria...', 'info');
         try {
-          await this.cargarValoresDeConfiguracion();
+          await this.cargarValoresConfiguracion();
+          // Resetear isLoading después de cargar configuración exitosamente
+          this.isLoading = false;
+          this.loadingContext = '';
         } catch (error) {
           this.mostrarResultado('factura', `Error cargando configuración: ${error.message}`, 'error');
           this.isLoading = false;
@@ -1033,13 +1035,6 @@ export const appOptions = {
               payload.cotizacion = cotizacion > 0 ? cotizacion : 1;
               payload.utilizaMonedaExtranjera = 1;
             }
-          }
-
-          // Agregar observaciones si están definidas
-          if (this.facturaObservacion && this.facturaObservacion.trim()) {
-            payload.observacion = this.facturaObservacion.trim();
-          } else {
-            payload.observacion = '';
           }
 
           // Agregar CUIT del cliente si está disponible
