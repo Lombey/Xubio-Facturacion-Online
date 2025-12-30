@@ -15,6 +15,7 @@ const { createApp } = Vue;
  * @property {Object} tokenResult
  * @property {string} facturaClienteId
  * @property {string} facturaTipoimpresion
+ * @property {string|number} facturaCotizacion
  * @property {string} facturaJson
  * @property {Object} facturaResult
  * @property {string} facturaPdfViewerHtml
@@ -72,6 +73,7 @@ const app = createApp({
       // Facturas
       facturaClienteId: '',
       facturaTipoimpresion: '1',
+      facturaCotizacion: '1',
       facturaJson: '',
       facturaResult: { message: '', type: '', visible: false },
       facturaPdfViewerHtml: '',
@@ -98,6 +100,14 @@ const app = createApp({
       facturasList: [],
       facturasListResult: { message: '', type: '', visible: false },
       facturaSeleccionada: null,
+      
+      // Productos y Lista de Precios
+      productosList: [],
+      productosListResult: { message: '', type: '', visible: false },
+      listaPrecioAGDP: null,
+      productosSeleccionados: [], // Array de { producto, cantidad, precio, producto_id }
+      busquedaProducto: '',
+      mostrarDropdownProductos: false,
       
       // Estados de carga y error
       isLoading: false,
@@ -168,6 +178,21 @@ const app = createApp({
       result.message = mensaje;
       result.type = tipo;
       result.visible = true;
+    },
+
+    /**
+     * Maneja errores de forma centralizada
+     * @param {Error} error
+     * @param {string} context
+     * @param {string} seccion
+     */
+    handleError(error, context, seccion) {
+      console.error(`❌ Error en ${context}:`, error);
+      const errorMessage = error.message || 'Error desconocido';
+      this.mostrarResultado(seccion, 
+        `❌ Error en ${context}:\n\n${errorMessage}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`, 
+        'error'
+      );
     },
     
     /**
@@ -435,6 +460,12 @@ const app = createApp({
         return;
       }
 
+      // Validar que haya productos seleccionados si no se usa JSON manual
+      if (!this.facturaJson.trim() && this.productosSeleccionados.length === 0) {
+        this.mostrarResultado('factura', 'Error: Selecciona al menos un producto o proporciona un JSON de factura', 'error');
+        return;
+      }
+
       this.isLoading = true;
       this.loadingContext = 'Creando factura...';
       this.mostrarResultado('factura', 'Creando factura...', 'info');
@@ -445,17 +476,74 @@ const app = createApp({
         if (this.facturaJson.trim()) {
           payload = JSON.parse(this.facturaJson);
         } else {
+          // Obtener datos necesarios
+          const [monedaUSD, datosCliente] = await Promise.all([
+            this.obtenerMonedaUSD(),
+            this.obtenerDatosCliente(parseInt(clienteId))
+          ]);
+
+          // Construir detalleComprobantes desde productos seleccionados
+          const detalleComprobantes = this.productosSeleccionados.map(item => {
+            const detalle = {
+              cantidad: item.cantidad,
+              precio: item.precio
+            };
+            
+            // Agregar producto_id si está disponible
+            if (item.producto_id) {
+              detalle.producto = { id: item.producto_id };
+            }
+            
+            // Agregar descripción si está disponible
+            if (item.producto.descripcion) {
+              detalle.descripcion = item.producto.descripcion;
+            } else if (item.producto.nombre) {
+              detalle.descripcion = item.producto.nombre;
+            }
+            
+            return detalle;
+          });
+
+          // Construir payload completo
           payload = {
             circuitoContable: { ID: 1 },
             comprobante: 1,
             cliente: { cliente_id: parseInt(clienteId) },
             fecha: new Date().toISOString().split('T')[0],
-            detalleComprobantes: [{
-              cantidad: 1,
-              precio: 100
-            }]
+            detalleComprobantes: detalleComprobantes
           };
+
+          // Agregar moneda USD si se encontró
+          if (monedaUSD) {
+            payload.moneda = {
+              ID: monedaUSD.ID || monedaUSD.id,
+              codigo: monedaUSD.codigo,
+              nombre: monedaUSD.nombre
+            };
+            // Usar cotización del campo (validar que sea un número válido > 0)
+            const cotizacion = parseFloat(this.facturaCotizacion) || 1;
+            payload.cotizacion = cotizacion > 0 ? cotizacion : 1;
+            payload.utilizaMonedaExtranjera = 1;
+          }
+
+          // Agregar observaciones
+          const observacion = "CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5";
+          payload.observacion = observacion;
+
+          // Agregar CUIT del cliente si está disponible
+          if (datosCliente && datosCliente.identificacionTributaria) {
+            const cuit = datosCliente.identificacionTributaria.numero || datosCliente.cuit;
+            if (cuit) {
+              // El CUIT generalmente va en el objeto cliente o en identificacionTributaria
+              if (!payload.cliente.identificacionTributaria) {
+                payload.cliente.identificacionTributaria = {};
+              }
+              payload.cliente.identificacionTributaria.numero = cuit;
+            }
+          }
         }
+
+        console.log('📤 Payload de factura:', JSON.stringify(payload, null, 2));
 
         const { response, data } = await this.requestXubio('/comprobanteVentaBean', 'POST', payload);
 
@@ -736,6 +824,424 @@ const app = createApp({
         `✅ Factura seleccionada:\nID: ${factura.id}\nTransaction ID: ${factura.transaccionId}\nCliente: ${factura.razonSocial}\nCUIT: ${factura.cuit}\nMonto: $${parseFloat(factura.monto).toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n\n💡 El ID se copió a los campos correspondientes.`, 
         'success'
       );
+    },
+
+    /**
+     * Obtiene la lista de precios "AGDP" con sus precios
+     */
+    async obtenerListaPrecioAGDP() {
+      if (!this.accessToken) {
+        return null;
+      }
+
+      try {
+        // Primero obtener todas las listas de precios
+        const { response, data } = await this.requestXubio('/listaPrecio', 'GET');
+        
+        if (response.ok && Array.isArray(data)) {
+          const listaAGDP = data.find(lp => 
+            lp.nombre === 'AGDP' || 
+            lp.codigo === 'AGDP' ||
+            (lp.nombre && lp.nombre.toUpperCase().includes('AGDP')) ||
+            (lp.codigo && lp.codigo.toUpperCase().includes('AGDP'))
+          );
+          
+          if (listaAGDP) {
+            const listaId = listaAGDP.id || listaAGDP.ID;
+            
+            // Intentar obtener los detalles de la lista (precios de productos)
+            if (listaId) {
+              try {
+                const { response: detalleResponse, data: detalleData } = await this.requestXubio(`/listaPrecio/${listaId}`, 'GET');
+                if (detalleResponse.ok && detalleData) {
+                  // Combinar la información de la lista con sus detalles
+                  this.listaPrecioAGDP = { ...listaAGDP, ...detalleData };
+                  console.log('✅ Lista de precios AGDP con detalles obtenida:', this.listaPrecioAGDP);
+                  return this.listaPrecioAGDP;
+                }
+              } catch (error) {
+                console.warn('⚠️ No se pudieron obtener detalles de la lista, usando lista básica:', error);
+              }
+            }
+            
+            // Si no se pudieron obtener detalles, usar la lista básica
+            this.listaPrecioAGDP = listaAGDP;
+            console.log('✅ Lista de precios AGDP encontrada (sin detalles):', listaAGDP);
+            return listaAGDP;
+          } else {
+            console.warn('⚠️ Lista de precios AGDP no encontrada. Listas disponibles:', data.map(lp => lp.nombre || lp.codigo));
+            return null;
+          }
+        }
+        return null;
+      } catch (error) {
+        console.error('❌ Error obteniendo lista de precios:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Lista productos de venta activos
+     */
+    async listarProductos() {
+      if (!this.accessToken) {
+        alert('Primero obtén un token de acceso');
+        return;
+      }
+
+      this.isLoading = true;
+      this.loadingContext = 'Obteniendo productos...';
+      this.mostrarResultado('productosList', 'Obteniendo productos...', 'info');
+      this.productosList = [];
+
+      try {
+        // Obtener productos activos
+        const { response, data } = await this.requestXubio('/productoVenta', 'GET', null, {
+          activo: 1
+        });
+
+        if (response.ok && Array.isArray(data)) {
+          this.productosList = data;
+          this.mostrarResultado('productosList', 
+            `✅ Se encontraron ${data.length} productos activos`, 
+            'success'
+          );
+          
+          // Intentar obtener lista de precios AGDP si no está cargada
+          if (!this.listaPrecioAGDP) {
+            await this.obtenerListaPrecioAGDP();
+          }
+        } else {
+          this.mostrarResultado('productosList',
+            `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
+            'error'
+          );
+        }
+      } catch (error) {
+        this.mostrarResultado('productosList', `❌ Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
+      }
+    },
+
+    /**
+     * Obtiene la cotización del dólar vendedor del día desde la API del BCRA
+     */
+    async obtenerCotizacionBCRA() {
+      this.isLoading = true;
+      this.loadingContext = 'Obteniendo cotización del BCRA...';
+      this.mostrarResultado('factura', 'Obteniendo cotización del dólar vendedor del día desde el BCRA...', 'info');
+
+      try {
+        // Obtener fecha actual en formato YYYY-MM-DD
+        const hoy = new Date();
+        const fecha = hoy.toISOString().split('T')[0];
+        
+        // Endpoint de la API del BCRA para cotizaciones de USD
+        // Usar el proxy para evitar problemas de CORS
+        const bcraPath = `/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde=${fecha}&fechahasta=${fecha}`;
+        const url = `/api/bcra?path=${encodeURIComponent(bcraPath)}`;
+        
+        console.log('🔍 Obteniendo cotización del BCRA:', url);
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: response.statusText }));
+          throw new Error(`Error ${response.status}: ${errorData.error || response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        console.log('📥 Respuesta del BCRA:', data);
+
+        // La API del BCRA devuelve un array de cotizaciones
+        // Buscar la cotización vendedor del día más reciente
+        if (Array.isArray(data) && data.length > 0) {
+          // Ordenar por fecha descendente para obtener la más reciente
+          const cotizaciones = data.sort((a, b) => {
+            const fechaA = new Date(a.fecha || a.Fecha || 0);
+            const fechaB = new Date(b.fecha || b.Fecha || 0);
+            return fechaB - fechaA;
+          });
+
+          const cotizacion = cotizaciones[0];
+          
+          // Intentar diferentes campos posibles para la cotización vendedor
+          const cotizacionVendedor = 
+            cotizacion.vendedor || 
+            cotizacion.Vendedor || 
+            cotizacion.cotizacionVendedor ||
+            cotizacion.CotizacionVendedor ||
+            cotizacion.valorVendedor ||
+            cotizacion.ValorVendedor ||
+            cotizacion.precioVendedor ||
+            cotizacion.PrecioVendedor;
+
+          if (cotizacionVendedor) {
+            const precio = parseFloat(cotizacionVendedor);
+            if (!isNaN(precio) && precio > 0) {
+              this.facturaCotizacion = precio.toFixed(2);
+              this.mostrarResultado('factura', 
+                `✅ Cotización obtenida: $${precio.toFixed(2)} (vendedor del ${fecha})`, 
+                'success'
+              );
+              return;
+            }
+          }
+
+          // Si no hay campo vendedor específico, intentar con campos genéricos
+          const cotizacionGeneral = 
+            cotizacion.cotizacion ||
+            cotizacion.Cotizacion ||
+            cotizacion.valor ||
+            cotizacion.Valor ||
+            cotizacion.precio ||
+            cotizacion.Precio;
+
+          if (cotizacionGeneral) {
+            const precio = parseFloat(cotizacionGeneral);
+            if (!isNaN(precio) && precio > 0) {
+              this.facturaCotizacion = precio.toFixed(2);
+              this.mostrarResultado('factura', 
+                `✅ Cotización obtenida: $${precio.toFixed(2)} (del ${fecha})`, 
+                'success'
+              );
+              return;
+            }
+          }
+        }
+
+        // Si no se encontró cotización, intentar con el día anterior (por si es fin de semana)
+        const ayer = new Date(hoy);
+        ayer.setDate(ayer.getDate() - 1);
+        const fechaAyer = ayer.toISOString().split('T')[0];
+        const bcraPathAyer = `/estadisticascambiarias/v1.0/Cotizaciones/USD?fechadesde=${fechaAyer}&fechahasta=${fechaAyer}`;
+        const urlAyer = `/api/bcra?path=${encodeURIComponent(bcraPathAyer)}`;
+        
+        const responseAyer = await fetch(urlAyer, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (responseAyer.ok) {
+          const dataAyer = await responseAyer.json();
+          if (Array.isArray(dataAyer) && dataAyer.length > 0) {
+            const cotizacionAyer = dataAyer[0];
+            const precio = parseFloat(cotizacionAyer.vendedor || cotizacionAyer.Vendedor || cotizacionAyer.cotizacion || cotizacionAyer.Cotizacion);
+            if (!isNaN(precio) && precio > 0) {
+              this.facturaCotizacion = precio.toFixed(2);
+              this.mostrarResultado('factura', 
+                `✅ Cotización obtenida (día anterior): $${precio.toFixed(2)} (del ${fechaAyer})`, 
+                'success'
+              );
+              return;
+            }
+          }
+        }
+
+        throw new Error('No se pudo obtener la cotización vendedor. La respuesta no contiene el formato esperado.');
+      } catch (error) {
+        console.error('❌ Error obteniendo cotización del BCRA:', error);
+        this.mostrarResultado('factura', 
+          `❌ Error obteniendo cotización del BCRA:\n\n${error.message}\n\n💡 Puedes ingresar la cotización manualmente.`, 
+          'error'
+        );
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
+      }
+    },
+
+    /**
+     * Obtiene la moneda USD
+     */
+    async obtenerMonedaUSD() {
+      if (!this.accessToken) {
+        return null;
+      }
+
+      try {
+        const { response, data } = await this.requestXubio('/monedaBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          const usd = data.find(m => 
+            m.codigo === 'USD' || 
+            m.nombre?.toUpperCase().includes('USD') || 
+            m.nombre?.toUpperCase().includes('DOLAR')
+          );
+          if (usd) {
+            console.log('✅ Moneda USD encontrada:', usd);
+            return usd;
+          }
+        }
+        return null;
+      } catch (error) {
+        console.error('❌ Error obteniendo moneda USD:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Obtiene datos del cliente (incluyendo CUIT)
+     */
+    async obtenerDatosCliente(clienteId) {
+      if (!this.accessToken || !clienteId) {
+        return null;
+      }
+
+      try {
+        const { response, data } = await this.requestXubio(`/clienteBean/${clienteId}`, 'GET');
+        
+        if (response.ok && data) {
+          console.log('✅ Datos del cliente obtenidos:', data);
+          return data;
+        }
+        return null;
+      } catch (error) {
+        console.error('❌ Error obteniendo datos del cliente:', error);
+        return null;
+      }
+    },
+
+    /**
+     * Obtiene el precio de un producto desde la lista AGDP
+     * Intenta múltiples estructuras posibles de la API
+     */
+    obtenerPrecioProducto(producto) {
+      if (!this.listaPrecioAGDP || !producto) {
+        return 0;
+      }
+      
+      const productoId = producto.id || producto.ID || producto.producto_id;
+      if (!productoId) {
+        return 0;
+      }
+      
+      // Intentar diferentes estructuras posibles de la API
+      // Estructura 1: listaPrecioAGDP.precios[productoId]
+      if (this.listaPrecioAGDP.precios && this.listaPrecioAGDP.precios[productoId]) {
+        const precio = this.listaPrecioAGDP.precios[productoId];
+        return typeof precio === 'number' ? precio : (precio.precio || precio.valor || 0);
+      }
+      
+      // Estructura 2: listaPrecioAGDP.items (array con objetos que tienen producto y precio)
+      if (Array.isArray(this.listaPrecioAGDP.items)) {
+        const item = this.listaPrecioAGDP.items.find(i => 
+          (i.producto && (i.producto.id === productoId || i.producto.ID === productoId)) ||
+          i.producto_id === productoId ||
+          i.idProducto === productoId
+        );
+        if (item) {
+          return item.precio || item.valor || item.importe || 0;
+        }
+      }
+      
+      // Estructura 3: listaPrecioAGDP.detalle (array similar a items)
+      if (Array.isArray(this.listaPrecioAGDP.detalle)) {
+        const item = this.listaPrecioAGDP.detalle.find(i => 
+          (i.producto && (i.producto.id === productoId || i.producto.ID === productoId)) ||
+          i.producto_id === productoId ||
+          i.idProducto === productoId
+        );
+        if (item) {
+          return item.precio || item.valor || item.importe || 0;
+        }
+      }
+      
+      // Estructura 4: Precio directamente en el producto si viene de la lista
+      if (producto.precio) {
+        return producto.precio;
+      }
+      
+      // Si no se encuentra, retornar 0 (se puede editar manualmente)
+      return 0;
+    },
+
+    /**
+     * Formatea el precio para mostrar
+     */
+    formatearPrecio(precio) {
+      if (!precio || precio === 0) {
+        return '0.00';
+      }
+      return parseFloat(precio).toFixed(2);
+    },
+
+    /**
+     * Selecciona un producto del dropdown y lo agrega
+     */
+    seleccionarProductoDelDropdown(producto) {
+      this.agregarProducto(producto);
+      this.busquedaProducto = '';
+      this.mostrarDropdownProductos = false;
+    },
+
+    /**
+     * Agrega un producto a la lista de seleccionados
+     */
+    agregarProducto(producto) {
+      // Verificar si el producto ya está en la lista
+      const productoId = producto.id || producto.ID || producto.producto_id;
+      const yaExiste = this.productosSeleccionados.some(item => 
+        (item.producto_id === productoId) ||
+        (item.producto && (item.producto.id === productoId || item.producto.ID === productoId))
+      );
+      
+      if (yaExiste) {
+        this.mostrarResultado('productosList', 
+          `⚠️ El producto "${producto.nombre || producto.codigo || 'Sin nombre'}" ya está en la lista`, 
+          'info'
+        );
+        return;
+      }
+      
+      const precio = this.obtenerPrecioProducto(producto) || 0;
+      const item = {
+        producto: producto,
+        cantidad: 1,
+        precio: precio > 0 ? precio : 0, // Si no hay precio, dejar en 0 para edición manual
+        producto_id: productoId
+      };
+      
+      this.productosSeleccionados.push(item);
+      const mensaje = precio > 0 
+        ? `✅ Producto "${producto.nombre || producto.codigo || 'Sin nombre'}" agregado con precio $${this.formatearPrecio(precio)}`
+        : `✅ Producto "${producto.nombre || producto.codigo || 'Sin nombre'}" agregado (precio: $0.00 - editar manualmente)`;
+      
+      this.mostrarResultado('productosList', mensaje, 'success');
+    },
+
+    /**
+     * Elimina un producto de la lista de seleccionados
+     */
+    eliminarProducto(index) {
+      this.productosSeleccionados.splice(index, 1);
+    },
+
+    /**
+     * Filtra productos según búsqueda
+     */
+    productosFiltrados() {
+      if (!this.busquedaProducto.trim()) {
+        return this.productosList;
+      }
+      
+      const busqueda = this.busquedaProducto.toLowerCase();
+      return this.productosList.filter(p => {
+        const nombre = (p.nombre || '').toLowerCase();
+        const codigo = (p.codigo || '').toLowerCase();
+        const descripcion = (p.descripcion || '').toLowerCase();
+        return nombre.includes(busqueda) || codigo.includes(busqueda) || descripcion.includes(busqueda);
+      });
     }
   }
 });

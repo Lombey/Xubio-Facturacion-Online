@@ -37,9 +37,92 @@
             <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
         </div>
 
-        <!-- Sección 2: Flujo Completo - Factura -->
+        <!-- Sección 2: Productos y Lista de Precios -->
         <div class="section">
-            <h2>2. Flujo Completo: Factura → PDF</h2>
+            <h2>2. Productos y Lista de Precios</h2>
+            <div class="info">
+                💡 Lista productos activos y selecciona los que quieras incluir en la factura
+            </div>
+            <button @click="listarProductos()" :disabled="isLoading">📦 Listar Productos Activos</button>
+            <div v-if="productosListResult.visible" :class="['result', productosListResult.type]" v-html="formatoMensaje(productosListResult.message)"></div>
+            
+            <div v-if="productosList.length > 0" style="margin-top: 15px;">
+                <div class="form-group">
+                    <label for="selectorProducto">➕ Agregar Producto:</label>
+                    <div style="position: relative;">
+                        <input 
+                            type="text" 
+                            id="selectorProducto" 
+                            v-model="busquedaProducto" 
+                            @input="mostrarDropdownProductos = true"
+                            @focus="mostrarDropdownProductos = true"
+                            @blur="setTimeout(() => mostrarDropdownProductos = false, 200)"
+                            placeholder="Buscar producto por nombre, código o descripción..."
+                            style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div 
+                            v-if="mostrarDropdownProductos && productosFiltrados().length > 0"
+                            style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-top: 2px;">
+                            <div 
+                                v-for="producto in productosFiltrados()" 
+                                :key="producto.id || producto.ID"
+                                @click="seleccionarProductoDelDropdown(producto)"
+                                style="padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;"
+                                @mouseenter="$event.target.style.backgroundColor = '#f5f5f5'"
+                                @mouseleave="$event.target.style.backgroundColor = 'white'">
+                                <div>
+                                    <strong>{{ producto.nombre || producto.codigo || 'Sin nombre' }}</strong>
+                                    <div style="font-size: 12px; color: #666;">
+                                        Código: {{ producto.codigo || 'N/A' }}
+                                    </div>
+                                </div>
+                                <div style="font-weight: bold; color: #2196F3;">
+                                    ${{ formatearPrecio(obtenerPrecioProducto(producto)) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div 
+                            v-if="mostrarDropdownProductos && productosFiltrados().length === 0 && busquedaProducto.trim()"
+                            style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 10px; z-index: 1000; margin-top: 2px;">
+                            <div style="color: #666; text-align: center;">No se encontraron productos</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="productosSeleccionados.length > 0" style="margin-top: 20px;">
+                <h3>Productos Seleccionados:</h3>
+                <table class="facturas-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, index) in productosSeleccionados" :key="index">
+                            <td>{{ item.producto.nombre || item.producto.codigo || 'Sin nombre' }}</td>
+                            <td>
+                                <input type="number" v-model.number="item.cantidad" min="0.01" step="0.01" style="width: 80px;">
+                            </td>
+                            <td>
+                                <input type="number" v-model.number="item.precio" min="0" step="0.01" style="width: 100px;">
+                            </td>
+                            <td>${{ (item.cantidad * item.precio).toFixed(2) }}</td>
+                            <td>
+                                <button class="test-btn" @click="eliminarProducto(index)">Eliminar</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección 3: Flujo Completo - Factura -->
+        <div class="section">
+            <h2>3. Flujo Completo: Factura → PDF</h2>
             <div class="info">
                 💡 Este flujo crea una factura y automáticamente obtiene su PDF
             </div>
@@ -57,8 +140,20 @@
                 </div>
             </div>
             <div class="form-group">
+                <label for="facturaCotizacion">Cotización (USD):</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="number" id="facturaCotizacion" v-model.number="facturaCotizacion" step="0.01" min="0.01" placeholder="Ej: 1.00" style="flex: 1;">
+                    <button class="test-btn" @click="obtenerCotizacionBCRA()" :disabled="isLoading">
+                        💱 Obtener Cotización
+                    </button>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    💡 Cotización del dólar. Valor por defecto: 1.00. Usa el botón para obtener la cotización vendedor del día desde el BCRA.
+                </div>
+            </div>
+            <div class="form-group">
                 <label for="facturaJson">JSON de Factura (opcional):</label>
-                <textarea id="facturaJson" v-model="facturaJson" placeholder='Dejar vacío para usar template básico'></textarea>
+                <textarea id="facturaJson" v-model="facturaJson" placeholder='Dejar vacío para usar productos seleccionados'></textarea>
             </div>
             <div class="flow-buttons">
                 <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading">🚀 Crear Factura y Obtener PDF</button>
@@ -68,7 +163,7 @@
             <div v-if="facturaPdfViewerVisible" class="pdf-viewer" v-html="facturaPdfViewerHtml"></div>
         </div>
 
-        <!-- Sección 3: Flujo Completo - Cobranza -->
+        <!-- Sección 4: Flujo Completo - Cobranza -->
         <div class="section">
             <h2>3. Flujo Completo: Cobranza → PDF</h2>
             <div class="info">
@@ -107,7 +202,7 @@
             <div v-if="cobranzaPdfViewerVisible" class="pdf-viewer" v-html="cobranzaPdfViewerHtml"></div>
         </div>
 
-        <!-- Sección 4: Listar Facturas del Último Mes -->
+        <!-- Sección 5: Listar Facturas del Último Mes -->
         <div class="section">
             <h2>4. Listar Facturas del Último Mes</h2>
             <div class="info">
@@ -151,7 +246,7 @@
             </div>
         </div>
 
-        <!-- Sección 5: Obtener PDF de Comprobante Existente -->
+        <!-- Sección 6: Obtener PDF de Comprobante Existente -->
         <div class="section">
             <h2>5. Obtener PDF de Comprobante Existente</h2>
             <div class="info">

@@ -6,6 +6,10 @@
       "dest": "/api/proxy.js?path=$1"
     },
     {
+      "src": "/api/bcra",
+      "dest": "/api/bcra.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/test-imprimir-pdf/$1"
     }

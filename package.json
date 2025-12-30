@@ -4,6 +4,7 @@
   "description": "Aplicación web para probar y gestionar la API de Xubio",
   "type": "module",
   "scripts": {
+    "dev": "vercel dev",
     "lint": "eslint . --ext .js,.ts --fix",
     "type": "tsc --noEmit",
     "type:check": "tsc --noEmit",
