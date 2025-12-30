@@ -539,12 +539,36 @@ const app = createApp({
           });
 
           // Construir payload completo
+          const fecha = new Date();
+          const fechaISO = fecha.toISOString().split('T')[0];
+          
           payload = {
             circuitoContable: this.obtenerCircuitoContablePorDefecto(),
-            comprobante: 1,
+            comprobante: 1, // ID del comprobante (puede ser diferente de tipo)
+            tipo: 1, // 1=Factura, 2=Nota de Débito, 3=Nota de Crédito, 4=Informe Z, 6=Recibo
             cliente: { cliente_id: parseInt(clienteId) },
-            fecha: new Date().toISOString().split('T')[0],
-            transaccionProductoItems: transaccionProductoItems
+            fecha: fechaISO,
+            fechaVto: fechaISO, // Fecha de vencimiento (requerido según Swagger)
+            condicionDePago: 1, // 1=Cuenta Corriente, 2=Contado (requerido según Swagger)
+            puntoVenta: this.obtenerPuntoVentaPorDefecto(), // Requerido según Swagger
+            vendedor: this.obtenerVendedorPorDefecto(), // Requerido según Swagger
+            transaccionProductoItems: transaccionProductoItems,
+            // Campos requeridos con valores por defecto
+            cantComprobantesCancelados: 0,
+            cantComprobantesEmitidos: 0,
+            cbuinformada: false,
+            cotizacionListaDePrecio: 1,
+            descripcion: '', // Descripción del comprobante
+            externalId: '',
+            facturaNoExportacion: false,
+            listaDePrecio: null, // Se puede agregar si hay una lista de precios por defecto
+            mailEstado: '',
+            nombre: '', // Nombre del comprobante
+            numeroDocumento: '',
+            porcentajeComision: 0,
+            provincia: null, // Se puede obtener del cliente si está disponible
+            transaccionCobranzaItems: [],
+            transaccionPercepcionItems: []
           };
 
           // Agregar moneda USD si se encontró
@@ -624,11 +648,19 @@ const app = createApp({
         if (this.facturaJson.trim()) {
           payload = JSON.parse(this.facturaJson);
         } else {
+          const fecha = new Date();
+          const fechaISO = fecha.toISOString().split('T')[0];
+          
           payload = {
-            circuitoContable: { ID: 1 },
+            circuitoContable: this.obtenerCircuitoContablePorDefecto(),
             comprobante: 1,
+            tipo: 1, // 1=Factura
             cliente: { cliente_id: parseInt(clienteId) },
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: fechaISO,
+            fechaVto: fechaISO,
+            condicionDePago: 1, // 1=Cuenta Corriente
+            puntoVenta: this.obtenerPuntoVentaPorDefecto(),
+            vendedor: this.obtenerVendedorPorDefecto(),
             transaccionProductoItems: [{
               cantidad: 1,
               precio: 100,
@@ -638,8 +670,24 @@ const app = createApp({
               total: 100,
               montoExento: 0,
               porcentajeDescuento: 0,
-              centroDeCosto: { ID: 1, id: 1 }
-            }]
+              centroDeCosto: this.obtenerCentroDeCostoPorDefecto()
+            }],
+            // Campos requeridos con valores por defecto
+            cantComprobantesCancelados: 0,
+            cantComprobantesEmitidos: 0,
+            cbuinformada: false,
+            cotizacionListaDePrecio: 1,
+            descripcion: '',
+            externalId: '',
+            facturaNoExportacion: false,
+            listaDePrecio: null,
+            mailEstado: '',
+            nombre: '',
+            numeroDocumento: '',
+            porcentajeComision: 0,
+            provincia: null,
+            transaccionCobranzaItems: [],
+            transaccionPercepcionItems: []
           };
         }
 
@@ -1246,6 +1294,40 @@ const app = createApp({
         };
       }
       // Fallback si no hay circuitos contables cargados
+      return { ID: 1 };
+    },
+
+    /**
+     * Obtiene el primer punto de venta disponible o uno por defecto
+     */
+    obtenerPuntoVentaPorDefecto() {
+      if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
+        const puntoVenta = this.puntosDeVenta[0];
+        return {
+          ID: puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id || 1,
+          id: puntoVenta.id || puntoVenta.ID || puntoVenta.puntoVenta_id || 1,
+          nombre: puntoVenta.nombre || '',
+          codigo: puntoVenta.codigo || ''
+        };
+      }
+      // Fallback si no hay puntos de venta cargados
+      return { ID: 1 };
+    },
+
+    /**
+     * Obtiene el primer vendedor disponible o uno por defecto
+     */
+    obtenerVendedorPorDefecto() {
+      if (this.vendedores && this.vendedores.length > 0) {
+        const vendedor = this.vendedores[0];
+        return {
+          ID: vendedor.ID || vendedor.id || vendedor.vendedor_id || 1,
+          id: vendedor.id || vendedor.ID || vendedor.vendedor_id || 1,
+          nombre: vendedor.nombre || '',
+          codigo: vendedor.codigo || ''
+        };
+      }
+      // Fallback si no hay vendedores cargados
       return { ID: 1 };
     },
 

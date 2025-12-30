@@ -185,21 +185,39 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
 
 #### GET `/comprobanteVentaBean` – Obtener comprobantes de venta
 * **Descripción:** Retorna una lista de comprobantes (facturas/Notas de crédito) emitidos. Se pueden filtrar por fecha y paginar.
+* **Tipos de comprobante:** 
+  - `1` = Factura
+  - `2` = Nota de Débito
+  - `3` = Nota de Crédito
+  - `4` = Recibo
+  - `5` = Informe Diario de Cierre
+* **Condición de Pago:**
+  - `1` = Cuenta Corriente
+  - `2` = Contado
 * **Parámetros de consulta:**
   | Nombre | Descripción |
   |-------|-------------|
   | `fechaDesde` (date-time, opcional) | Fecha inicial. |
   | `fechaHasta` (date-time, opcional) | Fecha final. |
-* **Encabezados opcionales:**
-  | Nombre | Descripción |
-  |-------|-------------|
-  | `minimalVersion` (boolean) | Si se envía `true` devuelve versión resumida. |
-  | `lastTransactionID` (int64) | Utilizado para paginar registros. |
-  | `limit` (int) | Número máximo de registros a devolver. |
-* **Respuesta:** Cada comprobante contiene datos del circuito contable, tipo de comprobante, comprobantes asociados, período de servicios (`fechaDesdeServicios` y `fechaHastaServicios`), CAE, `transaccionId`, `externalId`, cliente, detalle de líneas (`detalleComprobantes`), moneda, cotización, total, etc.
+* **Encabezados opcionales (Headers):**
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `minimalVersion` | boolean | Si se envía `true` devuelve versión resumida del endpoint. |
+  | `lastTransactionID` | int64 | Último ID de la página utilizado para filtrar la siguiente página (solo disponible en `minimalVersion`). |
+  | `limit` | int | Límite de registros a devolver (solo disponible en `minimalVersion`). |
+* **Respuesta:** Cada comprobante contiene datos del circuito contable, tipo de comprobante, comprobantes asociados, período de servicios (`fechaDesdeServicios` y `fechaHastaServicios`), CAE, `transaccionId`, `externalId`, cliente, detalle de líneas (`transaccionProductoItems`), moneda, cotización, total, etc.
 
 #### POST `/comprobanteVentaBean` – Crear comprobante de venta
 * **Descripción:** Crea una factura o nota de crédito/débito de venta.
+* **Tipos de comprobante:**
+  - `1` = Factura
+  - `2` = Nota de Débito
+  - `3` = Nota de Crédito
+  - `4` = Recibo
+  - `5` = Informe Diario de Cierre
+* **Condición de Pago:**
+  - `1` = Cuenta Corriente
+  - `2` = Contado
 * **Cuerpo:** Objeto comprobante de venta con muchos campos:
   - `circuitoContable`, `comprobante` y `comprobanteAsociado`
   - Fechas de servicio (`fechaDesdeServicios`, `fechaHastaServicios`), CAE
@@ -211,17 +229,23 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
 
 #### GET `/comprobanteVentaBean/{id}` – Obtener comprobante de venta
 * **Descripción:** Devuelve un comprobante específico por id.
+* **Tipos de comprobante:** 1- Factura, 2- Nota de Débito, 3- Nota de Crédito, 4- Recibo, 5- Informe Diario de Cierre.
+* **Condición de Pago:** 1- Cuenta Corriente, 2- Contado.
 * **Parámetros de ruta:** `id` (int64, requerido).
 * **Respuesta:** Objeto comprobante con los mismos campos que en el POST.
 
 #### PUT `/comprobanteVentaBean/{id}` – Actualizar comprobante
 * **Descripción:** Actualiza un comprobante existente.
+* **Tipos de comprobante:** 1- Factura, 2- Nota de Débito, 3- Nota de Crédito, 4- Recibo, 5- Informe Diario de Cierre.
+* **Condición de Pago:** 1- Cuenta Corriente, 2- Contado.
 * **Parámetros de ruta:** `id` (int64, requerido).
 * **Cuerpo:** Objeto comprobante de venta (formato igual al de creación).
 * **Respuesta:** Comprobante actualizado.
 
 #### DELETE `/comprobanteVentaBean/{id}` – Eliminar comprobante
 * **Descripción:** Elimina el comprobante indicado.
+* **Tipos de comprobante:** 1- Factura, 2- Nota de Débito, 3- Nota de Crédito, 4- Recibo, 5- Informe Diario de Cierre.
+* **Condición de Pago:** 1- Cuenta Corriente, 2- Contado.
 * **Parámetros de ruta:** `id` (int64, requerido).
 * **Respuesta:** Operación exitosa.
 
@@ -232,10 +256,10 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
 #### GET `/cobranzaBean` – Obtener cobranzas
 * **Descripción:** Obtiene un listado de cobranzas (recibos). Se pueden filtrar por fecha.
 * **Parámetros de consulta:**
-  | Nombre | Descripción |
-  |-------|-------------|
-  | `fechaDesde` (date-time) | Fecha inicial del filtro. |
-  | `fechaHasta` (date-time) | Fecha final del filtro. |
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `fechaDesde` (date-time, opcional) | string | Fecha inicial del filtro. |
+  | `fechaHasta` (date-time, opcional) | string | Fecha final del filtro. |
 * **Respuesta:** Una lista de objetos cobranza. Cada cobranza contiene `cuentaTipo`, `cuenta`, `moneda`, `cliente`, `fecha`, `numeroRecibo`, `cotizacion`, `detalleCobranzas` (líneas con montos y comprobantes), etc.
 
 #### POST `/cobranzaBean` – Crear cobranza
@@ -251,7 +275,9 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
 * **Respuesta:** Devuelve la cobranza creada.
 
 #### PUT `/cobranzaBean` – Actualizar cobranza
-* **Descripción:** Actualiza una cobranza. El cuerpo es el mismo objeto Cobranza que en la creación.
+* **Descripción:** Actualiza una cobranza existente.
+* **Cuerpo:** Objeto `CobranzaBean` completo con todos los campos necesarios para guardar.
+* **Respuesta:** Devuelve la cobranza actualizada.
 
 #### DELETE `/cobranzaBean/{id}` – Eliminar cobranza
 * **Descripción:** Elimina la cobranza con el ID indicado.
@@ -284,9 +310,18 @@ Este recurso engloba operaciones para consultar y crear órdenes de pago.
 ### Facturar (`facturar`)
 
 #### POST `/facturar` – Generar factura
-* **Descripción:** Genera una factura de venta. Es similar a la operación POST de `comprobanteVentaBean` pero orientada a la acción de facturar.
-* **Cuerpo:** Objeto comprobante de venta con campos `circuitoContable`, `comprobante`, `comprobanteAsociado`, fechas de servicios, CAE, `transaccionId`, `externalId`, `cliente`, `detalleComprobantes`, moneda, cotización, total, etc.
-* **Respuesta:** Devuelve el comprobante facturado.
+* **Descripción:** Genera una factura de venta. Es similar a la operación POST de `comprobanteVentaBean` pero orientada específicamente a la acción de facturar.
+* **Tipos de comprobante soportados:**
+  - `1` = Factura
+  - `2` = Nota de Débito
+  - `3` = Nota de Crédito
+  - `4` = Informe Diario de Cierre
+  - `6` = Recibo
+* **Condición de Pago:**
+  - `1` = Cuenta Corriente
+  - `2` = Contado
+* **Cuerpo:** Objeto `ComprobanteVentaBean` completo con todos los campos requeridos. ⚠️ **NOTA:** El campo correcto para items es `transaccionProductoItems`, NO `detalleComprobantes`. Ver sección "Hallazgos del Swagger JSON" para estructura completa.
+* **Respuesta:** Devuelve el comprobante facturado (objeto `ComprobanteVentaBean`).
 
 ---
 
@@ -424,18 +459,49 @@ Este recurso engloba operaciones para consultar y crear órdenes de pago.
 
 #### GET `/imprimirPDF` – Obtener URL de PDF
 * **Descripción:** Devuelve la URL para descargar el PDF de un comprobante.
+* **⚠️ IMPORTANTE:** Según el Swagger, **ambos parámetros son obligatorios** (aunque aparezcan como opcionales en la definición técnica).
 * **Parámetros de consulta:**
-  | Nombre | Descripción |
-  |-------|-------------|
-  | `idtransaccion` (int64, requerido) | ID de la transacción cuyo PDF se desea descargar. |
-  | `tipoimpresion` (int32, requerido) | Tipo de impresión, no detallado en la documentación. |
-* **Respuesta:** Objeto con `nombrexml`, `datasource` y `urlPdf` (URL para descargar el archivo).
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `idtransaccion` (int64, **requerido**) | integer | ID de la transacción cuyo PDF se desea descargar. |
+  | `tipoimpresion` (int32, **requerido**) | integer | Tipo de impresión. Los valores específicos no están documentados públicamente, pero típicamente se usa `1` para impresión estándar. |
+* **Respuesta:** Objeto `ImprimirPDFBean` con:
+  - `nombrexml` (string) - Nombre del XML asociado
+  - `datasource` (string) - Fuente de datos
+  - `urlPdf` (string) - URL para descargar el archivo PDF
+
+---
+
+## Otros recursos importantes
+
+### Vendedor (`vendedorBean`)
+
+#### GET `/vendedorBean` – Obtener vendedores
+* **Descripción:** Obtiene un array de vendedores. Permite filtrar por estado activo.
+* **Parámetros de consulta:**
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `activo` (int32, opcional) | integer | `1` = activo, `0` = inactivo |
+* **Respuesta:** Array de objetos `VendedorBean` con campos `ID`, `nombre`, `codigo`, `id`, `activo`, etc.
+
+---
+
+### Punto de Venta (`puntoVentaBean`)
+
+#### GET `/puntoVentaBean` – Obtener puntos de venta
+* **Descripción:** Obtiene una lista de Puntos de Ventas. Permite filtrar por modo de numeración y estado activo.
+* **Parámetros de consulta:**
+  | Nombre | Tipo | Descripción |
+  |-------|------|-------------|
+  | `modonumeracion` (string, opcional) | string | Modo de numeración: `automatico` o `editablesugerido` |
+  | `activo` (int64, opcional) | integer | `0` = No Activo, `1` = Activo |
+* **Respuesta:** Array de objetos `PuntoVentaBean` con campos `ID`, `nombre`, `codigo`, `id`, `activo`, etc.
 
 ---
 
 ## Otros recursos
 
-La API incluye muchos más recursos (por ejemplo `listaPrecio`, `pais`, `percepcion`, `productoCompra`, `productoVenta`, `proveedor`, `provincia`, `puntoDeVenta`, etc.). Cada uno de estos recursos sigue patrones similares:
+La API incluye muchos más recursos (por ejemplo `pais`, `percepcion`, `productoCompra`, `proveedor`, `provincia`, etc.). Cada uno de estos recursos sigue patrones similares:
 
 * **GET** sin parámetros o con filtros simples (`activo`, `id`, `fechaDesde`, `fechaHasta`, etc.) para obtener listados.
 * **GET** con `/{id}` para recuperar un elemento específico.
@@ -515,7 +581,7 @@ Dado que la documentación completa es extensa y repetitiva, este archivo se cen
   - `listaPrecioItem` (array) - Array de items con precios
 
 #### GET `/listaPrecioBean/{id}` – Obtener lista de precios específica
-* **Descripción:** Devuelve una lista de precios con todos sus items (productos y precios).
+* **Descripción:** Devuelve una lista de precios con todos sus items (productos y precios). **Este es el endpoint necesario para obtener precios de productos.**
 * **Parámetros de ruta:** `id` (int64, requerido)
 * **Respuesta:** Objeto `ListaPrecioBean` completo con `listaPrecioItem` que contiene:
   ```json
@@ -523,7 +589,7 @@ Dado que la documentación completa es extensa y repetitiva, este archivo se cen
     "listaPrecioItem": [
       {
         "listaPrecioID": 123,
-        "producto": { "ID": 456, "id": 456, "nombre": "...", "codigo": "..." },
+        "producto": { "ID": 456, "id": 456, "productoid": 456, "nombre": "...", "codigo": "..." },
         "precio": 100.50,
         "codigo": "COD001",
         "referencia": 1
@@ -531,6 +597,14 @@ Dado que la documentación completa es extensa y repetitiva, este archivo se cen
     ]
   }
   ```
+
+**💡 Flujo recomendado para obtener productos con precios:**
+1. Obtener productos: `GET /ProductoVentaBean?activo=1`
+2. Obtener lista de precios: `GET /listaPrecioBean` (buscar la lista deseada, ej: "AGDP")
+3. Obtener detalles de la lista: `GET /listaPrecioBean/{id}` (obtiene `listaPrecioItem` con precios)
+4. Enriquecer productos: Para cada producto, buscar su precio en `listaPrecioItem` comparando `producto.productoid` con `listaPrecioItem[].producto.id` (o `producto.ID` o `producto.productoid`)
+
+**Nota sobre IDs:** El campo `productoid` del `ProductoVentaBean` debe coincidir con `producto.id`, `producto.ID` o `producto.productoid` dentro de `listaPrecioItem`.
 
 #### POST `/listaPrecioBean` – Crear lista de precios
 * **Descripción:** Crea una nueva lista de precios.
