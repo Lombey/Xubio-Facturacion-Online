@@ -6,7 +6,7 @@
     <title>Test Xubio - Imprimir PDF</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon-CcJLBgrP.svg">
     <link rel="alternate icon" href="./assets/favicon-DMPmiEVi.ico">
-  <script type="module" crossorigin src="./assets/main-CGvHJuD9.js"></script>
+  <script type="module" crossorigin src="./assets/main-D6QhcM6Z.js"></script>
   <link rel="stylesheet" crossorigin href="./assets/main-QDTbRO3G.css">
 </head>
 <body>
@@ -581,6 +581,40 @@
 
     <!-- Vue 3.4.21 - Cargado como módulo ES -->
     <!-- Vite procesará este import y lo empaquetará correctamente -->
+    <!-- Fallback: Si el script no carga después de 5 segundos, mostrar error -->
+    <script>
+      // Detectar si Vue no se monta después de 5 segundos
+      setTimeout(function() {
+        const app = document.getElementById('app');
+        if (app && app.hasAttribute('v-cloak')) {
+          // El v-cloak todavía está presente, el JavaScript probablemente no se cargó
+          app.removeAttribute('v-cloak');
+          app.innerHTML = `
+            <div style="max-width: 800px; margin: 50px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <h1 style="color: #f44336; margin-bottom: 20px;">⚠️ Error al cargar la aplicación</h1>
+              <div style="background: #fff5f5; border-left: 4px solid #f44336; padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+                <p style="margin: 0; color: #721c24; font-weight: 500;">Los archivos JavaScript no se están cargando correctamente.</p>
+              </div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <h3 style="margin-top: 0; color: #333;">Por favor verifica:</h3>
+                <ul style="color: #666; line-height: 1.8;">
+                  <li>Abre la consola del navegador (F12) y revisa los errores</li>
+                  <li>Verifica en la pestaña Network si los archivos .js se están cargando (deben aparecer en verde)</li>
+                  <li>Si ves errores 404, los archivos no se encontraron</li>
+                  <li>Si ves errores CORS, hay un problema de configuración del servidor</li>
+                </ul>
+              </div>
+              <button onclick="location.reload()" style="background: #4CAF50; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; margin-right: 10px;">
+                🔄 Recargar página
+              </button>
+              <button onclick="window.open('', '_blank').document.write('<pre>' + document.documentElement.outerHTML + '</pre>')" style="background: #2196F3; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                🔍 Ver HTML generado
+              </button>
+            </div>
+          `;
+        }
+      }, 5000);
+    </script>
 </body>
 </html>
 

@@ -5,32 +5,53 @@ import app from './app.js';
 
 // Función para montar la aplicación con manejo de errores
 async function mountApp() {
+  console.log('🚀 Iniciando montaje de la aplicación...');
+  
   try {
-    // Mostrar indicador de carga si el elemento existe
     const appElement = document.getElementById('app');
-    if (appElement && appElement.hasAttribute('v-cloak')) {
-      // El contenido ya está oculto por v-cloak, no necesitamos hacer nada más
+    if (!appElement) {
+      throw new Error('No se encontró el elemento #app');
     }
+    
+    console.log('✅ Elemento #app encontrado');
+    console.log('📦 Montando aplicación Vue...');
     
     // Montar la aplicación
     const mountedApp = app.mount('#app');
     
-    // Remover v-cloak después de que Vue se monte completamente
-    // Vue normalmente lo hace automáticamente, pero lo hacemos explícitamente por seguridad
+    console.log('✅ Vue montado correctamente');
+    
+    // Remover v-cloak inmediatamente después de montar
+    // Usar requestAnimationFrame para asegurar que el DOM esté actualizado
+    requestAnimationFrame(() => {
+      const appEl = document.getElementById('app');
+      if (appEl && appEl.hasAttribute('v-cloak')) {
+        console.log('🔓 Removiendo v-cloak...');
+        appEl.removeAttribute('v-cloak');
+        console.log('✅ v-cloak removido, contenido visible');
+      } else {
+        console.log('ℹ️ v-cloak ya fue removido o no estaba presente');
+      }
+    });
+    
+    // Fallback: remover v-cloak después de 500ms por si acaso
     setTimeout(() => {
       const appEl = document.getElementById('app');
       if (appEl && appEl.hasAttribute('v-cloak')) {
+        console.warn('⚠️ v-cloak todavía presente después de 500ms, removiendo forzadamente...');
         appEl.removeAttribute('v-cloak');
       }
-    }, 100);
+    }, 500);
     
     return mountedApp;
   } catch (error) {
     console.error('🚨 Error al montar la aplicación:', error);
     
-    // Mostrar mensaje de error visible
+    // Remover v-cloak incluso si hay error para mostrar el mensaje
     const appElement = document.getElementById('app');
     if (appElement) {
+      appElement.removeAttribute('v-cloak');
+      
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : String(error);
       
