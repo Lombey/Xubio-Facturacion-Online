@@ -85,6 +85,7 @@ export const appOptions = {
       facturaMoneda: 'ARS', // Moneda seleccionada para la factura
       monedasList: [], // Lista de monedas disponibles desde la API
       facturaObservacion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5',
+      facturaDescripcion: '', // Descripción general de la factura (campo documentado en swagger)
       modoAvanzado: false, // Controla si se muestra el campo JSON manual
       facturaCondicionPago: 1, // 1 = Cuenta Corriente, 2 = Contado
       facturaFechaVto: '', // Fecha de vencimiento
@@ -311,6 +312,14 @@ export const appOptions = {
         setTimeout(async () => {
           try {
             await this.obtenerToken();
+            // Después de obtener token, cargar productos y clientes automáticamente
+            if (this.accessToken && this.tokenValido) {
+              await Promise.all([
+                this.listarProductos(),
+                this.listarClientes()
+              ]);
+              console.log('✅ Productos y clientes cargados después de obtener token');
+            }
           } catch (error) {
             console.error('⚠️ Error obteniendo token automáticamente:', error);
             // No mostrar error al usuario, solo loguear
@@ -329,19 +338,24 @@ export const appOptions = {
       // Inicializar fecha de vencimiento con fecha actual
       this.facturaFechaVto = new Date().toISOString().split('T')[0];
       
-      // Obtener cotización automáticamente al cargar (si hay token)
-      if (this.accessToken || (savedClientId && savedSecretId)) {
-        // Esperar un poco para que el token se obtenga si es necesario
-        // Guardar el timeout ID para cleanup si es necesario
-        this._cotizacionTimeout = setTimeout(async () => {
-          if (this.accessToken) {
-            try {
-              await this.obtenerCotizacionDolar(true); // true = silencioso (sin mostrar mensajes)
-            } catch (error) {
-              console.warn('⚠️ No se pudo obtener cotización automáticamente:', error);
-            }
+      // Si ya hay token válido desde localStorage (sin necesidad de obtenerlo de nuevo),
+      // cargar monedas, cotización, productos y clientes inmediatamente
+      if (this.accessToken && this.tokenValido) {
+        // El token ya está disponible, cargar datos inmediatamente
+        this._initDataPromise = (async () => {
+          try {
+            // Cargar datos esenciales en paralelo
+            await Promise.all([
+              this.obtenerMonedas(),
+              this.obtenerCotizacionDolar(true), // true = silencioso
+              this.listarProductos(),  // Carga desde cache si está disponible
+              this.listarClientes()    // Carga desde cache si está disponible
+            ]);
+            console.log('✅ Datos iniciales cargados (monedas + cotización + productos + clientes)');
+          } catch (error) {
+            console.warn('⚠️ No se pudieron cargar todos los datos iniciales:', error);
           }
-        }, 2000); // Esperar 2 segundos para que el token se obtenga
+        })();
       }
     } catch (error) {
       // Manejar errores de inicialización para evitar pantalla blanca
@@ -353,11 +367,8 @@ export const appOptions = {
     }
   },
   beforeUnmount() {
-    // Cleanup: limpiar timeouts pendientes
-    if (this._cotizacionTimeout) {
-      clearTimeout(this._cotizacionTimeout);
-      this._cotizacionTimeout = null;
-    }
+    // Cleanup: limpiar promesas pendientes (no hay cleanup necesario para promesas)
+    this._initDataPromise = null;
   },
   components: {
     ProductoSelector,
@@ -641,6 +652,13 @@ export const appOptions = {
           // Cargar monedas disponibles
           await this.obtenerMonedas();
           
+          // Cargar cotización del dólar automáticamente (silencioso)
+          try {
+            await this.obtenerCotizacionDolar(true);
+          } catch (cotizError) {
+            console.warn('⚠️ No se pudo obtener cotización automáticamente:', cotizError);
+          }
+          
           // Cargar cuentas disponibles
           await this.obtenerCuentas();
         } else {
@@ -898,10 +916,16 @@ export const appOptions = {
             // Obtener ID del producto (según Swagger: productoid es el campo correcto)
             const productoId = item.producto_id || item.producto?.productoid || item.producto?.id || item.producto?.ID;
             
+            // Usar descripción personalizada si existe, sino la del producto
+            const descripcionItem = item.descripcionPersonalizada?.trim() 
+              || item.producto?.descripcion 
+              || item.producto?.nombre 
+              || 'Producto sin descripción';
+            
             const detalle = {
               cantidad: cantidad,
               precio: precio,
-              descripcion: item.producto?.descripcion || item.producto?.nombre || 'Producto sin descripción',
+              descripcion: descripcionItem,
               // Según Swagger: producto debe tener al menos ID e id
               producto: productoId ? { 
                 ID: productoId, 
@@ -947,7 +971,7 @@ export const appOptions = {
             cantComprobantesEmitidos: 0,
             cbuinformada: false,
             cotizacionListaDePrecio: 1,
-            descripcion: '', // Descripción del comprobante
+            descripcion: this.facturaDescripcion?.trim() || '', // Descripción del comprobante (campo documentado)
             externalId: '',
             facturaNoExportacion: false,
             listaDePrecio: null, // Se puede agregar si hay una lista de precios por defecto
@@ -1697,13 +1721,35 @@ export const appOptions = {
     },
 
     /**
-     * Obtiene la lista de monedas disponibles
+     * Obtiene la lista de monedas disponibles (con cache)
+     * @param {boolean} forceRefresh - Si es true, ignora el cache
      */
-    async obtenerMonedas() {
+    async obtenerMonedas(forceRefresh = false) {
       if (!this.accessToken) {
         return;
       }
 
+      // 1. Si ya tenemos monedas en memoria y no es refresh forzado, usar eso
+      if (!forceRefresh && this.monedasList && this.monedasList.length > 0) {
+        console.log(`✅ ${this.monedasList.length} monedas ya cargadas en memoria`);
+        return this.monedasList;
+      }
+
+      // 2. Verificar cache en localStorage
+      if (!forceRefresh) {
+        const cached = this.getCachedData('monedas');
+        if (cached && Array.isArray(cached) && cached.length > 0) {
+          this.monedasList = cached;
+          console.log(`✅ ${cached.length} monedas cargadas desde cache`);
+          
+          // Seleccionar DOLARES por defecto si no hay moneda seleccionada o es ARS
+          this.seleccionarMonedaDolaresPorDefecto();
+          
+          return cached;
+        }
+      }
+
+      // 3. Obtener de la API
       try {
         const { response, data } = await this.requestXubio('/monedaBean', 'GET', null, {
           activo: 1
@@ -1711,13 +1757,49 @@ export const appOptions = {
         
         if (response.ok && Array.isArray(data)) {
           this.monedasList = data;
-          console.log(`✅ ${data.length} monedas cargadas`);
+          
+          // Guardar en cache (7 días - datos estables)
+          this.setCachedData('monedas', data, this.getTTL('monedas'));
+          
+          console.log(`✅ ${data.length} monedas cargadas desde API y cacheadas`);
+          
+          // Seleccionar DOLARES por defecto
+          this.seleccionarMonedaDolaresPorDefecto();
+          
           return data;
         }
         return [];
       } catch (error) {
         console.error('❌ Error obteniendo monedas:', error);
         return [];
+      }
+    },
+    
+    /**
+     * Selecciona la moneda DOLARES por defecto si existe
+     */
+    seleccionarMonedaDolaresPorDefecto() {
+      if (!this.monedasList || this.monedasList.length === 0) {
+        console.log('⚠️ No hay monedas cargadas para seleccionar');
+        return;
+      }
+      
+      console.log('🔍 Buscando moneda DOLARES en:', this.monedasList.map(m => m.codigo));
+      
+      // Buscar la moneda DOLARES (puede venir como 'DOLARES' o 'USD')
+      const monedaDolares = this.monedasList.find(m => 
+        m.codigo === 'DOLARES' || 
+        m.codigo === 'USD' ||
+        m.nombre?.toUpperCase().includes('DÓLAR') ||
+        m.nombre?.toUpperCase().includes('DOLAR')
+      );
+      
+      if (monedaDolares) {
+        const codigoAnterior = this.facturaMoneda;
+        this.facturaMoneda = monedaDolares.codigo;
+        console.log(`💵 Moneda DOLARES seleccionada por defecto: ${monedaDolares.codigo} (antes: ${codigoAnterior})`);
+      } else {
+        console.warn('⚠️ No se encontró moneda DOLARES/USD en la lista');
       }
     },
 
@@ -2198,7 +2280,8 @@ export const appOptions = {
         producto: producto,
         cantidad: 1,
         precio: precio > 0 ? precio : 0, // Si no hay precio, dejar en 0 para edición manual
-        producto_id: productoId
+        producto_id: productoId,
+        descripcionPersonalizada: '' // Descripción personalizada editable por el usuario
       };
       
       this.productosSeleccionados.push(item);

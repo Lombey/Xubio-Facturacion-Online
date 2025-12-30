@@ -353,5 +353,49 @@ test-imprimir-pdf/assets/
 
 ---
 
+## 🔍 Comparación de MCPs para Análisis de Código
+
+### Code Understanding MCP vs XRAY MCP
+
+| Aspecto | Code Understanding MCP | XRAY MCP |
+|---------|------------------------|----------|
+| **Propósito Principal** | Análisis semántico profundo y documentación | Exploración rápida y búsqueda de símbolos |
+| **Setup Requerido** | Clonado inicial + construcción de mapa | Sin setup, acceso directo |
+| **Velocidad de Inicio** | Lento (requiere clonado y análisis inicial) | Instantáneo (sin caché previo) |
+| **Análisis Semántico** | ✅ Construye mapa semántico completo | ❌ No realiza análisis semántico |
+| **Búsqueda de Símbolos** | ❌ No especializado | ✅ Búsqueda fuzzy de funciones/clases |
+| **Análisis de Impacto** | ❌ No disponible | ✅ `what_breaks` - análisis de dependencias |
+| **Documentación** | ✅ Análisis automático de docs (README, ADRs) | ❌ No analiza documentación |
+| **Estructura del Repo** | ✅ Análisis completo con métricas | ✅ Exploración rápida de estructura |
+| **Archivos Críticos** | ✅ Identifica archivos críticos por complejidad | ❌ No identifica críticos |
+| **Métricas de Código** | ✅ CCN, NLOC, función count | ❌ No proporciona métricas |
+| **Lectura de Interfaces** | ❌ No disponible | ✅ `read_interface` - solo firmas |
+| **Refresh/Actualización** | ✅ `refresh_repo` para actualizar caché | ❌ No requiere refresh |
+| **Tamaño de Repo** | ⚠️ Limitado por tokens (configurable) | ✅ Sin límites prácticos |
+| **Casos de Uso Ideales** | • Análisis completo de repositorio<br>• Documentación automática<br>• Identificación de complejidad<br>• Análisis de arquitectura | • Búsqueda rápida de código<br>• Análisis de impacto antes de cambios<br>• Exploración inicial del repo<br>• Refactoring seguro |
+| **Workflow Recomendado** | 1. Clonar repo<br>2. Esperar construcción de mapa<br>3. Analizar documentación<br>4. Identificar archivos críticos | 1. Explorar estructura<br>2. Buscar símbolos específicos<br>3. Analizar impacto con `what_breaks`<br>4. Leer interfaces relevantes |
+
+### Recomendación de Uso
+
+**Usar Code Understanding MCP cuando:**
+- Necesitas un análisis completo y profundo del repositorio
+- Quieres identificar archivos críticos por complejidad
+- Necesitas análisis automático de documentación
+- Trabajas con repositorios grandes y necesitas métricas
+
+**Usar XRAY MCP cuando:**
+- Necesitas búsqueda rápida de código específico
+- Quieres analizar el impacto de cambios antes de implementarlos
+- Realizas exploración inicial de un repositorio
+- Necesitas leer interfaces sin implementación completa
+
+**Workflow Combinado Óptimo:**
+1. **XRAY** para exploración inicial y búsqueda de símbolos
+2. **Code Understanding** para análisis profundo y documentación
+3. **XRAY** para análisis de impacto antes de cambios
+4. **Code Understanding** para verificación de arquitectura
+
+---
+
 > **Nota para desarrolladores:** Este documento debe actualizarse cuando se agreguen, cambien o remuevan tecnologías del proyecto. Mantener sincronizado con `package.json` y decisiones arquitectónicas (ADRs).
 

@@ -14,7 +14,8 @@ class CacheManager {
       'clientes': 24 * 60 * 60 * 1000,      // 24 horas
       'productos': 12 * 60 * 60 * 1000,     // 12 horas
       'listaPrecios': 6 * 60 * 60 * 1000,   // 6 horas
-      'maestros': 7 * 24 * 60 * 60 * 1000   // 7 días
+      'maestros': 7 * 24 * 60 * 60 * 1000,  // 7 días
+      'monedas': 7 * 24 * 60 * 60 * 1000    // 7 días (datos estables)
     };
     
     // Inicializar tamaño actual

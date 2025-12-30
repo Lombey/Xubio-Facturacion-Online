@@ -16,10 +16,16 @@ Este documento describe los flujos conceptuales principales de la aplicación cu
 6. **Frontend guarda token** en `localStorage` y memoria
 7. **Token se incluye** en todas las peticiones posteriores como `Authorization: Bearer {token}`
 
+**Carga automática después del login:**
+- **Monedas**: Se cargan desde cache o API, y se selecciona **DOLARES por defecto**
+- **Cotización USD**: Se obtiene automáticamente desde `dolarapi.com` (dólar oficial vendedor)
+- **Valores de configuración**: Centros de costo, depósitos, vendedores, etc.
+
 **Características:**
 - Token expira en 3600 segundos (1 hora)
 - Renovación automática si el token expira (401)
 - Cache de token en `localStorage` con validación de expiración
+- Monedas y cotización se cargan inmediatamente al obtener el token
 
 ---
 
@@ -60,7 +66,8 @@ El usuario quiere generar una factura de venta con productos y obtener su PDF.
 
 5. **Configuración Adicional**
    - Usuario configura `tipoimpresion` (default: 1)
-   - Usuario configura `cotizacion` USD (puede obtener automáticamente desde dolarapi.com)
+   - **Moneda**: Se selecciona DOLARES automáticamente al cargar (con cache de 7 días)
+   - **Cotización USD**: Se carga automáticamente desde `dolarapi.com` (dólar oficial vendedor) al iniciar sesión
 
 #### **Fase 2: Construcción del Payload**
 
@@ -166,11 +173,15 @@ El usuario quiere generar una factura de venta con productos y obtener su PDF.
 ```
 Usuario
   ↓
+[Login/Token] → /api/auth → accessToken
+  ↓
+[Auto] Cargar Monedas → Cache/API → DOLARES seleccionado automáticamente
+  ↓
+[Auto] Cargar Cotización → dolarapi.com → cotización USD actualizada
+  ↓
 [Seleccionar Productos] → Cache/API → productosSeleccionados[]
   ↓
 [Seleccionar Cliente] → Cache/API → clienteSeleccionadoParaFactura
-  ↓
-[Configurar Cotización] → dolarapi.com (opcional)
   ↓
 [Crear Factura] → POST /comprobanteVentaBean → transaccionId
   ↓
@@ -184,7 +195,7 @@ Usuario
 - `GET /listaPrecioBean/{id}` - Obtener precios de productos
 - `GET /clienteBean?activo=1` - Listar clientes
 - `GET /clienteBean/{id}` - Obtener datos completos del cliente
-- `GET /monedaBean?activo=1` - Obtener moneda USD
+- `GET /monedaBean?activo=1` - Obtener monedas disponibles (cache 7 días, DOLARES por defecto)
 - `GET /centroDeCostoBean?activo=1` - Obtener centros de costo
 - `GET /depositos?activo=1` - Obtener depósitos
 - `GET /vendedorBean?activo=1` - Obtener vendedores
@@ -192,6 +203,10 @@ Usuario
 - `GET /puntoVentaBean?activo=1` - Obtener puntos de venta
 - `POST /comprobanteVentaBean` - Crear factura
 - `GET /imprimirPDF?idtransaccion={id}&tipoimpresion={tipo}` - Obtener PDF
+
+### Endpoints Externos
+
+- `GET https://dolarapi.com/v1/dolares/oficial` - Cotización dólar oficial vendedor (carga automática)
 
 ---
 
@@ -409,6 +424,26 @@ Este flujo se ejecuta automáticamente después de obtener el token:
 2. Valores se guardan en cache (TTL: 7 días)
 3. Valores se usan para construir payloads de facturas/cobranzas
 
+### Flujo: Carga Automática de Monedas y Cotización
+
+Este flujo se ejecuta automáticamente después de obtener el token:
+
+1. **Monedas** (`GET /monedaBean?activo=1`):
+   - Se verifica cache en localStorage (TTL: 7 días)
+   - Si hay cache válido, se usa
+   - Si no, se obtiene de la API y se cachea
+   - **Se selecciona DOLARES automáticamente** (busca `codigo='DOLARES'` o `'USD'`)
+
+2. **Cotización del Dólar**:
+   - Se obtiene desde `https://dolarapi.com/v1/dolares/oficial`
+   - Se usa el valor `venta` (dólar oficial vendedor)
+   - Se muestra fecha/hora de actualización
+   - Se ejecuta en modo silencioso (sin mensajes al usuario)
+
+**Resultado:** Al cargar la página con credenciales guardadas, el formulario ya tiene:
+- ✅ Moneda DOLARES seleccionada
+- ✅ Cotización del dólar oficial actualizada
+
 ---
 
 ## 🎯 Puntos Clave de los Flujos
@@ -419,6 +454,7 @@ Este flujo se ejecuta automáticamente después de obtener el token:
 - **Clientes**: Cache de 24 horas
 - **Lista de Precios**: Cache de 6 horas
 - **Maestros**: Cache de 7 días
+- **Monedas**: Cache de 7 días (datos estables)
 - **Token**: Validación con margen de 60 segundos antes de expiración
 
 ### Manejo de Errores
@@ -451,21 +487,24 @@ Este análisis identifica **qué información necesita saber el usuario** y **qu
 
 #### 1. **¿Cómo sabe el usuario que la facturación es en dólares?**
 
-**Problema actual:**
-- El campo muestra "Cotización (USD)" pero **no hay indicación clara** de si la factura será en USD o ARS
-- El sistema busca automáticamente la moneda USD y si la encuentra, la agrega al payload
-- El usuario **no tiene control explícito** sobre la moneda de la factura
-- No hay un selector/checkbox para elegir entre USD y ARS
+**Estado: ✅ RESUELTO**
 
-**Lo que el usuario necesita saber:**
-- ✅ **¿En qué moneda se facturará?** (USD o ARS)
-- ✅ **¿Cómo cambiar la moneda?** (selector visible)
-- ✅ **¿Qué pasa si no hay moneda USD configurada?** (fallback a ARS)
+**Implementación actual:**
+- Existe un **selector de moneda visible** con las monedas disponibles desde la API
+- **DOLARES se selecciona automáticamente** al cargar la página
+- La cotización del dólar oficial se carga automáticamente desde `dolarapi.com`
+- Las monedas se cachean por 7 días para mejor performance
 
-**Solución sugerida:**
-- Agregar selector de moneda visible: "Moneda: [ARS] [USD]"
-- Mostrar claramente qué moneda se usará antes de crear la factura
-- Si se selecciona USD, mostrar la cotización y validar que esté configurada
+**Flujo actual:**
+1. Al obtener el token → se cargan las monedas desde cache/API
+2. Se busca la moneda con código `DOLARES` o `USD`
+3. Se selecciona automáticamente
+4. La cotización se obtiene de `dolarapi.com` (dólar oficial vendedor)
+
+**Lo que el usuario ve:**
+- ✅ Selector de moneda con DOLARES preseleccionado
+- ✅ Campo de cotización con el valor del dólar oficial actualizado
+- ✅ Fecha/hora de última actualización de la cotización
 
 ---
 
@@ -705,7 +744,7 @@ Este análisis identifica **qué información necesita saber el usuario** y **qu
 
 ### Prioridad Alta (Crítico para UX):
 
-1. **Agregar selector de moneda visible** (USD/ARS)
+1. ~~**Agregar selector de moneda visible** (USD/ARS)~~ ✅ **IMPLEMENTADO** - Selector con DOLARES por defecto + cotización automática
 2. **Mostrar campo de observaciones editable** con valor por defecto
 3. **Mostrar resumen/preview antes de crear** la factura
 4. **Mostrar valores por defecto** que se usarán (centro de costo, depósito, etc.)

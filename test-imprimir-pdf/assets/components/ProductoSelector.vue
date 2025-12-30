@@ -54,6 +54,7 @@
         <thead>
           <tr>
             <th>Producto</th>
+            <th>Descripción</th>
             <th>Cantidad</th>
             <th>Precio Unit.</th>
             <th>Subtotal</th>
@@ -63,6 +64,14 @@
         <tbody>
           <tr v-for="(item, index) in productosSeleccionados" :key="index">
             <td>{{ item.producto.nombre || item.producto.codigo || 'Sin nombre' }}</td>
+            <td>
+              <input 
+                type="text" 
+                v-model="item.descripcionPersonalizada" 
+                :placeholder="item.producto.descripcion || item.producto.nombre || 'Descripción del ítem'"
+                style="width: 200px; padding: 4px; font-size: 12px;"
+                title="Descripción personalizada para este ítem en la factura">
+            </td>
             <td>
               <input type="number" v-model.number="item.cantidad" min="0.01" step="0.01" style="width: 80px;">
             </td>
@@ -76,6 +85,9 @@
           </tr>
         </tbody>
       </table>
+      <div style="font-size: 12px; color: #666; margin-top: 8px;">
+        📝 Puedes personalizar la descripción de cada ítem. Si lo dejas vacío, se usará la descripción original del producto.
+      </div>
     </div>
   </div>
 </template>

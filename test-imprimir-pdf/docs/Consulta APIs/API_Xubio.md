@@ -252,6 +252,24 @@ Una vez obtenido el token, debe incluirse en todas las peticiones a la API media
   - `cliente`
   - **Items de productos (`transaccionProductoItems`)**: lista de ítems con cantidad, precio, IVA, etc. ⚠️ **NOTA:** El campo correcto es `transaccionProductoItems`, NO `detalleComprobantes`. Ver sección "Hallazgos del Swagger JSON" para estructura completa.
   - Moneda (`moneda`), cotización, total, etc.
+
+> ⚠️ **ADVERTENCIA sobre campo `observacion`:**
+> El campo `observacion` **NO está documentado oficialmente** en el swagger.json para `ComprobanteVentaBean`. Sin embargo, la aplicación lo envía y Xubio podría aceptarlo aunque no esté documentado.
+> 
+> **Campos disponibles para texto en facturas:**
+> | Campo | Nivel | ¿Documentado? | Uso |
+> |-------|-------|---------------|-----|
+> | `descripcion` | Factura general | ✅ Sí | Descripción general del comprobante |
+> | `observacion` | Factura general | ❌ No | Observaciones adicionales (CBU, datos bancarios) |
+> | `transaccionProductoItems[].descripcion` | Cada ítem/producto | ✅ Sí | Descripción de cada línea |
+> 
+> **Implementación actual:** La aplicación envía AMBOS campos:
+> - `descripcion`: Campo documentado para descripción general
+> - `observacion`: Campo no documentado para observaciones adicionales
+> - `transaccionProductoItems[].descripcion`: Descripción personalizable por ítem
+> 
+> **Nota:** El campo `observacion` SÍ está documentado en otros recursos como `CobranzaBean`, `PagoBean` y `RemitoVentaBean`.
+
 * **Respuesta:** Devuelve el comprobante creado.
 
 #### GET `/comprobanteVentaBean/{id}` – Obtener comprobante de venta
@@ -411,6 +429,9 @@ Este recurso engloba operaciones para consultar y crear órdenes de pago.
   - `1` = Cuenta Corriente
   - `2` = Contado
 * **Cuerpo:** Objeto `ComprobanteVentaBean` completo con todos los campos requeridos. ⚠️ **NOTA:** El campo correcto para items es `transaccionProductoItems`, NO `detalleComprobantes`. Ver sección "Hallazgos del Swagger JSON" para estructura completa.
+
+> ⚠️ **ADVERTENCIA sobre campo `observacion`:** Ver nota en la sección `/comprobanteVentaBean`. El campo `observacion` no está oficialmente documentado para facturas.
+
 * **Respuesta:** Devuelve el comprobante facturado (objeto `ComprobanteVentaBean`).
 
 ---
@@ -1391,7 +1412,6 @@ Según el Swagger, los siguientes campos son **REQUERIDOS** al crear un comproba
 **Campos opcionales importantes:**
 - `moneda` (objeto) - Moneda (requerido si `utilizaMonedaExtranjera = 1`)
 - `utilizaMonedaExtranjera` (int) - 1 = usa moneda extranjera
-- `observacion` (string) - Observaciones
 - `circuitoContable` (objeto) - Circuito contable
 - `comprobante` (int64) - ID del comprobante
 - `comprobanteAsociado` (int64) - ID del comprobante asociado
@@ -1402,6 +1422,24 @@ Según el Swagger, los siguientes campos son **REQUERIDOS** al crear un comproba
 - `fechaFacturacionServicioHasta` (date-time) - Fecha hasta de facturación de servicios
 - `CAE` (string) - Código de Autorización Electrónico
 - `primerTktA`, `ultimoTktA`, `primerTktBC`, `ultimoTktBC` (string) - Campos para Informe Z (no necesarios para facturas/notas)
+
+> ⚠️ **IMPORTANTE - Campo `observacion` en ComprobanteVentaBean:**
+> 
+> El campo `observacion` **NO está documentado** en el swagger.json oficial de Xubio para `ComprobanteVentaBean`. 
+> Esto fue verificado consultando directamente `https://xubio.com/API/1.1/swagger.json` (fecha: Diciembre 2024).
+> 
+> **Comparativa con otros recursos:**
+> | Recurso | ¿Tiene `observacion`? |
+> |---------|----------------------|
+> | `ComprobanteVentaBean` | ❌ No documentado |
+> | `CobranzaBean` | ✅ Sí documentado |
+> | `PagoBean` | ✅ Sí documentado |
+> | `RemitoVentaBean` | ✅ Sí documentado |
+> 
+> **Alternativa recomendada:** Usar el campo `descripcion` (string) que SÍ está oficialmente documentado.
+> 
+> **Nota:** La aplicación actual envía `observacion` y Xubio podría aceptarlo aunque no esté documentado. 
+> Se recomienda verificar empíricamente si las observaciones aparecen en el PDF generado.
 
 ---
 

@@ -36,14 +36,13 @@
     <div class="section">
       <h2>2. Productos y Lista de Precios</h2>
       <div class="info">
-        💡 Lista productos activos y selecciona los que quieras incluir en la factura
+        💡 Los productos se cargan automáticamente. Selecciona los que quieras incluir en la factura.
       </div>
       <div style="display: flex; gap: 10px; align-items: center;">
-        <button @click="listarProductos()" :disabled="isLoading">📦 Listar Productos Activos</button>
-        <button @click="listarProductos(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar</button>
+        <button @click="listarProductos(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar desde API</button>
       </div>
       <div style="font-size: 12px; color: #666; margin-top: 5px;">
-        💡 Los productos se cargan desde cache si están disponibles. Usa "Actualizar" para obtener datos frescos.
+        💡 Se cargan automáticamente desde cache al iniciar. Usa "Actualizar" si necesitas datos frescos.
       </div>
       <div v-if="productosListResult.visible" :class="['result', productosListResult.type]" v-html="formatoMensaje(productosListResult.message)"></div>
       
@@ -61,14 +60,13 @@
     <div class="section">
       <h2>2.5. Clientes</h2>
       <div class="info">
-        💡 Lista clientes activos y selecciona el que quieras usar en la factura
+        💡 Los clientes se cargan automáticamente. Selecciona el que quieras usar en la factura.
       </div>
       <div style="display: flex; gap: 10px; align-items: center;">
-        <button @click="listarClientes()" :disabled="isLoading">👥 Listar Clientes Activos</button>
-        <button @click="listarClientes(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar</button>
+        <button @click="listarClientes(true)" :disabled="isLoading" class="test-btn" title="Forzar actualización desde la API">🔄 Actualizar desde API</button>
       </div>
       <div style="font-size: 12px; color: #666; margin-top: 5px;">
-        💡 Los clientes se cargan desde cache si están disponibles. Usa "Actualizar" para obtener datos frescos.
+        💡 Se cargan automáticamente desde cache al iniciar. Usa "Actualizar" si necesitas datos frescos.
       </div>
       <div v-if="clientesListResult.visible" :class="['result', clientesListResult.type]" v-html="formatoMensaje(clientesListResult.message)"></div>
       
@@ -223,11 +221,14 @@
       <div class="form-group">
         <label for="facturaMoneda">Moneda:</label>
         <select id="facturaMoneda" v-model="facturaMoneda" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-          <option value="ARS">ARS - Pesos Argentinos</option>
+          <option v-if="monedasList.length === 0" value="ARS">ARS - Pesos Argentinos (cargando...)</option>
           <option v-for="moneda in monedasList" :key="moneda.id || moneda.ID" :value="moneda.codigo">
             {{ moneda.codigo }} - {{ moneda.nombre }}
           </option>
         </select>
+        <div v-if="monedasList.length > 0" style="font-size: 11px; color: #666; margin-top: 3px;">
+          💡 {{ monedasList.length }} monedas cargadas. DOLARES seleccionado por defecto.
+        </div>
       </div>
       <div class="form-group" v-if="facturaMoneda !== 'ARS'">
         <label for="facturaCotizacion">Cotización ({{ facturaMoneda }}):</label>
@@ -242,16 +243,28 @@
         </div>
       </div>
       <div class="form-group">
+        <label for="facturaDescripcion">Descripción de la Factura (opcional):</label>
+        <input 
+          type="text"
+          id="facturaDescripcion" 
+          v-model="facturaDescripcion" 
+          placeholder="Ej: Servicios de consultoría mes de Diciembre 2024"
+          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px;">
+        <div style="font-size: 12px; color: #666; margin-top: 5px;">
+          📝 Campo documentado en la API - Descripción general del comprobante
+        </div>
+      </div>
+      <div class="form-group">
         <label for="facturaObservacion">Observaciones (opcional):</label>
         <textarea 
           id="facturaObservacion" 
           v-model="facturaObservacion" 
-          placeholder="Estas observaciones aparecerán en la factura"
+          placeholder="Datos bancarios, notas adicionales, etc."
           rows="3"
           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; font-size: 14px;">
         </textarea>
         <div style="font-size: 12px; color: #666; margin-top: 5px;">
-          💡 Estas observaciones aparecerán en la factura generada
+          💡 Observaciones adicionales (CBU, alias, notas) - Campo no documentado oficialmente
         </div>
       </div>
       <div class="form-group">
