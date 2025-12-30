@@ -901,9 +901,17 @@ export const appOptions = {
       }
 
       // Validar que el punto de venta esté disponible
-      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      if (!puntoVenta || !puntoVenta.ID || !puntoVenta.id) {
-        this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Por favor, verifica tu configuración en Xubio.', 'error');
+      let puntoVenta;
+      try {
+        puntoVenta = this.obtenerPuntoVentaPorDefecto();
+        if (!puntoVenta || (!puntoVenta.ID && !puntoVenta.id && !puntoVenta.puntoVentaId)) {
+          this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Por favor, verifica tu configuración en Xubio.', 'error');
+          this.isLoading = false;
+          this.loadingContext = '';
+          return;
+        }
+      } catch (error) {
+        this.mostrarResultado('factura', `Error: ${error.message}`, 'error');
         this.isLoading = false;
         this.loadingContext = '';
         return;
@@ -2072,11 +2080,14 @@ export const appOptions = {
           cacheManager.set('puntosDeVenta', puntosDeVenta, 3600000); // 1 hora
           
           const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
-          const puntoVenta0004 = puntosDeVenta.find(pv => pv.puntoVenta === '0004' || pv.codigo === '0004');
+          const puntoVenta0004 = puntosDeVenta.find(pv => {
+            const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
+            return codigo === '0004' || codigo === '00004' || codigo === '4';
+          });
           if (puntoVenta0004) {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta 0004 encontrado y será usado por defecto`, 'success');
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ${puntoVenta0004.puntoVenta || puntoVenta0004.codigo} encontrado y será usado por defecto`, 'success');
           } else {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta 0004 no encontrado. Se usará el primero disponible.`, 'info');
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta 0004/00004 no encontrado. Se usará el primero disponible.`, 'info');
           }
         } else {
           this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
@@ -2145,36 +2156,48 @@ export const appOptions = {
      */
     obtenerPuntoVentaPorDefecto() {
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
-        // Buscar específicamente el punto de venta 0004
-        const puntoVenta0004 = this.puntosDeVenta.find(pv => 
-          pv.puntoVenta === '0004' || 
-          pv.codigo === '0004' ||
-          (pv.puntoVenta && pv.puntoVenta.toString().padStart(4, '0') === '0004')
-        );
+        // Buscar específicamente el punto de venta 0004 o 00004 (flexible)
+        const puntoVenta0004 = this.puntosDeVenta.find(pv => {
+          const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
+          return codigo === '0004' || codigo === '00004' || codigo === '4';
+        });
         
         if (puntoVenta0004) {
-          console.log('✅ Usando punto de venta 0004:', puntoVenta0004);
-          return {
-            ID: puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id,
-            id: puntoVenta0004.id || puntoVenta0004.ID || puntoVenta0004.puntoVenta_id,
-            nombre: puntoVenta0004.nombre || '',
-            codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || ''
-          };
+          console.log('✅ Usando punto de venta 0004/00004:', puntoVenta0004);
+          const puntoVentaId = puntoVenta0004.puntoVentaId || puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id;
+          if (!puntoVentaId) {
+            console.error('❌ Punto de venta encontrado pero sin ID válido:', puntoVenta0004);
+            // Continuar para usar el primero disponible
+          } else {
+            return {
+              ID: puntoVentaId,
+              id: puntoVentaId,
+              puntoVentaId: puntoVentaId,
+              nombre: puntoVenta0004.nombre || '',
+              codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || ''
+            };
+          }
         }
         
-        // Si no existe 0004, usar el primero disponible
+        // Si no existe 0004/00004, usar el primero disponible
         const puntoVenta = this.puntosDeVenta[0];
-        console.warn('⚠️ Punto de venta 0004 no encontrado, usando el primero disponible:', puntoVenta);
+        console.warn('⚠️ Punto de venta 0004/00004 no encontrado, usando el primero disponible:', puntoVenta);
+        const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
+        if (!puntoVentaId) {
+          console.error('❌ Punto de venta sin ID válido:', puntoVenta);
+          throw new Error('No se pudo obtener un ID válido del punto de venta. Verifica que los puntos de venta tengan el campo puntoVentaId configurado.');
+        }
         return {
-          ID: puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id || 1,
-          id: puntoVenta.id || puntoVenta.ID || puntoVenta.puntoVenta_id || 1,
+          ID: puntoVentaId,
+          id: puntoVentaId,
+          puntoVentaId: puntoVentaId,
           nombre: puntoVenta.nombre || '',
           codigo: puntoVenta.codigo || puntoVenta.puntoVenta || ''
         };
       }
       // Fallback si no hay puntos de venta cargados
-      console.error('❌ No hay puntos de venta cargados. Se usará ID: 1 como fallback');
-      return { ID: 1, id: 1 };
+      console.error('❌ No hay puntos de venta cargados. Por favor, lista los puntos de venta primero.');
+      throw new Error('No hay puntos de venta cargados. Por favor, lista los puntos de venta desde la sección "2.6. Puntos de Venta" primero.');
     },
 
     /**
