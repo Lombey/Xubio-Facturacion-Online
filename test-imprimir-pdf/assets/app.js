@@ -908,9 +908,10 @@ export const appOptions = {
         return;
       }
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      // Verificar que el punto de venta tenga un ID válido (que no sea el fallback cuando hay puntos de venta)
       const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
-      if (!puntoVentaId) {
-        this.mostrarResultado('factura', 'Error: No se pudo obtener un ID válido del punto de venta. Verifica tu configuración en Xubio.', 'error');
+      if (!puntoVentaId || (puntoVentaId === 1 && (!puntoVenta.nombre && !puntoVenta.codigo))) {
+        this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Verifica que los puntos de venta tengan IDs válidos en Xubio.', 'error');
         this.isLoading = false;
         this.loadingContext = '';
         return;
@@ -2179,7 +2180,7 @@ export const appOptions = {
         
         // Si no existe 0004/00004, usar el primero disponible
         const puntoVenta = this.puntosDeVenta[0];
-        console.warn('⚠️ Punto de venta 0004/00004 no encontrado, usando el primero disponible:', puntoVenta);
+        console.log('ℹ️ Usando el primer punto de venta disponible:', puntoVenta);
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
         if (puntoVentaId) {
           return {
@@ -2194,7 +2195,7 @@ export const appOptions = {
         console.error('❌ Punto de venta sin ID válido, usando fallback');
       }
       // Fallback si no hay puntos de venta cargados (igual que los otros métodos)
-      return { ID: 1, id: 1, puntoVentaId: 1 };
+      return { ID: 1, id: 1, puntoVentaId: 1, nombre: '', codigo: '' };
     },
 
     /**
