@@ -23,30 +23,30 @@
       ]
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/proxy/:path*",
-      "dest": "/api/proxy.js?path=:path*"
+      "source": "/api/proxy/:path*",
+      "destination": "/api/proxy.js?path=:path*"
     },
     {
-      "src": "/api/bcra",
-      "dest": "/api/bcra.js"
+      "source": "/api/bcra",
+      "destination": "/api/bcra.js"
     },
     {
-      "src": "/api/auth",
-      "dest": "/api/auth.js"
+      "source": "/api/auth",
+      "destination": "/api/auth.js"
     },
     {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
+      "source": "/favicon.ico",
+      "destination": "/favicon.ico"
     },
     {
-      "src": "/favicon.svg",
-      "dest": "/favicon.svg"
+      "source": "/favicon.svg",
+      "destination": "/favicon.svg"
     },
     {
-      "src": "/:path*",
-      "dest": "/:path*"
+      "source": "/:path*",
+      "destination": "/:path*"
     }
   ]
 }
