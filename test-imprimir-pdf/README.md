@@ -2,6 +2,18 @@
 
 Aplicación HTML simple para probar el endpoint `/imprimirPDF` de la API de Xubio y determinar los valores válidos del parámetro `tipoimpresion`.
 
+## 🔐 Credenciales
+
+Las credenciales de Xubio están almacenadas en el archivo `.xubio-credentials.md` en la raíz del proyecto.
+
+**⚠️ IMPORTANTE:** Este archivo está en `.gitignore` y NO se sube al repositorio por seguridad.
+
+**Primera vez:**
+1. Abre el archivo `.xubio-credentials.md` (está en la raíz del proyecto)
+2. Copia el Client ID y Secret ID
+3. Pégalos en los campos correspondientes de la aplicación web
+4. Marca el checkbox "Guardar credenciales en localStorage" para no tener que ingresarlas cada vez
+
 ## 🚀 Uso
 
 ### ⚠️ IMPORTANTE: Problema de CORS
@@ -76,7 +88,8 @@ Puedes instalar "CORS Unblock" o "Allow CORS" en Chrome, pero **el servidor prox
 
 ## ⚠️ Notas
 
-- **No compartas tus credenciales**: Este es un archivo HTML estático, no envíes credenciales a ningún servidor externo
+- **Seguridad**: Las credenciales NO están hardcodeadas en el código. Se almacenan localmente en `.xubio-credentials.md` (excluido de git) y opcionalmente en localStorage del navegador
+- **No compartas tus credenciales**: No subas el archivo `.xubio-credentials.md` al repositorio. Está en `.gitignore`
 - **Facturas de prueba**: La opción de crear factura crea facturas reales en Xubio, úsala con cuidado
 - **CORS**: Si hay problemas de CORS, puedes usar una extensión del navegador o ejecutar un servidor local simple
 

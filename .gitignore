@@ -1,0 +1,17 @@
+# Credenciales sensibles
+.xubio-credentials.md
+xubio-credentials.md
+*.credentials.md
+
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
