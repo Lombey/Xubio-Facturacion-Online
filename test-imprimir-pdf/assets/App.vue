@@ -440,7 +440,15 @@
           <li v-if="!facturaJson.trim() && productosSeleccionados.length === 0">❌ Productos seleccionados o JSON manual</li>
           <li v-if="!facturaMoneda">❌ Moneda seleccionada</li>
           <li v-if="!puntosDeVenta || puntosDeVenta.length === 0">❌ Puntos de venta cargados (usa "Listar Puntos de Venta" en la sección 2.6)</li>
-          <li v-if="puntosDeVenta && puntosDeVenta.length > 0 && !puntoVentaValido">❌ Punto de venta válido (verifica que esté configurado correctamente en Xubio con editable y sugerido activos)</li>
+          <li v-if="puntosDeVenta && puntosDeVenta.length > 0 && !puntoVentaValido">
+            ❌ Punto de venta editable-sugerido válido
+            <div style="margin-left: 20px; margin-top: 5px; font-size: 12px; color: #856404;">
+              La API requiere que el punto de venta tenga:<br>
+              • editable: true<br>
+              • sugerido: true<br>
+              Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.
+            </div>
+          </li>
           <li v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS' && (!facturaCotizacion || parseFloat(facturaCotizacion) <= 0)">
             ❌ Cotización válida para moneda extranjera
           </li>

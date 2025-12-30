@@ -317,7 +317,7 @@ export const appOptions = {
     },
     
     /**
-     * Valida si el punto de venta es válido (no el fallback)
+     * Valida si el punto de venta es válido (editable-sugerido con ID válido)
      * @returns {boolean}
      */
     puntoVentaValido() {
@@ -325,11 +325,22 @@ export const appOptions = {
         return false;
       }
       
+      // Verificar que haya puntos de venta editable-sugerido
+      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      });
+      
+      if (puntosEditableSugerido.length === 0) {
+        return false;
+      }
+      
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
       const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
       
-      // Verificar que no sea el fallback (ID: 1 sin nombre/código)
-      return puntoVentaId && !(puntoVentaId === 1 && (!puntoVenta.nombre && !puntoVenta.codigo));
+      // Verificar que tenga ID válido Y que sea editable-sugerido
+      return puntoVentaId && puntoVenta.editable === true && puntoVenta.sugerido === true;
     }
   },
   async mounted() {
@@ -999,18 +1010,44 @@ export const appOptions = {
         }
       }
 
-      // Validar que el punto de venta esté disponible
+      // Validar que el punto de venta esté disponible y sea editable-sugerido
       if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
         this.mostrarResultado('factura', 'Error: No hay puntos de venta cargados. Por favor, lista los puntos de venta desde la sección "2.6. Puntos de Venta" primero.', 'error');
         this.isLoading = false;
         this.loadingContext = '';
         return;
       }
+      
+      // Verificar que haya puntos de venta editable-sugerido
+      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      });
+      
+      if (puntosEditableSugerido.length === 0) {
+        this.mostrarResultado('factura', 
+          'Error: No se encontraron puntos de venta editable-sugerido.\n\n' +
+          'La API de Xubio requiere que el punto de venta tenga las propiedades:\n' +
+          '• editable: true\n' +
+          '• sugerido: true\n\n' +
+          'Por favor, verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+          'error'
+        );
+        this.isLoading = false;
+        this.loadingContext = '';
+        return;
+      }
+      
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      // Verificar que el punto de venta tenga un ID válido (que no sea el fallback cuando hay puntos de venta)
+      // Verificar que el punto de venta tenga un ID válido y sea editable-sugerido
       const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
-      if (!puntoVentaId || (puntoVentaId === 1 && (!puntoVenta.nombre && !puntoVenta.codigo))) {
-        this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Verifica que los puntos de venta tengan IDs válidos en Xubio.', 'error');
+      if (!puntoVentaId || !puntoVenta.editable || !puntoVenta.sugerido) {
+        this.mostrarResultado('factura', 
+          'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
+          'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+          'error'
+        );
         this.isLoading = false;
         this.loadingContext = '';
         return;
@@ -1157,6 +1194,18 @@ export const appOptions = {
           }
         }
 
+        // Log específico del punto de venta para debugging
+        console.log('🔍 Punto de venta que se enviará:', {
+          ID: payload.puntoVenta?.ID,
+          id: payload.puntoVenta?.id,
+          puntoVentaId: payload.puntoVenta?.puntoVentaId,
+          nombre: payload.puntoVenta?.nombre,
+          codigo: payload.puntoVenta?.codigo,
+          editable: payload.puntoVenta?.editable,
+          sugerido: payload.puntoVenta?.sugerido,
+          editableSugerido: payload.puntoVenta?.editableSugerido
+        });
+        
         console.log('📤 Payload de factura:', JSON.stringify(payload, null, 2));
 
         const { response, data } = await this.requestXubio('/comprobanteVentaBean', 'POST', payload);
@@ -1180,7 +1229,15 @@ export const appOptions = {
           
           if (data && data.description) {
             // Error del servidor de Xubio
-            if (data.description.includes('puntoVentaInstance') && data.description.includes('null')) {
+            if (data.description.includes('editable-sugerido') || data.description.includes('editable') && data.description.includes('sugerido')) {
+              mensajeError += 'Punto de venta no es editable-sugerido.\n\n';
+              mensajeError += '💡 Solución: La API de Xubio requiere que el punto de venta tenga:\n';
+              mensajeError += '• editable: true\n';
+              mensajeError += '• sugerido: true\n\n';
+              mensajeError += 'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.\n';
+              mensajeError += 'El punto de venta que se intentó usar:\n';
+              mensajeError += JSON.stringify(payload.puntoVenta, null, 2);
+            } else if (data.description.includes('puntoVentaInstance') && data.description.includes('null')) {
               mensajeError += 'Punto de venta no válido.\n\n';
               mensajeError += '💡 Solución: Verifica que tengas puntos de venta configurados en Xubio y que estén activos.';
             } else {
@@ -1190,6 +1247,10 @@ export const appOptions = {
             mensajeError += data.error;
             if (data.message) {
               mensajeError += `\n${data.message}`;
+            }
+            // Verificar si el error menciona editable-sugerido
+            if (data.description && (data.description.includes('editable-sugerido') || (data.description.includes('editable') && data.description.includes('sugerido')))) {
+              mensajeError += '\n\n💡 El punto de venta debe tener editable=true y sugerido=true en Xubio.';
             }
           } else {
             mensajeError += 'Error desconocido al crear la factura';
@@ -1259,6 +1320,43 @@ export const appOptions = {
 
       if (!clienteId) {
         this.mostrarResultado('factura', 'Error: Completa Cliente ID o selecciona un cliente de la lista', 'error');
+        return;
+      }
+
+      // Validar que el punto de venta esté disponible y sea editable-sugerido
+      if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
+        this.mostrarResultado('factura', 'Error: No hay puntos de venta cargados. Por favor, lista los puntos de venta desde la sección "2.6. Puntos de Venta" primero.', 'error');
+        return;
+      }
+      
+      // Verificar que haya puntos de venta editable-sugerido
+      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      });
+      
+      if (puntosEditableSugerido.length === 0) {
+        this.mostrarResultado('factura', 
+          'Error: No se encontraron puntos de venta editable-sugerido.\n\n' +
+          'La API de Xubio requiere que el punto de venta tenga las propiedades:\n' +
+          '• editable: true\n' +
+          '• sugerido: true\n\n' +
+          'Por favor, verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+          'error'
+        );
+        return;
+      }
+      
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      // Verificar que el punto de venta tenga un ID válido y sea editable-sugerido
+      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+      if (!puntoVentaId || !puntoVenta.editable || !puntoVenta.sugerido) {
+        this.mostrarResultado('factura', 
+          'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
+          'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+          'error'
+        );
         return;
       }
 
@@ -2179,14 +2277,25 @@ export const appOptions = {
           cacheManager.setCachedData('puntosDeVenta', puntosDeVenta, 3600000); // 1 hora
           
           const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
+          
+          // Buscar primero por ID 212819, luego por código 0004
+          const puntoVentaPorId = puntosDeVenta.find(pv => {
+            const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+            return pvId === 212819 || pvId === '212819';
+          });
+          
           const puntoVenta0004 = puntosDeVenta.find(pv => {
             const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
             return codigo === '0004' || codigo === '00004' || codigo === '4';
           });
-          if (puntoVenta0004) {
+          
+          if (puntoVentaPorId) {
+            const codigo = puntoVentaPorId.puntoVenta || puntoVentaPorId.codigo || 'N/A';
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID 212819 (${codigo}) encontrado y será usado por defecto`, 'success');
+          } else if (puntoVenta0004) {
             this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ${puntoVenta0004.puntoVenta || puntoVenta0004.codigo} encontrado y será usado por defecto`, 'success');
           } else {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta 0004/00004 no encontrado. Se usará el primero disponible.`, 'info');
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta ID 212819 o código 0004/00004 no encontrado. Se usará el primero disponible.`, 'info');
           }
         } else {
           this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
@@ -2259,31 +2368,56 @@ export const appOptions = {
      */
     obtenerPuntoVentaPorDefecto() {
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
-        // Filtrar solo puntos de venta que sean editable-sugerido (requerido por la API)
+        // Filtrar SOLO puntos de venta que sean editable-sugerido (requerido por la API)
         // La API requiere que el punto de venta tenga editable: true y sugerido: true
         const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-          // Verificar si tiene las propiedades editable y sugerido
-          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true;
-          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true;
-          // También aceptar si tiene editableSugerido como propiedad única
-          return (esEditable && esSugerido) || pv.editableSugerido === true;
+          // Verificar si tiene las propiedades editable y sugerido como booleanos true o números 1
+          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
+          // Debe tener AMBOS editable Y sugerido, o tener editableSugerido activo
+          return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
         });
         
-        // Usar puntos editable-sugerido si existen, sino usar todos (fallback)
-        const puntosDisponibles = puntosEditableSugerido.length > 0 ? puntosEditableSugerido : this.puntosDeVenta;
-        
+        // CRÍTICO: Solo usar puntos editable-sugerido, NO hacer fallback a todos
         if (puntosEditableSugerido.length === 0) {
-          console.warn('⚠️ No se encontraron puntos de venta editable-sugerido. Usando todos los puntos de venta disponibles...');
+          console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
+          // Retornar null para que la validación falle
+          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
         }
         
-        // Buscar específicamente el punto de venta 0004 o 00004 (flexible)
-        const puntoVenta0004 = puntosDisponibles.find(pv => {
+        // Buscar primero por ID específico (212819), luego por código 0004/00004
+        // Prioridad: 1) ID 212819, 2) Código 0004/00004, 3) Primero disponible
+        const puntoVentaPorId = puntosEditableSugerido.find(pv => {
+          const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+          return pvId === 212819 || pvId === '212819';
+        });
+        
+        if (puntoVentaPorId) {
+          console.log('✅ Usando punto de venta con ID 212819 (editable-sugerido):', puntoVentaPorId);
+          const puntoVentaId = puntoVentaPorId.puntoVentaId || puntoVentaPorId.ID || puntoVentaPorId.id || puntoVentaPorId.puntoVenta_id;
+          if (puntoVentaId) {
+            return {
+              ID: puntoVentaId,
+              id: puntoVentaId,
+              puntoVentaId: puntoVentaId,
+              nombre: puntoVentaPorId.nombre || '',
+              codigo: puntoVentaPorId.codigo || puntoVentaPorId.puntoVenta || '',
+              // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
+              editable: true,
+              sugerido: true,
+              editableSugerido: true
+            };
+          }
+        }
+        
+        // Si no se encuentra por ID, buscar por código 0004/00004
+        const puntoVenta0004 = puntosEditableSugerido.find(pv => {
           const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
           return codigo === '0004' || codigo === '00004' || codigo === '4';
         });
         
         if (puntoVenta0004) {
-          console.log('✅ Usando punto de venta 0004/00004:', puntoVenta0004);
+          console.log('✅ Usando punto de venta 0004/00004 editable-sugerido:', puntoVenta0004);
           const puntoVentaId = puntoVenta0004.puntoVentaId || puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id;
           if (puntoVentaId) {
             return {
@@ -2292,19 +2426,18 @@ export const appOptions = {
               puntoVentaId: puntoVentaId,
               nombre: puntoVenta0004.nombre || '',
               codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || '',
-              // Agregar propiedades editable y sugerido (requeridas por la API)
-              editable: puntoVenta0004.editable !== undefined ? puntoVenta0004.editable : true,
-              sugerido: puntoVenta0004.sugerido !== undefined ? puntoVenta0004.sugerido : true,
-              editableSugerido: puntoVenta0004.editableSugerido !== undefined ? puntoVenta0004.editableSugerido : true
+              // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
+              editable: true,
+              sugerido: true,
+              editableSugerido: true
             };
           }
-          // Si no tiene ID válido, continuar para usar el primero disponible
           console.warn('⚠️ Punto de venta 0004/00004 encontrado pero sin ID válido, usando el primero disponible');
         }
         
         // Si no existe 0004/00004, usar el primero disponible de los puntos editable-sugerido
-        const puntoVenta = puntosDisponibles[0];
-        console.log('ℹ️ Usando el primer punto de venta disponible:', puntoVenta);
+        const puntoVenta = puntosEditableSugerido[0];
+        console.log('ℹ️ Usando el primer punto de venta editable-sugerido disponible:', puntoVenta);
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
         if (puntoVentaId) {
           return {
@@ -2313,17 +2446,19 @@ export const appOptions = {
             puntoVentaId: puntoVentaId,
             nombre: puntoVenta.nombre || '',
             codigo: puntoVenta.codigo || puntoVenta.puntoVenta || '',
-            // Agregar propiedades editable y sugerido (requeridas por la API)
-            editable: puntoVenta.editable !== undefined ? puntoVenta.editable : true,
-            sugerido: puntoVenta.sugerido !== undefined ? puntoVenta.sugerido : true,
-            editableSugerido: puntoVenta.editableSugerido !== undefined ? puntoVenta.editableSugerido : true
+            // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
+            editable: true,
+            sugerido: true,
+            editableSugerido: true
           };
         }
-        // Si no tiene ID válido, retornar fallback (como los otros métodos)
-        console.error('❌ Punto de venta sin ID válido, usando fallback');
+        // Si no tiene ID válido, retornar null para que la validación falle
+        console.error('❌ Punto de venta editable-sugerido sin ID válido');
+        return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
       }
-      // Fallback si no hay puntos de venta cargados (igual que los otros métodos)
-      return { ID: 1, id: 1, puntoVentaId: 1, nombre: '', codigo: '', editable: true, sugerido: true, editableSugerido: true };
+      // Fallback si no hay puntos de venta cargados - retornar null para que la validación falle
+      console.error('❌ No hay puntos de venta cargados');
+      return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
     },
 
     /**
