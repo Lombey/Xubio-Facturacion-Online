@@ -2278,24 +2278,27 @@ export const appOptions = {
           
           const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
           
-          // Buscar primero por ID 212819, luego por código 0004
+          // Buscar primero por ID 212819, luego por nombre 0004/00004 (columna "Punto de Venta")
           const puntoVentaPorId = puntosDeVenta.find(pv => {
             const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
             return pvId === 212819 || pvId === '212819';
           });
           
           const puntoVenta0004 = puntosDeVenta.find(pv => {
-            const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
-            return codigo === '0004' || codigo === '00004' || codigo === '4';
+            const nombre = (pv.nombre || '').toString().trim();
+            // Buscar por nombre que contenga 0004, 00004, o CORVUSWEB_SRL
+            return nombre === '0004' || nombre === '00004' || nombre === '4' || 
+                   nombre.includes('CORVUSWEB') || nombre.includes('0004');
           });
           
           if (puntoVentaPorId) {
-            const codigo = puntoVentaPorId.puntoVenta || puntoVentaPorId.codigo || 'N/A';
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID 212819 (${codigo}) encontrado y será usado por defecto`, 'success');
+            const nombre = puntoVentaPorId.nombre || 'N/A';
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID 212819 (${nombre}) encontrado y será usado por defecto`, 'success');
           } else if (puntoVenta0004) {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ${puntoVenta0004.puntoVenta || puntoVenta0004.codigo} encontrado y será usado por defecto`, 'success');
+            const nombre = puntoVenta0004.nombre || 'N/A';
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta con nombre ${nombre} encontrado y será usado por defecto`, 'success');
           } else {
-            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta ID 212819 o código 0004/00004 no encontrado. Se usará el primero disponible.`, 'info');
+            this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ Punto de venta ID 212819 o nombre 0004/00004 no encontrado. Se usará el primero disponible.`, 'info');
           }
         } else {
           this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
@@ -2364,7 +2367,7 @@ export const appOptions = {
     },
 
     /**
-     * Obtiene el punto de venta 0004 por defecto, o el primero disponible si no existe
+     * Obtiene el punto de venta 00004 por defecto, o el primero disponible si no existe
      */
     obtenerPuntoVentaPorDefecto() {
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
@@ -2385,8 +2388,8 @@ export const appOptions = {
           return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', editable: false, sugerido: false, editableSugerido: false };
         }
         
-        // Buscar primero por ID específico (212819), luego por código 0004/00004
-        // Prioridad: 1) ID 212819, 2) Código 0004/00004, 3) Primero disponible
+        // Buscar primero por ID específico (212819), luego por nombre 0004/00004
+        // Prioridad: 1) ID 212819, 2) Nombre 0004/00004 (columna "Punto de Venta"), 3) Primero disponible
         const puntoVentaPorId = puntosEditableSugerido.find(pv => {
           const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
           return pvId === 212819 || pvId === '212819';
@@ -2410,32 +2413,33 @@ export const appOptions = {
           }
         }
         
-        // Si no se encuentra por ID, buscar por código 0004/00004
-        const puntoVenta0004 = puntosEditableSugerido.find(pv => {
-          const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
-          return codigo === '0004' || codigo === '00004' || codigo === '4';
+        // Si no se encuentra por ID, buscar por nombre (columna "Punto de Venta") que contenga 00004
+        const puntoVenta00004 = puntosEditableSugerido.find(pv => {
+          const nombre = (pv.nombre || '').toString().trim();
+          // Buscar por nombre que contenga 00004 o CORVUSWEB_SRL
+          return nombre === '00004' || nombre.includes('CORVUSWEB') || nombre.includes('00004');
         });
         
-        if (puntoVenta0004) {
-          console.log('✅ Usando punto de venta 0004/00004 editable-sugerido:', puntoVenta0004);
-          const puntoVentaId = puntoVenta0004.puntoVentaId || puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id;
+        if (puntoVenta00004) {
+          console.log('✅ Usando punto de venta con nombre 00004 (editable-sugerido):', puntoVenta00004);
+          const puntoVentaId = puntoVenta00004.puntoVentaId || puntoVenta00004.ID || puntoVenta00004.id || puntoVenta00004.puntoVenta_id;
           if (puntoVentaId) {
             return {
               ID: puntoVentaId,
               id: puntoVentaId,
               puntoVentaId: puntoVentaId,
-              nombre: puntoVenta0004.nombre || '',
-              codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || '',
+              nombre: puntoVenta00004.nombre || '',
+              codigo: puntoVenta00004.codigo || puntoVenta00004.puntoVenta || '',
               // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
               editable: true,
               sugerido: true,
               editableSugerido: true
             };
           }
-          console.warn('⚠️ Punto de venta 0004/00004 encontrado pero sin ID válido, usando el primero disponible');
+          console.warn('⚠️ Punto de venta 00004 encontrado pero sin ID válido, usando el primero disponible');
         }
         
-        // Si no existe 0004/00004, usar el primero disponible de los puntos editable-sugerido
+        // Si no existe 00004, usar el primero disponible de los puntos editable-sugerido
         const puntoVenta = puntosEditableSugerido[0];
         console.log('ℹ️ Usando el primer punto de venta editable-sugerido disponible:', puntoVenta);
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
