@@ -74,6 +74,12 @@ const app = createApp({
       facturaClienteId: '',
       facturaTipoimpresion: '1',
       facturaCotizacion: '1',
+      facturaMoneda: 'ARS', // Moneda seleccionada para la factura
+      monedasList: [], // Lista de monedas disponibles desde la API
+      facturaObservacion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5',
+      modoAvanzado: false, // Controla si se muestra el campo JSON manual
+      facturaCondicionPago: 1, // 1 = Cuenta Corriente, 2 = Contado
+      facturaFechaVto: '', // Fecha de vencimiento
       facturaJson: '',
       facturaResult: { message: '', type: '', visible: false },
       facturaPdfViewerHtml: '',
@@ -85,6 +91,12 @@ const app = createApp({
       cobranzaImporte: '',
       cobranzaTipoimpresion: '1',
       cobranzaJson: '',
+      facturasPendientes: [],
+      mostrarFacturasPendientes: false,
+      facturaParaCobrar: null,
+      cobranzaFormaPago: 'efectivo', // 'efectivo', 'cheque', 'transferencia'
+      cobranzaCuentaId: null, // ID de la cuenta seleccionada
+      cuentasDisponibles: [],
       cobranzaResult: { message: '', type: '', visible: false },
       cobranzaPdfViewerHtml: '',
       cobranzaPdfViewerVisible: false,
@@ -153,6 +165,102 @@ const app = createApp({
         const precio = parseFloat(item.precio) || 0;
         return total + (cantidad * precio);
       }, 0);
+    },
+    
+    /**
+     * Obtiene el centro de costo seleccionado por defecto
+     */
+    centroDeCostoSeleccionado() {
+      const centro = this.obtenerCentroDeCostoPorDefecto();
+      return {
+        id: centro.ID || centro.id,
+        nombre: centro.nombre || 'No disponible',
+        codigo: centro.codigo || ''
+      };
+    },
+    
+    /**
+     * Obtiene el depósito seleccionado por defecto
+     */
+    depositoSeleccionado() {
+      const deposito = this.obtenerDepositoPorDefecto();
+      if (!deposito) return { nombre: 'No disponible', codigo: '' };
+      return {
+        id: deposito.ID || deposito.id,
+        nombre: deposito.nombre || 'No disponible',
+        codigo: deposito.codigo || ''
+      };
+    },
+    
+    /**
+     * Obtiene el vendedor seleccionado por defecto
+     */
+    vendedorSeleccionado() {
+      const vendedor = this.obtenerVendedorPorDefecto();
+      return {
+        id: vendedor.ID || vendedor.id,
+        nombre: vendedor.nombre || 'No disponible',
+        codigo: vendedor.codigo || ''
+      };
+    },
+    
+    /**
+     * Obtiene el punto de venta seleccionado por defecto
+     */
+    puntoVentaSeleccionado() {
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      return {
+        id: puntoVenta.ID || puntoVenta.id,
+        nombre: puntoVenta.nombre || 'No disponible',
+        codigo: puntoVenta.codigo || ''
+      };
+    },
+    
+    /**
+     * Obtiene el circuito contable seleccionado por defecto
+     */
+    circuitoContableSeleccionado() {
+      const circuito = this.obtenerCircuitoContablePorDefecto();
+      return {
+        id: circuito.ID || circuito.id,
+        nombre: circuito.nombre || 'No disponible',
+        codigo: circuito.codigo || ''
+      };
+    },
+    
+    /**
+     * Calcula el subtotal sin IVA
+     */
+    subtotalSinIVA() {
+      return this.productosSeleccionados.reduce((total, item) => {
+        const cantidad = parseFloat(item.cantidad) || 0;
+        const precio = parseFloat(item.precio) || 0;
+        const importe = cantidad * precio;
+        // Asumiendo que el precio incluye IVA 21%
+        const sinIVA = importe / 1.21;
+        return total + sinIVA;
+      }, 0);
+    },
+    
+    /**
+     * Calcula el total de IVA
+     */
+    totalIVA() {
+      return this.productosSeleccionados.reduce((total, item) => {
+        const cantidad = parseFloat(item.cantidad) || 0;
+        const precio = parseFloat(item.precio) || 0;
+        const importe = cantidad * precio;
+        // IVA = importe - (importe / 1.21)
+        const iva = importe - (importe / 1.21);
+        return total + iva;
+      }, 0);
+    },
+    
+    /**
+     * Fecha de vencimiento (por ahora igual a fecha actual)
+     */
+    fechaVencimiento() {
+      return new Date().toISOString().split('T')[0];
     }
   },
   async mounted() {
@@ -190,6 +298,9 @@ const app = createApp({
     
     // Limpiar caches expirados al iniciar
     this.limpiarCachesExpirados();
+    
+    // Inicializar fecha de vencimiento con fecha actual
+    this.facturaFechaVto = new Date().toISOString().split('T')[0];
     
     // Obtener cotización automáticamente al cargar (si hay token)
     if (this.accessToken || (savedClientId && savedSecretId)) {
@@ -456,6 +567,12 @@ const app = createApp({
           if (!this.valoresCargados) {
             await this.cargarValoresConfiguracion();
           }
+          
+          // Cargar monedas disponibles
+          await this.obtenerMonedas();
+          
+          // Cargar cuentas disponibles
+          await this.obtenerCuentas();
         } else {
           const errorMsg = `❌ Error obteniendo token:\n\nStatus: ${response.status} ${response.statusText}\n\n${data.error || data.message || 'Error desconocido'}\n\n💡 Revisa la consola del navegador (F12) para más detalles.`;
           this.mostrarResultado('token', errorMsg, 'error');
@@ -711,8 +828,7 @@ const app = createApp({
           payload = JSON.parse(this.facturaJson);
         } else {
           // Obtener datos necesarios
-          const [monedaUSD, datosCliente] = await Promise.all([
-            this.obtenerMonedaUSD(),
+          const [datosCliente] = await Promise.all([
             this.obtenerDatosCliente(parseInt(clienteId))
           ]);
 
@@ -778,8 +894,8 @@ const app = createApp({
             tipo: 1, // 1=Factura, 2=Nota de Débito, 3=Nota de Crédito, 4=Informe Z, 6=Recibo
             cliente: { cliente_id: parseInt(clienteId) },
             fecha: fechaISO,
-            fechaVto: fechaISO, // Fecha de vencimiento (requerido según Swagger)
-            condicionDePago: 1, // 1=Cuenta Corriente, 2=Contado (requerido según Swagger)
+            fechaVto: this.facturaFechaVto || fechaISO, // Fecha de vencimiento (requerido según Swagger)
+            condicionDePago: parseInt(this.facturaCondicionPago) || 1, // 1=Cuenta Corriente, 2=Contado (requerido según Swagger)
             puntoVenta: this.obtenerPuntoVentaPorDefecto(), // Requerido según Swagger
             vendedor: this.obtenerVendedorPorDefecto(), // Requerido según Swagger
             transaccionProductoItems: transaccionProductoItems,
@@ -801,22 +917,31 @@ const app = createApp({
             transaccionPercepcionItems: []
           };
 
-          // Agregar moneda USD si se encontró
-          if (monedaUSD) {
-            payload.moneda = {
-              ID: monedaUSD.ID || monedaUSD.id,
-              codigo: monedaUSD.codigo,
-              nombre: monedaUSD.nombre
-            };
-            // Usar cotización del campo (validar que sea un número válido > 0)
-            const cotizacion = parseFloat(this.facturaCotizacion) || 1;
-            payload.cotizacion = cotizacion > 0 ? cotizacion : 1;
-            payload.utilizaMonedaExtranjera = 1;
+          // Agregar moneda si no es ARS
+          if (this.facturaMoneda === 'USD' || (this.facturaMoneda && this.facturaMoneda !== 'ARS')) {
+            const monedaSeleccionada = this.monedasList.find(m => 
+              m.codigo === this.facturaMoneda || 
+              m.codigo === 'USD'
+            ) || await this.obtenerMoneda(this.facturaMoneda);
+            
+            if (monedaSeleccionada) {
+              payload.moneda = {
+                ID: monedaSeleccionada.ID || monedaSeleccionada.id,
+                codigo: monedaSeleccionada.codigo,
+                nombre: monedaSeleccionada.nombre
+              };
+              const cotizacion = parseFloat(this.facturaCotizacion) || 1;
+              payload.cotizacion = cotizacion > 0 ? cotizacion : 1;
+              payload.utilizaMonedaExtranjera = 1;
+            }
           }
 
-          // Agregar observaciones
-          const observacion = "CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5";
-          payload.observacion = observacion;
+          // Agregar observaciones si están definidas
+          if (this.facturaObservacion && this.facturaObservacion.trim()) {
+            payload.observacion = this.facturaObservacion.trim();
+          } else {
+            payload.observacion = '';
+          }
 
           // Agregar CUIT del cliente si está disponible
           if (datosCliente && datosCliente.identificacionTributaria) {
@@ -838,8 +963,12 @@ const app = createApp({
         if (response.ok) {
           const transaccionId = data.transaccionId || data.transaccionid || data.id;
           let mensaje = `✅ Factura creada exitosamente!\n\n`;
-          mensaje += `Transaction ID: ${transaccionId}\n`;
-          mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
+          mensaje += `📋 Detalles:\n`;
+          mensaje += `• Transaction ID: ${transaccionId}\n`;
+          mensaje += `• Número: ${data.numeroComprobante || data.numero || 'N/A'}\n`;
+          mensaje += `• Cliente: ${this.clienteSeleccionadoParaFactura?.razonSocial || this.clienteSeleccionadoParaFactura?.nombre || 'N/A'}\n`;
+          mensaje += `• Total: $${this.formatearPrecio(this.totalProductosSeleccionados)} ${this.facturaMoneda}\n`;
+          mensaje += `• Moneda: ${this.facturaMoneda}\n\n`;
           mensaje += `Obteniendo PDF...\n\n`;
 
           this.mostrarResultado('factura', mensaje, 'success');
@@ -1514,11 +1643,11 @@ const app = createApp({
     },
 
     /**
-     * Obtiene la moneda USD
+     * Obtiene la lista de monedas disponibles
      */
-    async obtenerMonedaUSD() {
+    async obtenerMonedas() {
       if (!this.accessToken) {
-        return null;
+        return;
       }
 
       try {
@@ -1527,19 +1656,55 @@ const app = createApp({
         });
         
         if (response.ok && Array.isArray(data)) {
-          const usd = data.find(m => 
-            m.codigo === 'USD' || 
-            m.nombre?.toUpperCase().includes('USD') || 
-            m.nombre?.toUpperCase().includes('DOLAR')
+          this.monedasList = data;
+          console.log(`✅ ${data.length} monedas cargadas`);
+          return data;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo monedas:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Obtiene una moneda por su código
+     * @param {string} codigoMoneda - Código de la moneda (ej: 'USD', 'ARS')
+     */
+    async obtenerMoneda(codigoMoneda = 'USD') {
+      if (!this.accessToken) {
+        return null;
+      }
+
+      // Buscar primero en cache
+      const monedaEnCache = this.monedasList.find(m => 
+        m.codigo === codigoMoneda || 
+        m.codigo?.toUpperCase() === codigoMoneda.toUpperCase()
+      );
+      
+      if (monedaEnCache) {
+        return monedaEnCache;
+      }
+
+      try {
+        const { response, data } = await this.requestXubio('/monedaBean', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          const moneda = data.find(m => 
+            m.codigo === codigoMoneda || 
+            m.codigo?.toUpperCase() === codigoMoneda.toUpperCase() ||
+            m.nombre?.toUpperCase().includes(codigoMoneda.toUpperCase())
           );
-          if (usd) {
-            console.log('✅ Moneda USD encontrada:', usd);
-            return usd;
+          if (moneda) {
+            console.log('✅ Moneda encontrada:', moneda);
+            return moneda;
           }
         }
         return null;
       } catch (error) {
-        console.error('❌ Error obteniendo moneda USD:', error);
+        console.error('❌ Error obteniendo moneda:', error);
         return null;
       }
     },
@@ -1931,6 +2096,20 @@ const app = createApp({
       }
       return parseFloat(precio).toFixed(2);
     },
+    
+    /**
+     * Calcula el IVA de un item de producto
+     * @param {Object} item - Item con cantidad y precio
+     * @returns {number} IVA calculado
+     */
+    calcularIVA(item) {
+      const cantidad = parseFloat(item.cantidad) || 0;
+      const precio = parseFloat(item.precio) || 0;
+      const importe = cantidad * precio;
+      // Asumiendo precio con IVA incluido al 21%
+      const iva = importe - (importe / 1.21);
+      return parseFloat(iva.toFixed(2));
+    },
 
     /**
      * Selecciona un producto del dropdown y lo agrega
@@ -2213,6 +2392,166 @@ const app = createApp({
       return cuit; // Devolver original si no coincide con ningún patrón
     },
 
+    /**
+     * Oculta el dropdown de productos con un pequeño delay para permitir clicks
+     */
+    ocultarDropdownProductos() {
+      if (typeof window !== 'undefined' && window.setTimeout) {
+        window.setTimeout(() => {
+          this.mostrarDropdownProductos = false;
+        }, 200);
+      } else {
+        this.mostrarDropdownProductos = false;
+      }
+    },
+
+    /**
+     * Oculta el dropdown de clientes con un pequeño delay para permitir clicks
+     */
+    ocultarDropdownClientes() {
+      if (typeof window !== 'undefined' && window.setTimeout) {
+        window.setTimeout(() => {
+          this.mostrarDropdownClientes = false;
+        }, 200);
+      } else {
+        this.mostrarDropdownClientes = false;
+      }
+    },
+
+    /**
+     * Obtiene facturas pendientes de un cliente
+     * @param {number} clienteId - ID del cliente
+     */
+    async obtenerFacturasPendientes(clienteId) {
+      if (!this.accessToken || !clienteId) {
+        this.mostrarResultado('cobranza', 'Error: Cliente ID requerido', 'error');
+        return;
+      }
+
+      this.isLoading = true;
+      this.loadingContext = 'Obteniendo facturas pendientes...';
+
+      try {
+        const { response, data } = await this.requestXubio('/comprobantesAsociados', 'GET', null, {
+          clienteId: parseInt(clienteId),
+          tipoComprobante: 1 // 1 = Factura
+        });
+
+        if (response.ok && Array.isArray(data)) {
+          this.facturasPendientes = data.filter(f => {
+            // Filtrar solo facturas con saldo pendiente
+            const saldo = parseFloat(f.saldo || f.saldoPendiente || f.importeTotal || 0);
+            return saldo > 0;
+          });
+          
+          this.mostrarFacturasPendientes = true;
+          this.mostrarResultado('cobranza', 
+            `✅ Se encontraron ${this.facturasPendientes.length} facturas pendientes`, 
+            'success'
+          );
+          return this.facturasPendientes;
+        } else {
+          this.mostrarResultado('cobranza', 
+            `❌ Error obteniendo facturas: ${JSON.stringify(data, null, 2)}`, 
+            'error'
+          );
+          return [];
+        }
+      } catch (error) {
+        this.handleError(error, 'Obtención de facturas pendientes', 'cobranza');
+        return [];
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
+      }
+    },
+    
+    /**
+     * Selecciona una factura pendiente y llena los campos
+     * @param {Event} event - Evento del select
+     */
+    seleccionarFacturaPendiente(event) {
+      const facturaStr = event.target.value;
+      if (!facturaStr) {
+        this.facturaParaCobrar = null;
+        return;
+      }
+      
+      try {
+        const factura = JSON.parse(facturaStr);
+        this.cobranzaIdComprobante = (factura.id || factura.ID || factura.transaccionId).toString();
+        this.cobranzaImporte = (factura.saldo || factura.saldoPendiente || factura.importeTotal || 0).toString();
+        
+        // Cargar datos completos de la factura
+        this.obtenerDatosFactura(this.cobranzaIdComprobante);
+        
+        this.mostrarResultado('cobranza', 
+          `✅ Factura seleccionada: ${factura.numeroComprobante || factura.numero}\nSaldo: $${this.formatearPrecio(parseFloat(this.cobranzaImporte))}`, 
+          'success'
+        );
+      } catch (error) {
+        console.error('Error parseando factura:', error);
+      }
+    },
+    
+    /**
+     * Obtiene los datos completos de una factura
+     * @param {number|string} idComprobante - ID del comprobante
+     */
+    async obtenerDatosFactura(idComprobante) {
+      if (!this.accessToken || !idComprobante) {
+        return null;
+      }
+
+      try {
+        const { response, data } = await this.requestXubio(`/comprobanteVentaBean/${idComprobante}`, 'GET');
+        
+        if (response.ok && data) {
+          this.facturaParaCobrar = data;
+          console.log('✅ Datos de factura obtenidos:', data);
+          return data;
+        } else {
+          this.facturaParaCobrar = null;
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo datos de factura:', error);
+        this.facturaParaCobrar = null;
+        return null;
+      }
+    },
+    
+    /**
+     * Obtiene las cuentas disponibles (caja/banco)
+     */
+    async obtenerCuentas() {
+      if (!this.accessToken) {
+        return [];
+      }
+
+      try {
+        const { response, data } = await this.requestXubio('/cuenta', 'GET', null, {
+          activo: 1
+        });
+        
+        if (response.ok && Array.isArray(data)) {
+          // Filtrar solo cuentas de caja/banco (ajustar según estructura de la API)
+          this.cuentasDisponibles = data.filter(c => 
+            c.tipo === 'CAJA' || 
+            c.tipo === 'BANCO' || 
+            c.tipoCuenta === 1 || // 1 = Caja según documentación
+            c.nombre?.toUpperCase().includes('CAJA')
+          );
+          console.log(`✅ ${this.cuentasDisponibles.length} cuentas cargadas`);
+          return this.cuentasDisponibles;
+        }
+        return [];
+      } catch (error) {
+        console.error('❌ Error obteniendo cuentas:', error);
+        return [];
+      }
+    },
+    
     /**
      * Formatea el input de CUIT mientras el usuario escribe
      * @param {Event} event - Evento del input

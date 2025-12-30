@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Salvo que haya otra regla los documentos se guardan en la carpeta ruta relativa: test-imprimir-pdf\docs y si hay suburtas utilizar la mas adecuada.

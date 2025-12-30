@@ -199,4 +199,36 @@ button:disabled {
 .facturas-table tr:last-child td {
     border-bottom: none;
 }
+.valores-default {
+    background: #f0f7ff;
+    border: 1px solid #2196F3;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+.resumen-totales {
+    background: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+    padding: 15px;
+    text-align: right;
+    margin-top: 20px;
+}
+.preview-factura {
+    background: white;
+    border: 2px solid #2196F3;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+.tooltip {
+    cursor: help;
+    color: #666;
+    font-size: 12px;
+    margin-left: 5px;
+    display: inline-block;
+}
+.tooltip:hover {
+    color: #2196F3;
+}
 
