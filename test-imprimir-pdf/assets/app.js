@@ -184,12 +184,21 @@ export const appOptions = {
      * Obtiene el centro de costo seleccionado por defecto
      */
     centroDeCostoSeleccionado() {
-      const centro = this.obtenerCentroDeCostoPorDefecto();
-      return {
-        id: centro.ID || centro.id,
-        nombre: centro.nombre || 'No disponible',
-        codigo: centro.codigo || ''
-      };
+      try {
+        const centro = this.obtenerCentroDeCostoPorDefecto();
+        return {
+          id: centro.ID || centro.id,
+          nombre: centro.nombre || 'No disponible',
+          codigo: centro.codigo || ''
+        };
+      } catch (error) {
+        // Si no hay centros disponibles, retornar valores por defecto para el template
+        return {
+          id: null,
+          nombre: 'No disponible',
+          codigo: ''
+        };
+      }
     },
     
     /**
@@ -235,10 +244,9 @@ export const appOptions = {
       // Si no, usar el método por defecto
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
       return {
-        id: puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id,
+        id: puntoVenta.ID || puntoVenta.id,
         nombre: puntoVenta.nombre || 'No disponible',
-        codigo: puntoVenta.codigo || '',
-        puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || ''
+        codigo: puntoVenta.codigo || ''
       };
     },
     
@@ -321,7 +329,8 @@ export const appOptions = {
       }
       
       // Verificar que haya un punto de venta seleccionado (manual o automático)
-      if (!this.puntoVentaSeleccionadoParaFactura && !this.obtenerPuntoVentaPorDefecto().puntoVentaId) {
+      const puntoVentaDefault = this.obtenerPuntoVentaPorDefecto();
+      if (!this.puntoVentaSeleccionadoParaFactura && (!puntoVentaDefault.ID && !puntoVentaDefault.id)) {
         return false;
       }
       
@@ -369,10 +378,10 @@ export const appOptions = {
       }
       
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+      const puntoVentaId = puntoVenta.ID || puntoVenta.id;
       
-      // Verificar que tenga ID válido Y que sea editable-sugerido
-      return puntoVentaId && puntoVenta.editable === true && puntoVenta.sugerido === true;
+      // Verificar que tenga ID válido (ya se verificó que es editable-sugerido en el filtro anterior)
+      return !!puntoVentaId;
     }
   },
   async mounted() {
@@ -1050,6 +1059,14 @@ export const appOptions = {
         this.loadingContext = '';
         return;
       }
+
+      // Validar que haya centros de costo disponibles
+      if (!this.centrosDeCosto || this.centrosDeCosto.length === 0) {
+        this.mostrarResultado('factura', 'Error: No hay centros de costo cargados. Por favor, asegúrate de que se carguen los valores de configuración.', 'error');
+        this.isLoading = false;
+        this.loadingContext = '';
+        return;
+      }
       
       // Verificar que haya puntos de venta editable-sugerido
       const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
@@ -1100,6 +1117,36 @@ export const appOptions = {
           const [datosCliente] = await Promise.all([
             this.obtenerDatosCliente(parseInt(clienteId))
           ]);
+
+          // Validar provincia del cliente (requerido según Swagger)
+          if (!datosCliente || !datosCliente.provincia) {
+            this.mostrarResultado('factura', 
+              'Error: El cliente seleccionado no tiene provincia configurada.\n\n' +
+              'Por favor, configura la provincia del cliente en Xubio antes de crear la factura.', 
+              'error'
+            );
+            this.isLoading = false;
+            this.loadingContext = '';
+            return;
+          }
+
+          // Asegurar lista de precios para el encabezado
+          let listaDePrecioParaHeader = this.listaPrecioAGDP;
+          if (!listaDePrecioParaHeader) {
+            listaDePrecioParaHeader = await this.obtenerListaPrecioAGDP();
+          }
+
+          // Validar lista de precios (requerido según Swagger)
+          if (!listaDePrecioParaHeader) {
+            this.mostrarResultado('factura', 
+              'Error: No se pudo obtener la lista de precios AGDP.\n\n' +
+              'Por favor, verifica que exista una lista de precios con el código "AGDP" en Xubio.', 
+              'error'
+            );
+            this.isLoading = false;
+            this.loadingContext = '';
+            return;
+          }
 
           // Construir transaccionProductoItems desde productos seleccionados
           // Según Swagger: todos los campos son REQUERIDOS
@@ -1182,15 +1229,39 @@ export const appOptions = {
             descripcion: this.facturaDescripcion?.trim() || '', // Descripción del comprobante (campo documentado)
             externalId: '',
             facturaNoExportacion: false,
-            listaDePrecio: null, // Se puede agregar si hay una lista de precios por defecto
+            listaDePrecio: listaDePrecioParaHeader ? {
+              ID: listaDePrecioParaHeader.listaPrecioID || listaDePrecioParaHeader.id || listaDePrecioParaHeader.ID,
+              id: listaDePrecioParaHeader.listaPrecioID || listaDePrecioParaHeader.id || listaDePrecioParaHeader.ID,
+              nombre: listaDePrecioParaHeader.nombre || '',
+              codigo: listaDePrecioParaHeader.codigo || ''
+            } : null, // Agregar lista de precio (requerido según Swagger)
             mailEstado: '',
             nombre: '', // Nombre del comprobante
             numeroDocumento: '',
             porcentajeComision: 0,
-            provincia: null, // Se puede obtener del cliente si está disponible
+            provincia: datosCliente?.provincia ? {
+              ID: datosCliente.provincia.provincia_id || datosCliente.provincia.ID || datosCliente.provincia.id,
+              id: datosCliente.provincia.provincia_id || datosCliente.provincia.ID || datosCliente.provincia.id,
+              nombre: datosCliente.provincia.nombre || '',
+              codigo: datosCliente.provincia.codigo || ''
+            } : null, // Agregar provincia del cliente (requerido según Swagger)
             transaccionCobranzaItems: [],
             transaccionPercepcionItems: []
           };
+          
+          // Agregar depósito a nivel comprobante (requerido según Swagger)
+          const depositoHeader = this.obtenerDepositoPorDefecto();
+          if (!depositoHeader) {
+            this.mostrarResultado('factura', 
+              'Error: No hay depósitos disponibles.\n\n' +
+              'Por favor, asegúrate de que existan depósitos activos en Xubio y que se hayan cargado los valores de configuración.', 
+              'error'
+            );
+            this.isLoading = false;
+            this.loadingContext = '';
+            return;
+          }
+          payload.deposito = depositoHeader;
 
           // Agregar moneda si no es ARS/PESOS_ARGENTINOS (moneda extranjera)
           const esMonedaExtranjera = this.facturaMoneda && 
@@ -1231,12 +1302,8 @@ export const appOptions = {
         console.log('🔍 Punto de venta que se enviará:', {
           ID: payload.puntoVenta?.ID,
           id: payload.puntoVenta?.id,
-          puntoVentaId: payload.puntoVenta?.puntoVentaId,
           nombre: payload.puntoVenta?.nombre,
-          codigo: payload.puntoVenta?.codigo,
-          editable: payload.puntoVenta?.editable,
-          sugerido: payload.puntoVenta?.sugerido,
-          editableSugerido: payload.puntoVenta?.editableSugerido
+          codigo: payload.puntoVenta?.codigo
         });
         
         console.log('📤 Payload de factura:', JSON.stringify(payload, null, 2));
@@ -1382,9 +1449,9 @@ export const appOptions = {
       }
       
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      // Verificar que el punto de venta tenga un ID válido y sea editable-sugerido
-      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
-      if (!puntoVentaId || !puntoVenta.editable || !puntoVenta.sugerido) {
+      // Verificar que el punto de venta tenga un ID válido (ya se verificó que es editable-sugerido en el filtro anterior)
+      const puntoVentaId = puntoVenta.ID || puntoVenta.id;
+      if (!puntoVentaId) {
         this.mostrarResultado('factura', 
           'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
           'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
@@ -2422,8 +2489,13 @@ export const appOptions = {
 
     /**
      * Obtiene el primer centro de costo disponible o uno por defecto
+     * @throws {Error} Si no hay centros de costo disponibles
      */
     obtenerCentroDeCostoPorDefecto() {
+      if (!this.centrosDeCosto || this.centrosDeCosto.length === 0) {
+        console.error('❌ No hay centros de costo disponibles');
+        throw new Error('No hay centros de costo disponibles. Por favor, carga los centros de costo primero.');
+      }
       return this.obtenerPorDefecto(this.centrosDeCosto, 'ID', 1, 'centroDeCosto_id');
     },
 
@@ -2456,17 +2528,12 @@ export const appOptions = {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
         if (puntoVentaId) {
+          // Según la documentación de la API, los objetos anidados solo necesitan ID, id, nombre y codigo
           return {
             ID: puntoVentaId,
             id: puntoVentaId,
-            puntoVentaId: puntoVentaId,
             nombre: pv.nombre || '',
-            codigo: pv.codigo || '',
-            puntoVenta: pv.puntoVenta || pv.codigo || '',
-            // CRÍTICO: Convertir a booleanos true explícitamente (la API requiere booleanos, no números)
-            editable: true,
-            sugerido: true,
-            editableSugerido: true
+            codigo: pv.codigo || ''
           };
         }
       }
@@ -2482,7 +2549,7 @@ export const appOptions = {
         
         if (puntosEditableSugerido.length === 0) {
           console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
-          return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
+          return { ID: null, id: null, nombre: '', codigo: '' };
         }
         
         // Buscar primero por ID 212819, luego por campo "Punto de Venta" 00004
@@ -2505,24 +2572,20 @@ export const appOptions = {
         if (puntoVenta) {
           const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
           if (puntoVentaId) {
+            // Según la documentación de la API, los objetos anidados solo necesitan ID, id, nombre y codigo
             return {
               ID: puntoVentaId,
               id: puntoVentaId,
-              puntoVentaId: puntoVentaId,
               nombre: puntoVenta.nombre || '',
-              codigo: puntoVenta.codigo || '',
-              puntoVenta: puntoVenta.puntoVenta || puntoVenta.codigo || '',
-              editable: true,
-              sugerido: true,
-              editableSugerido: true
+              codigo: puntoVenta.codigo || ''
             };
           }
         }
         
-        return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
+        return { ID: null, id: null, nombre: '', codigo: '' };
       }
       
-      return { ID: null, id: null, puntoVentaId: null, nombre: '', codigo: '', puntoVenta: '', editable: false, sugerido: false, editableSugerido: false };
+      return { ID: null, id: null, nombre: '', codigo: '' };
     },
     
     /**

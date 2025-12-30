@@ -87,6 +87,7 @@ export interface ProductoRaw {
 
 /**
  * Punto de venta en formato crudo de la API (antes de normalizar)
+ * Nota: La API puede devolver números (1/0) o booleanos para editable, sugerido y editableSugerido
  */
 export interface PuntoVentaRaw {
   puntoVentaId?: number;
@@ -95,7 +96,7 @@ export interface PuntoVentaRaw {
   nombre?: string;
   codigo?: string;
   puntoVenta?: string;
-  editable?: boolean;
-  sugerido?: boolean;
-  editableSugerido?: boolean;
+  editable?: boolean | number;
+  sugerido?: boolean | number;
+  editableSugerido?: boolean | number;
 }

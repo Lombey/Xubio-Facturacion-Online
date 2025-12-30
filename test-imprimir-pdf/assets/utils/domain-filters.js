@@ -88,9 +88,9 @@ export function filtrarProductos(productos, busqueda) {
  * @property {number} [puntoVentaId]
  * @property {number} [ID]
  * @property {number} [id]
- * @property {boolean} [editable]
- * @property {boolean} [sugerido]
- * @property {boolean} [editableSugerido]
+ * @property {boolean|number} [editable] - La API puede devolver 1/0 o true/false
+ * @property {boolean|number} [sugerido] - La API puede devolver 1/0 o true/false
+ * @property {boolean|number} [editableSugerido] - La API puede devolver 1/0 o true/false
  */
 
 /**
