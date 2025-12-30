@@ -43,15 +43,34 @@ async function mountApp() {
     }
     
     console.log('✅ Aplicación Vue creada correctamente');
-    console.log('📦 Verificando configuración de la app:');
-    console.log('- ¿Tiene template?', !!app._instance?.type?.template);
-    console.log('- Config de la app:', app.config);
-    
     console.log('📦 Montando aplicación Vue...');
     console.log('📦 HTML antes de mount:', appElement.innerHTML.substring(0, 200) + '...');
+    console.log('💡 Vue debería usar el HTML existente como template automáticamente');
+    
+    // IMPORTANTE: En Vue 3, cuando montas sin template, Vue reemplaza el contenido del elemento
+    // La solución es usar el contenido HTML existente como template mediante una función render
+    // Pero como el compilador de templates no está disponible en runtime, usamos otra estrategia:
+    // 1. Guardar el HTML
+    // 2. Montar Vue (que reemplazará el contenido)
+    // 3. Inmediatamente restaurar el HTML
+    // 4. Vue ya está montado y debería funcionar con el HTML restaurado
+    
+    const htmlBeforeMount = appElement.innerHTML;
+    console.log('💾 HTML guardado antes de mount (length:', htmlBeforeMount.length + ')');
     
     // Montar la aplicación
+    // Vue reemplazará el contenido, pero lo restauraremos inmediatamente
     const mountedApp = app.mount('#app');
+    
+    // Restaurar el HTML INMEDIATAMENTE después del mount
+    // Vue ya está montado y debería poder trabajar con el HTML restaurado
+    const appEl = document.getElementById('app');
+    if (appEl) {
+      console.log('🔄 Restaurando HTML después de mount...');
+      appEl.innerHTML = htmlBeforeMount;
+      console.log('✅ HTML restaurado. Vue debería funcionar ahora.');
+      console.log('📦 HTML restaurado (primeros 200 chars):', appEl.innerHTML.substring(0, 200) + '...');
+    }
     
     console.log('📦 HTML después de mount:', appElement.innerHTML.substring(0, 200) + '...');
     

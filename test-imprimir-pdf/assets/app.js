@@ -73,9 +73,18 @@ export default function createAppWithTemplate(template) {
   console.log('- Template recibido length:', template?.length || 0);
   console.log('- Template recibido (primeros 200 chars):', template?.substring(0, 200) || 'undefined');
   
+  // PROBLEMA: En Vue 3, cuando pasas un template string, Vue necesita compilarlo en runtime
+  // pero el compilador de templates en runtime no está incluido por defecto en builds de producción.
+  // 
+  // SOLUCIÓN: Usar una función render que retorne el contenido del DOM existente
+  // o simplemente NO definir template/render y dejar que Vue monte en el elemento existente.
+  // 
+  // En Vue 3, cuando montas sin template/render, Vue intenta usar el contenido del elemento
+  // como template, pero luego lo reemplaza. Necesitamos una estrategia diferente.
+  
   const app = createApp({
-    // Usar el template pasado como parámetro
-    template: template || undefined,
+    // NO definir template ni render - Vue montará en el elemento pero reemplazará el contenido
+    // La solución es restaurar el HTML después del mount (se hace en main.js)
     data() {
     return {
       // Autenticación
