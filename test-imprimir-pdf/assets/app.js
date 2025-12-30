@@ -347,14 +347,39 @@ export const appOptions = {
         // El token ya está disponible, cargar datos inmediatamente
         this._initDataPromise = (async () => {
           try {
+            // Asegurar que xubioClient esté inicializado
+            if (!this.xubioClient) {
+              this.xubioClient = useXubio(
+                (forceRefresh) => this.obtenerToken(forceRefresh),
+                () => this.tokenValido,
+                () => this.accessToken
+              );
+            }
+            
+            // Verificar que el token sigue siendo válido antes de cargar
+            if (!this.accessToken || !this.tokenValido) {
+              console.warn('⚠️ Token no válido, saltando carga automática');
+              return;
+            }
+            
+            // Cargar valores de configuración primero (puntos de venta, vendedores, etc.)
+            if (!this.valoresCargados) {
+              await this.cargarValoresConfiguracion();
+            }
+            
             // Cargar datos esenciales en paralelo
             await Promise.all([
               this.obtenerMonedas(),
               this.obtenerCotizacionDolar(true), // true = silencioso
               this.listarProductos(),  // Carga desde cache si está disponible
-              this.listarClientes(),    // Carga desde cache si está disponible
-              this.listarPuntosDeVenta() // Carga desde cache si está disponible
+              this.listarClientes()    // Carga desde cache si está disponible
             ]);
+            
+            // Si los puntos de venta no se cargaron en cargarValoresConfiguracion, intentar con listarPuntosDeVenta
+            if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
+              await this.listarPuntosDeVenta(); // Carga desde cache si está disponible
+            }
+            
             console.log('✅ Datos iniciales cargados (monedas + cotización + productos + clientes + puntos de venta)');
           } catch (error) {
             console.warn('⚠️ No se pudieron cargar todos los datos iniciales:', error);
@@ -2061,10 +2086,10 @@ export const appOptions = {
       try {
         // Intentar cargar desde cache primero (si no se fuerza refresh)
         if (!forceRefresh) {
-          const cached = cacheManager.get('puntosDeVenta');
-          if (cached) {
-            this.puntosDeVenta = cached.data;
-            const mensaje = `✅ ${cached.data.length} punto(s) de venta cargado(s) desde cache\n\n💡 Usa "Actualizar desde API" para obtener datos frescos.`;
+          const cached = cacheManager.getCachedData('puntosDeVenta');
+          if (cached && Array.isArray(cached) && cached.length > 0) {
+            this.puntosDeVenta = cached;
+            const mensaje = `✅ ${cached.length} punto(s) de venta cargado(s) desde cache\n\n💡 Usa "Actualizar desde API" para obtener datos frescos.`;
             this.mostrarResultado('puntosDeVentaResult', mensaje, 'success');
             this.isLoading = false;
             this.loadingContext = '';
@@ -2077,7 +2102,7 @@ export const appOptions = {
         
         if (puntosDeVenta && puntosDeVenta.length > 0) {
           // Guardar en cache
-          cacheManager.set('puntosDeVenta', puntosDeVenta, 3600000); // 1 hora
+          cacheManager.setCachedData('puntosDeVenta', puntosDeVenta, 3600000); // 1 hora
           
           const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
           const puntoVenta0004 = puntosDeVenta.find(pv => {
@@ -2156,8 +2181,25 @@ export const appOptions = {
      */
     obtenerPuntoVentaPorDefecto() {
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
+        // Filtrar solo puntos de venta que sean editable-sugerido (requerido por la API)
+        // La API requiere que el punto de venta tenga editable: true y sugerido: true
+        const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
+          // Verificar si tiene las propiedades editable y sugerido
+          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true;
+          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true;
+          // También aceptar si tiene editableSugerido como propiedad única
+          return (esEditable && esSugerido) || pv.editableSugerido === true;
+        });
+        
+        // Usar puntos editable-sugerido si existen, sino usar todos (fallback)
+        const puntosDisponibles = puntosEditableSugerido.length > 0 ? puntosEditableSugerido : this.puntosDeVenta;
+        
+        if (puntosEditableSugerido.length === 0) {
+          console.warn('⚠️ No se encontraron puntos de venta editable-sugerido. Usando todos los puntos de venta disponibles...');
+        }
+        
         // Buscar específicamente el punto de venta 0004 o 00004 (flexible)
-        const puntoVenta0004 = this.puntosDeVenta.find(pv => {
+        const puntoVenta0004 = puntosDisponibles.find(pv => {
           const codigo = (pv.puntoVenta || pv.codigo || '').toString().trim();
           return codigo === '0004' || codigo === '00004' || codigo === '4';
         });
@@ -2171,15 +2213,19 @@ export const appOptions = {
               id: puntoVentaId,
               puntoVentaId: puntoVentaId,
               nombre: puntoVenta0004.nombre || '',
-              codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || ''
+              codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || '',
+              // Agregar propiedades editable y sugerido (requeridas por la API)
+              editable: puntoVenta0004.editable !== undefined ? puntoVenta0004.editable : true,
+              sugerido: puntoVenta0004.sugerido !== undefined ? puntoVenta0004.sugerido : true,
+              editableSugerido: puntoVenta0004.editableSugerido !== undefined ? puntoVenta0004.editableSugerido : true
             };
           }
           // Si no tiene ID válido, continuar para usar el primero disponible
           console.warn('⚠️ Punto de venta 0004/00004 encontrado pero sin ID válido, usando el primero disponible');
         }
         
-        // Si no existe 0004/00004, usar el primero disponible
-        const puntoVenta = this.puntosDeVenta[0];
+        // Si no existe 0004/00004, usar el primero disponible de los puntos editable-sugerido
+        const puntoVenta = puntosDisponibles[0];
         console.log('ℹ️ Usando el primer punto de venta disponible:', puntoVenta);
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
         if (puntoVentaId) {
@@ -2188,14 +2234,18 @@ export const appOptions = {
             id: puntoVentaId,
             puntoVentaId: puntoVentaId,
             nombre: puntoVenta.nombre || '',
-            codigo: puntoVenta.codigo || puntoVenta.puntoVenta || ''
+            codigo: puntoVenta.codigo || puntoVenta.puntoVenta || '',
+            // Agregar propiedades editable y sugerido (requeridas por la API)
+            editable: puntoVenta.editable !== undefined ? puntoVenta.editable : true,
+            sugerido: puntoVenta.sugerido !== undefined ? puntoVenta.sugerido : true,
+            editableSugerido: puntoVenta.editableSugerido !== undefined ? puntoVenta.editableSugerido : true
           };
         }
         // Si no tiene ID válido, retornar fallback (como los otros métodos)
         console.error('❌ Punto de venta sin ID válido, usando fallback');
       }
       // Fallback si no hay puntos de venta cargados (igual que los otros métodos)
-      return { ID: 1, id: 1, puntoVentaId: 1, nombre: '', codigo: '' };
+      return { ID: 1, id: 1, puntoVentaId: 1, nombre: '', codigo: '', editable: true, sugerido: true, editableSugerido: true };
     },
 
     /**
