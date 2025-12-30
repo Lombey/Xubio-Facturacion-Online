@@ -224,7 +224,7 @@ export const appOptions = {
     puntoVentaSeleccionado() {
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
       return {
-        id: puntoVenta.ID || puntoVenta.id,
+        id: puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id,
         nombre: puntoVenta.nombre || 'No disponible',
         codigo: puntoVenta.codigo || ''
       };
@@ -901,17 +901,16 @@ export const appOptions = {
       }
 
       // Validar que el punto de venta esté disponible
-      let puntoVenta;
-      try {
-        puntoVenta = this.obtenerPuntoVentaPorDefecto();
-        if (!puntoVenta || (!puntoVenta.ID && !puntoVenta.id && !puntoVenta.puntoVentaId)) {
-          this.mostrarResultado('factura', 'Error: No se pudo obtener un punto de venta válido. Por favor, verifica tu configuración en Xubio.', 'error');
-          this.isLoading = false;
-          this.loadingContext = '';
-          return;
-        }
-      } catch (error) {
-        this.mostrarResultado('factura', `Error: ${error.message}`, 'error');
+      if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
+        this.mostrarResultado('factura', 'Error: No hay puntos de venta cargados. Por favor, lista los puntos de venta desde la sección "2.6. Puntos de Venta" primero.', 'error');
+        this.isLoading = false;
+        this.loadingContext = '';
+        return;
+      }
+      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
+      const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+      if (!puntoVentaId) {
+        this.mostrarResultado('factura', 'Error: No se pudo obtener un ID válido del punto de venta. Verifica tu configuración en Xubio.', 'error');
         this.isLoading = false;
         this.loadingContext = '';
         return;
@@ -2165,10 +2164,7 @@ export const appOptions = {
         if (puntoVenta0004) {
           console.log('✅ Usando punto de venta 0004/00004:', puntoVenta0004);
           const puntoVentaId = puntoVenta0004.puntoVentaId || puntoVenta0004.ID || puntoVenta0004.id || puntoVenta0004.puntoVenta_id;
-          if (!puntoVentaId) {
-            console.error('❌ Punto de venta encontrado pero sin ID válido:', puntoVenta0004);
-            // Continuar para usar el primero disponible
-          } else {
+          if (puntoVentaId) {
             return {
               ID: puntoVentaId,
               id: puntoVentaId,
@@ -2177,27 +2173,28 @@ export const appOptions = {
               codigo: puntoVenta0004.codigo || puntoVenta0004.puntoVenta || ''
             };
           }
+          // Si no tiene ID válido, continuar para usar el primero disponible
+          console.warn('⚠️ Punto de venta 0004/00004 encontrado pero sin ID válido, usando el primero disponible');
         }
         
         // Si no existe 0004/00004, usar el primero disponible
         const puntoVenta = this.puntosDeVenta[0];
         console.warn('⚠️ Punto de venta 0004/00004 no encontrado, usando el primero disponible:', puntoVenta);
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
-        if (!puntoVentaId) {
-          console.error('❌ Punto de venta sin ID válido:', puntoVenta);
-          throw new Error('No se pudo obtener un ID válido del punto de venta. Verifica que los puntos de venta tengan el campo puntoVentaId configurado.');
+        if (puntoVentaId) {
+          return {
+            ID: puntoVentaId,
+            id: puntoVentaId,
+            puntoVentaId: puntoVentaId,
+            nombre: puntoVenta.nombre || '',
+            codigo: puntoVenta.codigo || puntoVenta.puntoVenta || ''
+          };
         }
-        return {
-          ID: puntoVentaId,
-          id: puntoVentaId,
-          puntoVentaId: puntoVentaId,
-          nombre: puntoVenta.nombre || '',
-          codigo: puntoVenta.codigo || puntoVenta.puntoVenta || ''
-        };
+        // Si no tiene ID válido, retornar fallback (como los otros métodos)
+        console.error('❌ Punto de venta sin ID válido, usando fallback');
       }
-      // Fallback si no hay puntos de venta cargados
-      console.error('❌ No hay puntos de venta cargados. Por favor, lista los puntos de venta primero.');
-      throw new Error('No hay puntos de venta cargados. Por favor, lista los puntos de venta desde la sección "2.6. Puntos de Venta" primero.');
+      // Fallback si no hay puntos de venta cargados (igual que los otros métodos)
+      return { ID: 1, id: 1, puntoVentaId: 1 };
     },
 
     /**
