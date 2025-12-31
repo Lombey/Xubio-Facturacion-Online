@@ -88,39 +88,39 @@ export function filtrarProductos(productos, busqueda) {
  * @property {number} [puntoVentaId]
  * @property {number} [ID]
  * @property {number} [id]
- * @property {boolean|number} [editable] - La API puede devolver 1/0 o true/false
- * @property {boolean|number} [sugerido] - La API puede devolver 1/0 o true/false
- * @property {boolean|number} [editableSugerido] - La API puede devolver 1/0 o true/false
+ * @property {number | string | boolean | undefined} [activo] - La API devuelve 1 (activo) o 0 (inactivo), pero puede venir como string o boolean
  */
 
 /**
  * Filtra puntos de venta según búsqueda (por nombre, código o punto de venta)
- * Solo muestra puntos editable-sugerido (requerido por la API)
+ * Solo muestra puntos activos (activo=1 según swagger.json de Xubio)
  * @param {PuntoVentaParaFiltro[] | null | undefined} puntosDeVenta - Array de puntos de venta
  * @param {string | null | undefined} busqueda - Texto de búsqueda
- * @returns {PuntoVentaParaFiltro[] | null | undefined} Array de puntos de venta filtrados (solo editable-sugerido)
+ * @returns {PuntoVentaParaFiltro[] | null | undefined} Array de puntos de venta filtrados (solo activos)
  */
 export function filtrarPuntosDeVenta(puntosDeVenta, busqueda) {
   if (!Array.isArray(puntosDeVenta)) {
     return [];
   }
-  
-  // Primero filtrar solo puntos editable-sugerido (requerido por la API)
-  const puntosEditableSugerido = puntosDeVenta.filter(pv => {
-    const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-    const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-    return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+
+  // Filtrar solo puntos de venta activos (activo=1 según swagger.json)
+  // NOTA: Los campos editable/sugerido NO existen en la API real (verificado en swagger.json)
+  const puntosActivos = puntosDeVenta.filter(pv => {
+    // activo viene como integer (1 o 0) según swagger.json
+    const esActivo = pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+    // Si no tiene campo activo, asumimos que está activo (para compatibilidad)
+    return pv.activo === undefined || esActivo;
   });
-  
-  // Si no hay búsqueda, retornar todos los editable-sugerido
+
+  // Si no hay búsqueda, retornar todos los activos
   if (!busqueda || !busqueda.trim()) {
-    return puntosEditableSugerido;
+    return puntosActivos;
   }
   
   // Filtrar por búsqueda
   const busquedaLower = busqueda.toLowerCase();
   
-  return puntosEditableSugerido.filter(pv => {
+  return puntosActivos.filter(pv => {
     const nombre = (pv.nombre || '').toLowerCase();
     const codigo = (pv.codigo || '').toLowerCase();
     const puntoVenta = (pv.puntoVenta || '').toLowerCase();

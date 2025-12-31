@@ -37,3 +37,12 @@ cerrados/
 
 # IDE - Cursor (descomentar si no quieres compartir config)
 # .cursor/
+
+# IDE - Claude
+.claude/
+
+# Archivos especiales de Windows (nul, con, prn, etc. son nombres reservados)
+nul
+con
+prn
+aux

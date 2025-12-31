@@ -26,6 +26,7 @@ module.exports = [
         localStorage: 'readonly',
         fetch: 'readonly',
         alert: 'readonly',
+        confirm: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         setInterval: 'readonly',

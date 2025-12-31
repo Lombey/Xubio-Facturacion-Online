@@ -149,7 +149,14 @@ export const appOptions = {
       circuitosContables: [],
       puntosDeVenta: [],
       valoresCargados: false, // Flag para saber si ya se cargaron los valores
-      
+
+      // Diagnóstico de Punto de Venta
+      mostrarDiagnosticoPV: false,
+      mostrarDatosCrudosPV: false,
+      campoIdActivo: 'auto', // 'auto', 'puntoVentaId', 'ID', 'id', 'puntoVenta_id', etc.
+      campoEditableActivo: 'auto', // 'auto', 'editable+sugerido', 'editableSugerido', etc.
+      logDiagnosticoPV: [],
+
       // Estados de carga y error
       isLoading: false,
       loadingContext: '',
@@ -348,7 +355,9 @@ export const appOptions = {
     },
     
     /**
-     * Valida si el punto de venta es válido (editable-sugerido con ID válido)
+     * Valida si el punto de venta es válido (activo con ID válido)
+     * NOTA: Los campos editable/sugerido NO existen en la API real (verificado en swagger.json)
+     * Solo existe el campo 'activo' (integer: 1=activo, 0=inactivo)
      * @returns {boolean}
      */
     puntoVentaValido() {
@@ -356,32 +365,123 @@ export const appOptions = {
       if (this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        return puntoVentaId && ((esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1));
+        // Solo verificamos que tenga ID y esté activo (o no tenga campo activo = asumimos activo)
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        return !!puntoVentaId && esActivo;
       }
-      
+
       // Si no hay selección manual, validar el automático
       if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
         return false;
       }
-      
-      // Verificar que haya puntos de venta editable-sugerido
-      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+
+      // Verificar que haya puntos de venta activos
+      const puntosActivos = this.puntosDeVenta.filter(pv => {
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        return esActivo;
       });
-      
-      if (puntosEditableSugerido.length === 0) {
+
+      if (puntosActivos.length === 0) {
         return false;
       }
-      
+
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      const puntoVentaId = puntoVenta.ID || puntoVenta.id;
-      
-      // Verificar que tenga ID válido (ya se verificó que es editable-sugerido en el filtro anterior)
+      const puntoVentaId = puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVentaId;
+
+      // Verificar que tenga ID válido
       return !!puntoVentaId;
+    },
+
+    /**
+     * Lista de campos de ID posibles para probar en diagnóstico
+     */
+    camposIdPosibles() {
+      const pv = this.puntoVentaSeleccionadoParaFactura || {};
+      return [
+        { campo: 'auto', label: 'Auto (actual)', valor: pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id },
+        { campo: 'puntoVentaId', label: 'puntoVentaId', valor: pv.puntoVentaId },
+        { campo: 'ID', label: 'ID (mayúscula)', valor: pv.ID },
+        { campo: 'id', label: 'id (minúscula)', valor: pv.id },
+        { campo: 'puntoVenta_id', label: 'puntoVenta_id', valor: pv.puntoVenta_id },
+        { campo: 'punto_venta_id', label: 'punto_venta_id', valor: pv.punto_venta_id },
+        { campo: 'pv_id', label: 'pv_id', valor: pv.pv_id },
+        { campo: 'pvId', label: 'pvId', valor: pv.pvId },
+        { campo: 'codigo', label: 'codigo (como ID)', valor: pv.codigo },
+        { campo: 'puntoVenta', label: 'puntoVenta (campo)', valor: pv.puntoVenta }
+      ];
+    },
+
+    /**
+     * Lista de campos editable/sugerido posibles para probar
+     */
+    camposEditablePosibles() {
+      const pv = this.puntoVentaSeleccionadoParaFactura || {};
+      return [
+        { campo: 'auto', label: 'Auto (actual)', valor: this.evaluarEditableSugeridoActual(pv) },
+        { campo: 'editable+sugerido', label: 'editable + sugerido', valor: `${pv.editable} + ${pv.sugerido}` },
+        { campo: 'editableSugerido', label: 'editableSugerido', valor: pv.editableSugerido },
+        { campo: 'editable_sugerido', label: 'editable_sugerido', valor: pv.editable_sugerido },
+        { campo: 'esEditable', label: 'esEditable', valor: pv.esEditable },
+        { campo: 'esSugerido', label: 'esSugerido', valor: pv.esSugerido },
+        { campo: 'activo', label: 'activo', valor: pv.activo },
+        { campo: 'habilitado', label: 'habilitado', valor: pv.habilitado },
+        { campo: 'estado', label: 'estado', valor: pv.estado },
+        { campo: 'forzar-true', label: '🔧 Forzar TRUE', valor: 'forzado' }
+      ];
+    },
+
+    /**
+     * Resultado del diagnóstico actual
+     */
+    diagnosticoPVResultado() {
+      const pv = this.puntoVentaSeleccionadoParaFactura;
+      if (!pv) {
+        return { valido: false, idEncontrado: null, campoIdUsado: null, esEditable: false, esSugerido: false, campoEditableUsado: null };
+      }
+
+      // Obtener ID según campo seleccionado
+      let idEncontrado = null;
+      let campoIdUsado = null;
+
+      if (this.campoIdActivo === 'auto') {
+        idEncontrado = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+        campoIdUsado = pv.puntoVentaId ? 'puntoVentaId' : (pv.ID ? 'ID' : (pv.id ? 'id' : (pv.puntoVenta_id ? 'puntoVenta_id' : 'ninguno')));
+      } else {
+        idEncontrado = pv[this.campoIdActivo];
+        campoIdUsado = this.campoIdActivo;
+      }
+
+      // Evaluar editable/sugerido según campo seleccionado
+      let esEditable = false;
+      let esSugerido = false;
+      let campoEditableUsado = null;
+
+      if (this.campoEditableActivo === 'auto') {
+        esEditable = this.evaluarBooleano(pv.editable) || this.evaluarBooleano(pv.editableSugerido);
+        esSugerido = this.evaluarBooleano(pv.sugerido) || this.evaluarBooleano(pv.editableSugerido);
+        campoEditableUsado = 'auto (editable+sugerido o editableSugerido)';
+      } else if (this.campoEditableActivo === 'editable+sugerido') {
+        esEditable = this.evaluarBooleano(pv.editable);
+        esSugerido = this.evaluarBooleano(pv.sugerido);
+        campoEditableUsado = 'editable + sugerido';
+      } else if (this.campoEditableActivo === 'editableSugerido') {
+        esEditable = this.evaluarBooleano(pv.editableSugerido);
+        esSugerido = this.evaluarBooleano(pv.editableSugerido);
+        campoEditableUsado = 'editableSugerido';
+      } else if (this.campoEditableActivo === 'forzar-true') {
+        esEditable = true;
+        esSugerido = true;
+        campoEditableUsado = 'FORZADO a true';
+      } else {
+        const valor = pv[this.campoEditableActivo];
+        esEditable = this.evaluarBooleano(valor);
+        esSugerido = this.evaluarBooleano(valor);
+        campoEditableUsado = this.campoEditableActivo;
+      }
+
+      const valido = !!idEncontrado && esEditable && esSugerido;
+
+      return { valido, idEncontrado, campoIdUsado, esEditable, esSugerido, campoEditableUsado };
     }
   },
   async mounted() {
@@ -539,7 +639,134 @@ export const appOptions = {
     setCachedData(key, data, ttl) {
       return cacheManager.setCachedData(key, data, ttl);
     },
-    
+
+    // ==========================================
+    // MÉTODOS DE DIAGNÓSTICO DE PUNTO DE VENTA
+    // ==========================================
+
+    /**
+     * Toggle para mostrar/ocultar datos crudos del PV
+     */
+    toggleDatosCrudosPV() {
+      this.mostrarDatosCrudosPV = !this.mostrarDatosCrudosPV;
+    },
+
+    /**
+     * Evalúa un valor como booleano (maneja strings, numbers, booleans)
+     */
+    evaluarBooleano(valor) {
+      if (valor === true || valor === 1 || valor === '1' || valor === 'true' || valor === 'TRUE' || valor === 'True') {
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Evalúa el estado editable-sugerido actual de un PV
+     */
+    evaluarEditableSugeridoActual(pv) {
+      if (!pv) return 'N/A';
+      const esEditable = this.evaluarBooleano(pv.editable) || this.evaluarBooleano(pv.editableSugerido);
+      const esSugerido = this.evaluarBooleano(pv.sugerido) || this.evaluarBooleano(pv.editableSugerido);
+      return `Editable: ${esEditable}, Sugerido: ${esSugerido}`;
+    },
+
+    /**
+     * Prueba un campo ID específico
+     */
+    probarCampoId(campo) {
+      this.campoIdActivo = campo;
+      const pv = this.puntoVentaSeleccionadoParaFactura;
+      const valor = campo === 'auto' ? (pv?.puntoVentaId || pv?.ID || pv?.id || pv?.puntoVenta_id) : pv?.[campo];
+
+      this.logDiagnosticoPV.unshift({
+        mensaje: `[${new Date().toLocaleTimeString()}] Probando campo ID: ${campo} = ${valor}`,
+        exito: !!valor
+      });
+
+      console.log(`🔧 Diagnóstico PV - Probando campo ID: ${campo}`, { campo, valor, pv });
+    },
+
+    /**
+     * Prueba un campo editable/sugerido específico
+     */
+    probarCampoEditable(campo) {
+      this.campoEditableActivo = campo;
+      const pv = this.puntoVentaSeleccionadoParaFactura;
+      let valor;
+
+      if (campo === 'auto') {
+        valor = this.evaluarEditableSugeridoActual(pv);
+      } else if (campo === 'editable+sugerido') {
+        valor = `editable=${pv?.editable}, sugerido=${pv?.sugerido}`;
+      } else if (campo === 'forzar-true') {
+        valor = 'FORZADO a true';
+      } else {
+        valor = pv?.[campo];
+      }
+
+      this.logDiagnosticoPV.unshift({
+        mensaje: `[${new Date().toLocaleTimeString()}] Probando campo Editable: ${campo} = ${valor}`,
+        exito: campo === 'forzar-true' || this.evaluarBooleano(valor)
+      });
+
+      console.log(`🔧 Diagnóstico PV - Probando campo Editable: ${campo}`, { campo, valor, pv });
+    },
+
+    /**
+     * Limpia el log de diagnóstico
+     */
+    limpiarLogDiagnostico() {
+      this.logDiagnosticoPV = [];
+    },
+
+    /**
+     * Aplica la configuración de diagnóstico encontrada como fix permanente
+     */
+    aplicarConfiguracionPV() {
+      const resultado = this.diagnosticoPVResultado;
+      if (!resultado.valido) {
+        alert('La configuración actual no es válida. Encuentra primero una combinación que funcione.');
+        return;
+      }
+
+      // Mostrar instrucciones para el fix
+      const instrucciones = `
+¡Configuración válida encontrada!
+
+Campo ID: ${this.campoIdActivo} (valor: ${resultado.idEncontrado})
+Campo Editable: ${this.campoEditableActivo}
+
+Para aplicar este fix permanentemente, necesitamos actualizar:
+1. La función puntoVentaValido() en app.js
+2. La función filtrarPuntosDeVenta() en domain-filters.js
+
+¿Quieres que muestre los detalles en la consola?
+      `.trim();
+
+      if (confirm(instrucciones)) {
+        console.log('='.repeat(60));
+        console.log('FIX PARA PUNTO DE VENTA');
+        console.log('='.repeat(60));
+        console.log('Configuración encontrada:');
+        console.log('  Campo ID:', this.campoIdActivo);
+        console.log('  Campo Editable:', this.campoEditableActivo);
+        console.log('');
+        console.log('Datos del punto de venta:');
+        console.log(JSON.stringify(this.puntoVentaSeleccionadoParaFactura, null, 2));
+        console.log('='.repeat(60));
+      }
+
+      this.logDiagnosticoPV.unshift({
+        mensaje: `[${new Date().toLocaleTimeString()}] ✅ Configuración válida aplicada: ID=${this.campoIdActivo}, Editable=${this.campoEditableActivo}`,
+        exito: true
+      });
+    },
+
+    // ==========================================
+    // FIN MÉTODOS DE DIAGNÓSTICO
+    // ==========================================
+
     /**
      * Invalida un cache específico
      * @param {string} key - Clave del cache a invalidar
@@ -1068,58 +1295,51 @@ export const appOptions = {
         return;
       }
       
-      // Verificar que haya puntos de venta editable-sugerido
-      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      // Verificar que haya puntos de venta activos
+      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
+      const puntosActivos = this.puntosDeVenta.filter(pv => {
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        return esActivo;
       });
-      
-      if (puntosEditableSugerido.length === 0) {
-        this.mostrarResultado('factura', 
-          'Error: No se encontraron puntos de venta editable-sugerido.\n\n' +
-          'La API de Xubio requiere que el punto de venta tenga las propiedades:\n' +
-          '• editable: true\n' +
-          '• sugerido: true\n\n' +
-          'Por favor, verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+
+      if (puntosActivos.length === 0) {
+        this.mostrarResultado('factura',
+          'Error: No se encontraron puntos de venta activos.\n\n' +
+          'Verifica en Xubio que al menos un punto de venta esté activo.',
           'error'
         );
         this.isLoading = false;
         this.loadingContext = '';
         return;
       }
-      
+
       // Validar punto de venta seleccionado (manual o automático)
       let puntoVentaValido = false;
       let puntoVentaId = null;
-      
+
       // Si hay un punto de venta seleccionado manualmente, validarlo
       if (this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        puntoVentaValido = puntoVentaId && ((esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1));
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        puntoVentaValido = !!puntoVentaId && esActivo;
       } else {
         // Si no hay selección manual, usar el método automático
         const puntoVenta = this.obtenerPuntoVentaPorDefecto();
         puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
-        // El método obtenerPuntoVentaPorDefecto() ya filtra solo editable-sugerido
         puntoVentaValido = !!puntoVentaId;
       }
-      
+
       if (!puntoVentaValido) {
-        this.mostrarResultado('factura', 
-          'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
-          'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+        this.mostrarResultado('factura',
+          'Error: No se pudo obtener un punto de venta válido.\n\n' +
+          'Verifica que hayas seleccionado un punto de venta activo.',
           'error'
         );
         this.isLoading = false;
         this.loadingContext = '';
         return;
       }
-      
-      const puntoVenta = this.obtenerPuntoVentaPorDefecto();
 
       this.isLoading = true;
       this.loadingContext = 'Creando factura...';
@@ -1447,32 +1667,28 @@ export const appOptions = {
         return;
       }
       
-      // Verificar que haya puntos de venta editable-sugerido
-      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      // Verificar que haya puntos de venta activos
+      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
+      const puntosActivos = this.puntosDeVenta.filter(pv => {
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        return esActivo;
       });
-      
-      if (puntosEditableSugerido.length === 0) {
-        this.mostrarResultado('factura', 
-          'Error: No se encontraron puntos de venta editable-sugerido.\n\n' +
-          'La API de Xubio requiere que el punto de venta tenga las propiedades:\n' +
-          '• editable: true\n' +
-          '• sugerido: true\n\n' +
-          'Por favor, verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+
+      if (puntosActivos.length === 0) {
+        this.mostrarResultado('factura',
+          'Error: No se encontraron puntos de venta activos.\n\n' +
+          'Verifica en Xubio que al menos un punto de venta esté activo.',
           'error'
         );
         return;
       }
-      
+
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      // Verificar que el punto de venta tenga un ID válido (ya se verificó que es editable-sugerido en el filtro anterior)
-      const puntoVentaId = puntoVenta.ID || puntoVenta.id;
+      const puntoVentaId = puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVentaId;
       if (!puntoVentaId) {
-        this.mostrarResultado('factura', 
-          'Error: No se pudo obtener un punto de venta válido con editable=true y sugerido=true.\n\n' +
-          'Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.', 
+        this.mostrarResultado('factura',
+          'Error: No se pudo obtener un punto de venta válido.\n\n' +
+          'Verifica que hayas seleccionado un punto de venta activo.',
           'error'
         );
         return;
@@ -2154,37 +2370,37 @@ export const appOptions = {
         return;
       }
       
-      // Filtrar solo puntos editable-sugerido (requerido por la API)
-      const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-        const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-        return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+      // Filtrar solo puntos de venta activos
+      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
+      const puntosActivos = this.puntosDeVenta.filter(pv => {
+        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        return esActivo;
       });
-      
-      if (puntosEditableSugerido.length === 0) {
-        console.warn('⚠️ No se encontraron puntos de venta editable-sugerido');
+
+      if (puntosActivos.length === 0) {
+        console.warn('⚠️ No se encontraron puntos de venta activos');
         this.puntoVentaSeleccionadoId = null;
         this.puntoVentaSeleccionadoParaFactura = null;
         return;
       }
-      
+
       // Buscar primero por ID 212819
-      let puntoVentaSeleccionado = puntosEditableSugerido.find(pv => {
+      let puntoVentaSeleccionado = puntosActivos.find(pv => {
         const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
         return pvId === 212819 || pvId === '212819';
       });
-      
+
       // Si no se encuentra por ID, buscar por campo "Punto de Venta" que contenga 00004
       if (!puntoVentaSeleccionado) {
-        puntoVentaSeleccionado = puntosEditableSugerido.find(pv => {
+        puntoVentaSeleccionado = puntosActivos.find(pv => {
           const puntoVenta = (pv.puntoVenta || '').toString().trim();
           return puntoVenta === '00004' || puntoVenta.includes('00004');
         });
       }
-      
+
       // Si tampoco se encuentra, usar el primero disponible
       if (!puntoVentaSeleccionado) {
-        puntoVentaSeleccionado = puntosEditableSugerido[0];
+        puntoVentaSeleccionado = puntosActivos[0];
       }
       
       if (puntoVentaSeleccionado) {
@@ -2560,33 +2776,33 @@ export const appOptions = {
       
       // Si no hay selección manual, usar la lógica automática
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
-        // Filtrar SOLO puntos de venta que sean editable-sugerido (requerido por la API)
-        const puntosEditableSugerido = this.puntosDeVenta.filter(pv => {
-          const esEditable = pv.editable === true || pv.editable === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-          const esSugerido = pv.sugerido === true || pv.sugerido === 1 || pv.editableSugerido === true || pv.editableSugerido === 1;
-          return (esEditable && esSugerido) || (pv.editableSugerido === true || pv.editableSugerido === 1);
+        // Filtrar solo puntos de venta activos
+        // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
+        const puntosActivos = this.puntosDeVenta.filter(pv => {
+          const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+          return esActivo;
         });
-        
-        if (puntosEditableSugerido.length === 0) {
-          console.error('❌ No se encontraron puntos de venta editable-sugerido. La API requiere puntos con editable=true y sugerido=true');
+
+        if (puntosActivos.length === 0) {
+          console.error('❌ No se encontraron puntos de venta activos');
           return { ID: null, id: null, nombre: '', codigo: '' };
         }
-        
+
         // Buscar primero por ID 212819, luego por campo "Punto de Venta" 00004
-        let puntoVenta = puntosEditableSugerido.find(pv => {
+        let puntoVenta = puntosActivos.find(pv => {
           const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
           return pvId === 212819 || pvId === '212819';
         });
-        
+
         if (!puntoVenta) {
-          puntoVenta = puntosEditableSugerido.find(pv => {
+          puntoVenta = puntosActivos.find(pv => {
             const puntoVenta = (pv.puntoVenta || '').toString().trim();
             return puntoVenta === '00004' || puntoVenta.includes('00004');
           });
         }
-        
+
         if (!puntoVenta) {
-          puntoVenta = puntosEditableSugerido[0];
+          puntoVenta = puntosActivos[0];
         }
         
         if (puntoVenta) {

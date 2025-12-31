@@ -105,6 +105,116 @@
       </div>
     </div>
 
+    <!-- Sección 2.7: Diagnóstico de Punto de Venta -->
+    <div class="section" v-if="mostrarDiagnosticoPV">
+      <h2>🔧 2.7. Diagnóstico de Punto de Venta</h2>
+      <div class="info" style="background: #fff3cd; border-color: #ffc107;">
+        <strong>🔍 Guía de diagnóstico:</strong><br>
+        1. Primero revisa los "Datos crudos" para ver qué campos tiene el punto de venta<br>
+        2. Prueba diferentes "Campo ID" hasta que uno muestre un valor válido<br>
+        3. Prueba diferentes "Campo Editable/Sugerido" hasta encontrar el correcto<br>
+        4. Cuando encuentres la combinación correcta, el estado cambiará a ✅ Válido
+      </div>
+
+      <!-- Toggle para mostrar/ocultar datos crudos -->
+      <div style="margin-top: 15px;">
+        <button @click="toggleDatosCrudosPV" class="test-btn">
+          {{ mostrarDatosCrudosPV ? '🔽 Ocultar' : '▶️ Mostrar' }} Datos Crudos del Punto de Venta
+        </button>
+      </div>
+
+      <!-- Datos crudos del punto de venta -->
+      <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"
+           style="margin-top: 10px; padding: 15px; background: #1e1e1e; border-radius: 8px; overflow-x: auto;">
+        <pre style="color: #d4d4d4; margin: 0; font-size: 12px; white-space: pre-wrap;">{{ JSON.stringify(puntoVentaSeleccionadoParaFactura, null, 2) }}</pre>
+      </div>
+      <div v-else-if="mostrarDatosCrudosPV && !puntoVentaSeleccionadoParaFactura"
+           style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+        ⚠️ No hay punto de venta seleccionado. Selecciona uno primero.
+      </div>
+
+      <!-- Estado actual de validación -->
+      <div style="margin-top: 15px; padding: 15px; border-radius: 8px;"
+           :style="diagnosticoPVResultado.valido ? 'background: #d4edda; border: 1px solid #28a745;' : 'background: #f8d7da; border: 1px solid #dc3545;'">
+        <div style="font-weight: bold; margin-bottom: 10px;">
+          {{ diagnosticoPVResultado.valido ? '✅ VÁLIDO' : '❌ INVÁLIDO' }} - Estado actual
+        </div>
+        <div style="font-size: 13px;">
+          <div><strong>ID encontrado:</strong> {{ diagnosticoPVResultado.idEncontrado || 'ninguno' }}</div>
+          <div><strong>Campo ID usado:</strong> {{ diagnosticoPVResultado.campoIdUsado || 'ninguno' }}</div>
+          <div><strong>Es Editable:</strong> {{ diagnosticoPVResultado.esEditable ? '✅ Sí' : '❌ No' }}</div>
+          <div><strong>Es Sugerido:</strong> {{ diagnosticoPVResultado.esSugerido ? '✅ Sí' : '❌ No' }}</div>
+          <div><strong>Campo Editable usado:</strong> {{ diagnosticoPVResultado.campoEditableUsado || 'ninguno' }}</div>
+        </div>
+      </div>
+
+      <!-- Selector de campo ID a probar -->
+      <div style="margin-top: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">🆔 Probar Campo ID:</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button v-for="campo in camposIdPosibles" :key="campo.campo"
+                  @click="probarCampoId(campo.campo)"
+                  :class="['test-btn', { 'btn-success': campoIdActivo === campo.campo }]"
+                  :style="campoIdActivo === campo.campo ? 'background: #28a745; color: white;' : ''">
+            {{ campo.label }}
+            <span v-if="campo.valor !== undefined" style="font-size: 10px; display: block;">
+              = {{ campo.valor === null || campo.valor === undefined ? 'null' : campo.valor }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Selector de campo editable/sugerido a probar -->
+      <div style="margin-top: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">✏️ Probar Campo Editable/Sugerido:</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <button v-for="campo in camposEditablePosibles" :key="campo.campo"
+                  @click="probarCampoEditable(campo.campo)"
+                  :class="['test-btn', { 'btn-success': campoEditableActivo === campo.campo }]"
+                  :style="campoEditableActivo === campo.campo ? 'background: #28a745; color: white;' : ''">
+            {{ campo.label }}
+            <span v-if="campo.valor !== undefined" style="font-size: 10px; display: block;">
+              = {{ campo.valor === null || campo.valor === undefined ? 'null' : String(campo.valor) }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Aplicar configuración encontrada -->
+      <div v-if="diagnosticoPVResultado.valido" style="margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 8px; border: 2px solid #28a745;">
+        <div style="font-weight: bold; color: #155724; margin-bottom: 10px;">
+          🎉 ¡Encontraste la configuración correcta!
+        </div>
+        <div style="font-size: 13px; color: #155724; margin-bottom: 10px;">
+          Campo ID: <code>{{ campoIdActivo }}</code> | Campo Editable: <code>{{ campoEditableActivo }}</code>
+        </div>
+        <button @click="aplicarConfiguracionPV" class="btn-secondary" style="background: #28a745;">
+          💾 Aplicar esta configuración permanentemente
+        </button>
+      </div>
+
+      <!-- Log de pruebas -->
+      <div v-if="logDiagnosticoPV.length > 0" style="margin-top: 15px;">
+        <label style="font-weight: bold; display: block; margin-bottom: 8px;">📋 Log de pruebas:</label>
+        <div style="max-height: 150px; overflow-y: auto; padding: 10px; background: #f8f9fa; border-radius: 4px; font-size: 12px;">
+          <div v-for="(log, index) in logDiagnosticoPV" :key="index"
+               :style="log.exito ? 'color: #28a745;' : 'color: #dc3545;'">
+            {{ log.mensaje }}
+          </div>
+        </div>
+        <button @click="limpiarLogDiagnostico" class="test-btn" style="margin-top: 5px;">🗑️ Limpiar log</button>
+      </div>
+    </div>
+
+    <!-- Toggle para mostrar/ocultar diagnóstico -->
+    <div style="text-align: center; margin: 10px 0;">
+      <button @click="mostrarDiagnosticoPV = !mostrarDiagnosticoPV"
+              class="test-btn"
+              style="background: #6c757d; color: white;">
+        {{ mostrarDiagnosticoPV ? '🔽 Ocultar' : '🔧 Mostrar' }} Diagnóstico de Punto de Venta
+      </button>
+    </div>
+
     <!-- Sección 3: Flujo Completo - Factura -->
     <div class="section">
       <h2>3. Flujo Completo: Factura → PDF</h2>
@@ -410,12 +520,11 @@
           <li v-if="!facturaMoneda">❌ Moneda seleccionada</li>
           <li v-if="!puntosDeVenta || puntosDeVenta.length === 0">❌ Puntos de venta cargados (usa "Listar Puntos de Venta" en la sección 2.6)</li>
           <li v-if="puntosDeVenta && puntosDeVenta.length > 0 && !puntoVentaValido">
-            ❌ Punto de venta editable-sugerido válido
+            ❌ Punto de venta activo con ID válido
             <div style="margin-left: 20px; margin-top: 5px; font-size: 12px; color: #856404;">
-              La API requiere que el punto de venta tenga:<br>
-              • editable: true<br>
-              • sugerido: true<br>
-              Verifica en Xubio que al menos un punto de venta tenga estas propiedades activas.
+              Verifica que el punto de venta seleccionado:<br>
+              • Tenga un ID válido (puntoVentaId)<br>
+              • Esté activo en Xubio
             </div>
           </li>
           <li v-if="facturaMoneda && facturaMoneda !== 'ARS' && facturaMoneda !== 'PESOS_ARGENTINOS' && (!facturaCotizacion || parseFloat(facturaCotizacion) <= 0)">

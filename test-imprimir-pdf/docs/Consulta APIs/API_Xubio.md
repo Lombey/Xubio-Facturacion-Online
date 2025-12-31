@@ -1,10 +1,10 @@
 # Documentación de la API Xubio
 
 Esta documentación resume la información obtenida de la documentación oficial de la API de Xubio:
+- **Swagger JSON** (fuente de verdad): `https://xubio.com/API/1.1/swagger.json`
 - **Documentación interactiva**: `https://xubio.com/API/documentation/index.html`
-- **Swagger JSON**: `https://xubio.com/API/1.1/swagger.json`
 
-Para cada recurso se indican las operaciones disponibles, la ruta del servicio, el método HTTP, los parámetros (nombre y descripción) y un resumen del objeto de respuesta/solicitud. Esta documentación ha sido completada y actualizada con información detallada del swagger.json oficial.
+Para cada recurso se indican las operaciones disponibles, la ruta del servicio, el método HTTP, los parámetros (nombre y descripción) y un resumen del objeto de respuesta/solicitud. Esta documentación ha sido completada y actualizada con información detallada del swagger.json oficial, que es la fuente de verdad técnica de la API.
 
 ---
 
@@ -14,8 +14,10 @@ La API de Xubio utiliza autenticación OAuth2 con el flujo **Client Credentials*
 
 ### Configuración Base
 
-- **Base URL**: `https://xubio.com/API/1.1`
-- **Token Endpoint**: `https://xubio.com/API/1.1/TokenEndpoint`
+- **Base URL**: `https://xubio.com/API/1.1` (o `https://xubio.com:443/API/1.1`)
+- **Token Endpoint**: `https://xubio.com:443/API/1.1/TokenEndpoint` (según swagger.json oficial)
+- **Versión de la API**: 1.1
+- **Especificación Swagger**: 2.0
 
 ### Obtención del Token de Acceso
 
@@ -25,7 +27,7 @@ La API de Xubio utiliza autenticación OAuth2 con el flujo **Client Credentials*
 
 * **Método:** POST
 
-* **URL:** `https://xubio.com/API/1.1/TokenEndpoint`
+* **URL:** `https://xubio.com:443/API/1.1/TokenEndpoint` (según swagger.json oficial)
 
 * **Headers:**
   | Nombre | Valor | Descripción |
@@ -64,7 +66,7 @@ La API de Xubio utiliza autenticación OAuth2 con el flujo **Client Credentials*
     payload: 'grant_type=client_credentials'
   };
   
-  const response = UrlFetchApp.fetch('https://xubio.com/API/1.1/TokenEndpoint', options);
+  const response = UrlFetchApp.fetch('https://xubio.com:443/API/1.1/TokenEndpoint', options);
   const json = JSON.parse(response.getContentText());
   const token = json.access_token || json.token;
   ```
@@ -570,7 +572,7 @@ Este recurso engloba operaciones para consultar y crear órdenes de pago.
 
 #### GET `/imprimirPDF` – Obtener URL de PDF
 * **Descripción:** Devuelve la URL para descargar el PDF de un comprobante.
-* **⚠️ IMPORTANTE:** Según el Swagger, **ambos parámetros son obligatorios** (aunque aparezcan como opcionales en la definición técnica).
+* **⚠️ IMPORTANTE:** Según el swagger.json oficial, la descripción del endpoint indica que **"Ambos parámetros son obligatorios"**, aunque técnicamente aparezcan marcados como `required:false` en la definición. Se debe enviar ambos parámetros para que el endpoint funcione correctamente.
 * **Parámetros de consulta:**
   | Nombre | Tipo | Descripción |
   |-------|------|-------------|
@@ -1200,7 +1202,17 @@ Esta documentación cubre los recursos principales y más utilizados de la API. 
 
 ## 🔍 Hallazgos del Swagger JSON (Actualización)
 
-**Fuente**: `https://xubio.com/API/1.1/swagger.json` (documentación técnica oficial)
+**Fuente**: `https://xubio.com/API/1.1/swagger.json` (documentación técnica oficial - fuente de verdad)
+
+**Última verificación**: Esta documentación ha sido actualizada para reflejar fielmente el contenido del swagger.json oficial de Xubio.
+
+**Información de la API según swagger.json:**
+- **Versión Swagger**: 2.0
+- **Versión API**: 1.1
+- **Host**: `xubio.com:443`
+- **Base Path**: `/API/1.1`
+- **Token URL**: `https://xubio.com:443/API/1.1/TokenEndpoint`
+- **Tipo de autenticación**: OAuth2 (Client Credentials flow)
 
 ### Productos de Venta (`ProductoVentaBean`)
 
@@ -1448,8 +1460,10 @@ Según el Swagger, los siguientes campos son **REQUERIDOS** al crear un comproba
 ### Fuentes de información
 
 Esta documentación ha sido completada y actualizada con información detallada extraída de:
+- **Swagger JSON oficial** (fuente de verdad): `https://xubio.com/API/1.1/swagger.json`
 - **Documentación interactiva oficial**: `https://xubio.com/API/documentation/index.html`
-- **Swagger JSON oficial**: `https://xubio.com/API/1.1/swagger.json`
+
+**Nota importante**: El swagger.json es la fuente de verdad técnica. Esta documentación ha sido verificada y actualizada para reflejar exactamente el contenido del swagger.json oficial.
 
 ### Recursos documentados
 
@@ -1478,4 +1492,8 @@ La documentación ahora incluye información completa de más de **40 recursos**
 
 ### Mantenimiento
 
-Esta documentación debe actualizarse periódicamente consultando el swagger.json oficial para asegurar que refleja los cambios más recientes de la API de Xubio.
+### Mantenimiento
+
+Esta documentación debe actualizarse periódicamente consultando el swagger.json oficial (`https://xubio.com/API/1.1/swagger.json`) para asegurar que refleja los cambios más recientes de la API de Xubio.
+
+**Última actualización basada en swagger.json**: Esta documentación ha sido verificada y actualizada para reflejar fielmente el contenido del swagger.json oficial de Xubio como fuente de verdad técnica.
