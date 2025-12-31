@@ -33,6 +33,11 @@ import { CobranzaService } from '../sdk/cobranzaService.js';
 import ProductoSelector from './components/ProductoSelector.vue';
 import ClienteSelector from './components/ClienteSelector.vue';
 import PuntoVentaSelector from './components/PuntoVentaSelector.vue';
+// Importar componentes de pestañas (Fase 1 - Refactor)
+import TabAuth from './components/TabAuth.vue';
+import TabFactura from './components/TabFactura.vue';
+import TabCobranza from './components/TabCobranza.vue';
+import PdfViewer from './components/PdfViewer.vue';
 
 /**
  * @typedef {Object} AppData
@@ -196,7 +201,12 @@ export const appOptions = {
       puntosDeVentaComposable: null,
       facturasComposable: null,
       cobranzasComposable: null,
-      diagnosticoComposable: null
+      diagnosticoComposable: null,
+
+      // Sistema de Pestañas (Fase 1 - Refactor)
+      currentTab: 'auth', // Pestaña activa: 'auth', 'factura', 'cobranza'
+      pdfUrl: null, // URL del PDF a mostrar
+      pdfVisible: false // Controla visibilidad del PdfViewer global
     };
   },
   computed: {
@@ -494,6 +504,13 @@ export const appOptions = {
       return { valido, idEncontrado, campoIdUsado, esEditable, esSugerido, campoEditableUsado };
     }
   },
+  // Sistema de provide/inject para componentes Tab* (Fase 1 - Refactor)
+  provide() {
+    return {
+      sdk: () => this.xubioSdk,
+      showToast: this.showToast
+    };
+  },
   async mounted() {
     try {
       // Inicializar cliente Xubio (compatible con código existente)
@@ -639,7 +656,12 @@ export const appOptions = {
   components: {
     ProductoSelector,
     ClienteSelector,
-    PuntoVentaSelector
+    PuntoVentaSelector,
+    // Componentes de Pestañas (Fase 1 - Refactor)
+    TabAuth,
+    TabFactura,
+    TabCobranza,
+    PdfViewer
   },
   methods: {
     /**
@@ -943,6 +965,52 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       result.message = mensaje;
       result.type = tipo;
       result.visible = true;
+    },
+
+    /**
+     * Sistema de notificaciones para componentes Tab* (Fase 1 - Refactor)
+     * @param {string} message - Mensaje a mostrar
+     * @param {string} type - Tipo: 'success', 'error', 'warning', 'info'
+     */
+    showToast(message, type = 'info') {
+      // Por ahora usamos console, luego podemos integrar con un sistema de toasts real
+      const emoji = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+      console.log(`${emoji[type] || 'ℹ️'} ${message}`);
+      // TODO: Integrar con sistema de notificaciones UI cuando exista
+    },
+
+    /**
+     * Maneja la visualización del PDF global (Fase 1 - Refactor)
+     * @param {string} url - URL del PDF a mostrar
+     */
+    handleShowPdf(url) {
+      this.pdfUrl = url;
+      this.pdfVisible = true;
+    },
+
+    /**
+     * Cierra el visor de PDF global (Fase 1 - Refactor)
+     */
+    closePdf() {
+      this.pdfVisible = false;
+      this.pdfUrl = null;
+    },
+
+    /**
+     * Maneja el login exitoso desde TabAuth (Fase 1 - Refactor)
+     * @param {Object} data - { token, expiration }
+     */
+    handleLogin(data) {
+      this.accessToken = data.token;
+      this.tokenExpiration = data.expiration;
+      this.xubioSdk = new XubioClient(data.token);
+      this.currentTab = 'factura'; // Cambiar a pestaña de facturación
+      this.showToast('Login exitoso', 'success');
     },
 
     /**
