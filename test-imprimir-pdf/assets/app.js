@@ -2609,6 +2609,7 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         });
         
         if (response.ok && Array.isArray(data)) {
+          console.log('🔍 RAW Puntos de Venta (API):', JSON.stringify(data, null, 2));
           this.puntosDeVenta = data;
           console.log(`✅ ${data.length} puntos de venta cargados`);
           return data;

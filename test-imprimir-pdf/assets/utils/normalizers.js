@@ -139,9 +139,9 @@ export function normalizarPuntoVenta(puntoVentaRaw) {
     id: puntoVentaRaw.puntoVentaId || puntoVentaRaw.ID || puntoVentaRaw.id || null,
     name: puntoVentaRaw.nombre || '',
     code: puntoVentaRaw.codigo || puntoVentaRaw.puntoVenta || '',
-    editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : true,
-    sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : true,
-    editableSugerido: puntoVentaRaw.editableSugerido !== undefined ? puntoVentaRaw.editableSugerido : true,
+    editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : false,
+    sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : false,
+    editableSugerido: puntoVentaRaw.editableSugerido !== undefined ? puntoVentaRaw.editableSugerido : false,
     metadata: {
       original: puntoVentaRaw
     }

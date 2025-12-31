@@ -22,8 +22,11 @@
             | ID: {{ getPuntoVentaKey(puntoVenta) }}
           </span>
         </div>
-        <div style="font-size: 11px; color: #4caf50; margin-top: 3px;">
+        <div v-if="puntoVenta.editable && puntoVenta.sugerido" style="font-size: 11px; color: #4caf50; margin-top: 3px;">
           ✅ Editable-Sugerido (válido para facturas)
+        </div>
+        <div v-else style="font-size: 11px; color: #dc3545; margin-top: 3px;">
+          ❌ No válido ({{ puntoVenta.editable ? 'Editable' : 'No Ed.' }} | {{ puntoVenta.sugerido ? 'Sugerido' : 'No Sug.' }})
         </div>
       </div>
     </template>
@@ -42,8 +45,11 @@
               | ID: {{ getPuntoVentaKey(puntoVentaSeleccionado) }}
             </span>
           </div>
-          <div style="font-size: 11px; color: #4caf50; margin-top: 3px;">
+          <div v-if="puntoVentaSeleccionado.editable && puntoVentaSeleccionado.sugerido" style="font-size: 11px; color: #4caf50; margin-top: 3px;">
             ✅ Editable: true | Sugerido: true
+          </div>
+          <div v-else style="font-size: 11px; color: #dc3545; margin-top: 3px;">
+            ❌ Inválido: Editable={{ puntoVentaSeleccionado.editable }}, Sugerido={{ puntoVentaSeleccionado.sugerido }}
           </div>
         </div>
       </div>

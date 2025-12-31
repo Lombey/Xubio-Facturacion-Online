@@ -45,7 +45,7 @@ assets/
 │
 ├── composables/
 │   ├── useXubio.js (ya existe) ✅
-│   ├── usePuntosDeVenta.js (NUEVO)
+│   ├── usePuntosDeVenta.js (NUEVO - Singleton State)
 │   ├── useFacturas.js (NUEVO)
 │   ├── useCobranzas.js (NUEVO)
 │   ├── useValidaciones.js (NUEVO)
@@ -57,35 +57,35 @@ assets/
 └── utils/
     ├── domain-filters.js (ya existe) ✅
     ├── formatters.js (ya existe) ✅
-    ├── validators.js (NUEVO)
-    ├── transformers.js (NUEVO - normalización de datos)
+    ├── validators.js (NUEVO - Pura, Testeable)
+    ├── transformers.js (NUEVO - Pura, Testeable)
     └── constants.js (NUEVO - constantes compartidas)
 ```
+
+---
+
+## 🛠️ Mejoras Técnicas Transversales (Recomendaciones Senior)
+
+1.  **Testing Unitario Inmediato**: Las funciones puras en `utils/` (validadores, transformadores) deben tener tests (`.test.js`) creados en el mismo momento de su implementación. Aprovechar `vitest`.
+2.  **JSDoc Estricto**: Dado que es JavaScript, es obligatorio usar JSDoc (`@typedef`, `@param`, `@returns`) para mantener el tipado y facilitar el autocompletado en el IDE.
+3.  **Patrón Singleton en Composables**: Para datos maestros (Puntos de Venta, Listas de Precios), los Composables deben gestionar un estado global (variables fuera de la función exportada) para evitar llamadas redundantes a la API si múltiples componentes los usan.
+4.  **Integración Temprana del Service Layer**: No esperar al final. Implementar los métodos necesarios en `services/xubioApi.js` a medida que se crean los Composables (ej. Fase 4).
 
 ---
 
 ## 📝 Plan de Implementación
 
 ### Fase 0: Preparación (sin romper nada)
-**Objetivo**: Crear estructura sin afectar código existente
+**Objetivo**: Crear estructura y configurar entorno de pruebas.
 
 - [ ] Crear carpeta `services/`
-- [ ] Crear archivos vacíos en `composables/`:
-  - `usePuntosDeVenta.js`
-  - `useFacturas.js`
-  - `useCobranzas.js`
-  - `useValidaciones.js`
-  - `useDiagnostico.js`
-- [ ] Crear archivos vacíos en `utils/`:
-  - `validators.js`
-  - `transformers.js`
-  - `constants.js`
-- [ ] Crear `services/xubioApi.js`
+- [ ] Crear estructura de archivos vacíos en `composables/` y `utils/`
+- [ ] Crear `services/xubioApi.js` (esqueleto inicial)
+- [ ] Verificar configuración de `vitest` para correr tests en `utils/`
 
 **Validación thin slice**:
 - [ ] `npm run dev` funciona sin errores
-- [ ] Aplicación carga correctamente
-- [ ] No hay warnings en consola
+- [ ] `npm run test` (o comando equivalente) corre y detecta archivos de prueba
 
 ---
 
@@ -96,33 +96,7 @@ assets/
 
 **Mover a constants.js**:
 ```javascript
-// Estados de factura
-export const ESTADOS_FACTURA = {
-  PENDIENTE: 'pendiente',
-  PROCESANDO: 'procesando',
-  COMPLETADA: 'completada',
-  ERROR: 'error'
-}
-
-// Modos de numeración
-export const MODOS_NUMERACION = {
-  AUTOMATICA: 'automatica',
-  MANUAL: 'manual'
-}
-
-// Estados de punto de venta
-export const PUNTO_VENTA = {
-  ACTIVO: 1,
-  INACTIVO: 0
-}
-
-// Tipos de comprobante
-export const TIPOS_COMPROBANTE = {
-  FACTURA_A: 1,
-  FACTURA_B: 6,
-  FACTURA_C: 11,
-  // ... según swagger.json
-}
+// Estados, Tipos de Comprobante, Modos de Numeración, etc.
 ```
 
 **Cambios en app.js**:
@@ -130,238 +104,79 @@ export const TIPOS_COMPROBANTE = {
 - Reemplazar valores hardcodeados por constantes
 
 **Validación thin slice**:
-- [ ] Facturas se crean correctamente
-- [ ] Puntos de venta se validan correctamente
-- [ ] Tests (si existen) pasan
+- [ ] Aplicación compila y funciona idénticamente
 
 ---
 
-### Fase 2: Extraer Validadores Puros
-**Objetivo**: Funciones puras sin dependencias de Vue
+### Fase 2: Extraer Validadores Puros + Tests
+**Objetivo**: Funciones puras con alta cobertura de pruebas.
 
 **Archivo**: `utils/validators.js`
+**Tests**: `utils/__tests__/validators.test.js`
 
-**Funciones a extraer**:
-```javascript
-/**
- * Valida si un punto de venta es válido según reglas de negocio
- * @param {Object} puntoVenta - Objeto punto de venta de Xubio API
- * @returns {boolean}
- */
-export function esPuntoVentaValido(puntoVenta) {
-  if (!puntoVenta) return false;
-
-  const tieneId = Boolean(puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id);
-  const esActivo = puntoVenta.activo === 1 || puntoVenta.activo === '1' || puntoVenta.activo === true;
-
-  return tieneId && (puntoVenta.activo === undefined || esActivo);
-}
-
-/**
- * Valida datos mínimos de cliente para factura
- */
-export function esClienteValido(cliente) {
-  if (!cliente) return false;
-  return Boolean(
-    (cliente.name || cliente.razonSocial || cliente.nombre) &&
-    (cliente.cuit || cliente.metadata?.original?.cuit)
-  );
-}
-
-/**
- * Valida datos mínimos de producto/servicio
- */
-export function esProductoValido(producto) {
-  if (!producto) return false;
-  return Boolean(
-    (producto.name || producto.nombre) &&
-    producto.precioUnitario !== undefined &&
-    producto.cantidad > 0
-  );
-}
-```
-
-**Cambios en app.js**:
-- Importar desde `validators.js`
-- Reemplazar lógica inline por llamadas a funciones
-- Eliminar computed properties duplicadas
-
-**Ubicaciones a actualizar**:
-- `puntoVentaValido()` → usar `esPuntoVentaValido()`
-- `flujoCompletoFactura()` → usar `esPuntoVentaValido()`
-- `soloCrearFactura()` → usar `esPuntoVentaValido()`
-- `seleccionarPuntoVentaPorDefecto()` → usar `esPuntoVentaValido()`
+**Tareas**:
+1. Extraer `esPuntoVentaValido`, `esClienteValido`, `esProductoValido`.
+2. **Crear Tests Unitarios** cubriendo casos de borde (null, undefined, objetos vacíos).
+3. Reemplazar lógica inline en `app.js` por llamadas a `validators.js`.
 
 **Validación thin slice**:
-- [ ] Validación de punto de venta funciona igual
-- [ ] Mensajes de error se muestran correctamente
-- [ ] No hay regresiones en flujos de facturación
+- [ ] Tests unitarios pasan (Green)
+- [ ] Validación de punto de venta en UI funciona igual
 
 ---
 
-### Fase 3: Extraer Transformadores
-**Objetivo**: Normalización de datos de API
+### Fase 3: Extraer Transformadores + Tests + JSDoc
+**Objetivo**: Normalización de datos con tipado claro.
 
 **Archivo**: `utils/transformers.js`
+**Tests**: `utils/__tests__/transformers.test.js`
 
-**Funciones a crear**:
-```javascript
-/**
- * Normaliza punto de venta de Xubio API a formato interno
- */
-export function normalizarPuntoVenta(pvRaw) {
-  return {
-    id: pvRaw.puntoVentaId || pvRaw.ID || pvRaw.id,
-    nombre: pvRaw.nombre || '',
-    codigo: pvRaw.codigo || pvRaw.puntoVenta || '',
-    activo: pvRaw.activo === 1 || pvRaw.activo === '1' || pvRaw.activo === true,
-    modoNumeracion: pvRaw.modoNumeracion || 'automatica',
-    factElectronicaConXB: pvRaw.factElectronicaConXB || 0,
-    // Mantener datos originales para debug
-    _raw: pvRaw
-  };
-}
-
-/**
- * Normaliza cliente de Xubio API a formato interno
- */
-export function normalizarCliente(clienteRaw) {
-  return {
-    id: clienteRaw.clienteId || clienteRaw.ID || clienteRaw.id,
-    nombre: clienteRaw.name || clienteRaw.razonSocial || clienteRaw.nombre || '',
-    cuit: clienteRaw.cuit || clienteRaw.metadata?.original?.cuit || '',
-    // ... más campos
-    _raw: clienteRaw
-  };
-}
-```
-
-**Cambios**:
-- Aplicar normalización al recibir datos de API
-- Simplifica acceso a datos en templates y computed
+**Tareas**:
+1. Definir tipos con JSDoc (`@typedef {Object} PuntoVenta`).
+2. Implementar `normalizarPuntoVenta`, `normalizarCliente`.
+3. **Crear Tests Unitarios** verificando la estructura de salida.
+4. Aplicar en `app.js` al recibir datos de API.
 
 **Validación thin slice**:
 - [ ] Selectores muestran datos correctamente
-- [ ] Búsqueda funciona igual
-- [ ] Facturas usan datos normalizados correctamente
+- [ ] Tests unitarios pasan
 
 ---
 
-### Fase 4: Composable de Puntos de Venta
-**Objetivo**: Centralizar toda lógica de puntos de venta
+### Fase 4: Composable de Puntos de Venta (Con Service Layer)
+**Objetivo**: Centralizar lógica de PV usando estado compartido y servicio API.
 
 **Archivo**: `composables/usePuntosDeVenta.js`
+**Archivo**: `services/xubioApi.js` (Agregar método `getPuntosVenta`)
 
-**Responsabilidades**:
-- Carga de puntos de venta desde API
-- Estado reactivo (loading, error, data)
-- Filtrado (reutilizar `domain-filters.js`)
-- Selección de punto por defecto
-- Validación (reutilizar `validators.js`)
-
-**Estructura**:
+**Estructura Singleton (Ejemplo)**:
 ```javascript
-import { ref, computed } from 'vue';
-import { filtrarPuntosDeVenta } from '../utils/domain-filters.js';
-import { esPuntoVentaValido } from '../utils/validators.js';
-import { normalizarPuntoVenta } from '../utils/transformers.js';
+// Estado global (fuera de la función)
+const puntosDeVenta = ref([]);
+const initialized = ref(false);
 
-export function usePuntosDeVenta(xubioClient) {
-  const puntosDeVenta = ref([]);
-  const loading = ref(false);
-  const error = ref(null);
-  const puntoVentaSeleccionado = ref(null);
-  const busquedaPV = ref('');
-
-  // Computed
-  const puntosDeVentaFiltrados = computed(() => {
-    return filtrarPuntosDeVenta(puntosDeVenta.value, busquedaPV.value);
-  });
-
-  const puntoVentaValido = computed(() => {
-    return esPuntoVentaValido(puntoVentaSeleccionado.value);
-  });
-
-  // Métodos
-  async function cargarPuntosDeVenta() {
-    loading.value = true;
-    error.value = null;
-    try {
-      const response = await xubioClient.getPuntosVenta();
-      puntosDeVenta.value = response.map(normalizarPuntoVenta);
-    } catch (e) {
-      error.value = e.message;
-    } finally {
-      loading.value = false;
-    }
+export function usePuntosDeVenta() {
+  // ... lógica ...
+  async function cargar() {
+    if (initialized.value) return; // Evitar re-fetch
+    // llamar a xubioApi.getPuntosVenta()
   }
-
-  function seleccionarPuntoVentaPorDefecto() {
-    const puntosActivos = puntosDeVenta.value.filter(pv => pv.activo);
-    if (puntosActivos.length > 0) {
-      puntoVentaSeleccionado.value = puntosActivos[0];
-    }
-  }
-
-  function setPuntoVenta(pv) {
-    puntoVentaSeleccionado.value = pv;
-  }
-
-  return {
-    // Estado
-    puntosDeVenta,
-    loading,
-    error,
-    puntoVentaSeleccionado,
-    busquedaPV,
-
-    // Computed
-    puntosDeVentaFiltrados,
-    puntoVentaValido,
-
-    // Métodos
-    cargarPuntosDeVenta,
-    seleccionarPuntoVentaPorDefecto,
-    setPuntoVenta
-  };
+  return { ... }
 }
 ```
 
-**Cambios en app.js**:
-```javascript
-// Antes: cientos de líneas de lógica
-// Después:
-import { usePuntosDeVenta } from './composables/usePuntosDeVenta.js';
-
-// En setup():
-const {
-  puntosDeVenta,
-  puntoVentaSeleccionado,
-  puntosDeVentaFiltrados,
-  puntoVentaValido,
-  cargarPuntosDeVenta,
-  setPuntoVenta
-} = usePuntosDeVenta(xubio);
-```
-
-**Código a eliminar de app.js**:
-- `puntosDeVenta` ref
-- `busquedaPV` ref
-- `puntoVentaSeleccionado` ref
-- `puntosDeVentaFiltrados()` computed (4+ lugares)
-- `puntoVentaValido()` computed (4+ lugares)
-- `cargarPuntosDeVenta()` método
-- `seleccionarPuntoVentaPorDefecto()` método
-- `obtenerPuntoVentaPorDefecto()` método
+**Tareas**:
+1. Implementar `getPuntosVenta` en `services/xubioApi.js`.
+2. Crear `usePuntosDeVenta.js` con patrón Singleton para el estado.
+3. Integrar validadores y filtros existentes.
+4. Refactorizar `app.js` para usar este composable.
 
 **Reducción estimada**: ~200-300 líneas
 
 **Validación thin slice**:
 - [ ] Selector de punto de venta funciona
-- [ ] Filtro de búsqueda funciona
-- [ ] Validación funciona
-- [ ] Selección por defecto funciona
-- [ ] No hay errores en consola
+- [ ] Validación por defecto funciona
+- [ ] No se duplican llamadas a la API al navegar
 
 ---
 
@@ -374,62 +189,11 @@ const {
 - Estado de factura (borrador, procesando, completada)
 - Validación de factura completa
 - Flujo de creación (con/sin autorización CAE)
-- Cálculos (subtotal, total, impuestos)
 - Generación de PDF
-
-**Estructura**:
-```javascript
-export function useFacturas(xubioClient, puntoVentaSeleccionado) {
-  const facturaActual = ref(null);
-  const estadoFactura = ref('borrador');
-  const errorFactura = ref(null);
-
-  const facturaValida = computed(() => {
-    return (
-      puntoVentaSeleccionado.value &&
-      clienteSeleccionado.value &&
-      items.value.length > 0
-    );
-  });
-
-  async function crearFactura(flujoCompleto = true) {
-    estadoFactura.value = 'procesando';
-    try {
-      if (flujoCompleto) {
-        return await flujoCompletoFactura();
-      } else {
-        return await soloCrearFactura();
-      }
-    } catch (e) {
-      errorFactura.value = e.message;
-      estadoFactura.value = 'error';
-    }
-  }
-
-  async function flujoCompletoFactura() {
-    // Lógica existente consolidada
-  }
-
-  async function soloCrearFactura() {
-    // Lógica existente consolidada
-  }
-
-  return {
-    facturaActual,
-    estadoFactura,
-    facturaValida,
-    crearFactura
-  };
-}
-```
-
-**Reducción estimada**: ~400-500 líneas
 
 **Validación thin slice**:
 - [ ] Crear factura funciona
-- [ ] Autorizar CAE funciona
 - [ ] Generar PDF funciona
-- [ ] Errores se manejan correctamente
 
 ---
 
@@ -447,57 +211,18 @@ export function useFacturas(xubioClient, puntoVentaSeleccionado) {
 
 **Archivo**: `composables/useDiagnostico.js`
 
-**Incluir**:
-- `toggleDatosCrudosPV()`
-- `evaluarBooleano()`
-- `evaluarEditableSugeridoActual()`
-- `probarCampoId()`, `probarCampoEditable()`
-- `limpiarLogDiagnostico()`
-- Todo el código de Section 2.7
-
 **Reducción estimada**: ~150-200 líneas
-
-**Nota**: Este código es temporal para debugging. Considerar eliminarlo en producción.
 
 ---
 
-### Fase 8: Service de API
-**Objetivo**: Centralizar todas las llamadas a Xubio API
+### Fase 8: Consolidación Service API
+**Objetivo**: Migrar el resto de llamadas sueltas al servicio centralizado.
 
 **Archivo**: `services/xubioApi.js`
 
-**Responsabilidades**:
-- Wrapper de `useXubio.js`
-- Manejo de errores centralizado
-- Retry logic
-- Logging
-- Rate limiting (si es necesario)
-
-**Estructura**:
-```javascript
-export class XubioApiService {
-  constructor(xubioClient) {
-    this.client = xubioClient;
-  }
-
-  async getPuntosVenta() {
-    try {
-      return await this.client.request('GET', '/api/v1/puntos-venta');
-    } catch (error) {
-      console.error('[XubioAPI] Error al obtener puntos de venta:', error);
-      throw new Error('No se pudieron cargar los puntos de venta');
-    }
-  }
-
-  async crearFactura(datosFactura) {
-    // ...
-  }
-
-  // ... más métodos
-}
-```
-
-**Reducción estimada**: ~100-150 líneas de lógica de API sacadas de app.js
+**Tareas**:
+- Mover llamadas restantes (`crearFactura`, `obtenerPDF`, `crearCobranza`) de `app.js` o composables temporales a `xubioApi.js`.
+- Asegurar manejo de errores consistente.
 
 ---
 
@@ -507,112 +232,39 @@ export class XubioApiService {
 - **app.js**: ~3000 líneas
 - **Responsabilidades**: TODO mezclado
 - **Duplicación**: Masiva
-- **Mantenibilidad**: Baja
+- **Testabilidad**: Nula
 
 ### Después
 - **app.js**: ~600-800 líneas (solo orquestación UI)
-- **composables/**: 5 archivos (~1200 líneas total)
-- **services/**: 1 archivo (~200 líneas)
-- **utils/**: 3 archivos nuevos (~400 líneas)
-- **Duplicación**: Eliminada (DRY)
-- **Mantenibilidad**: Alta
-- **Testing**: Funciones puras fáciles de testear
-
-### Beneficios
-1. **Reutilización**: Lógica compartida entre componentes
-2. **Testing**: Funciones puras sin dependencias de Vue
-3. **Debugging**: Código más pequeño, más fácil de entender
-4. **Performance**: Posibilidad de lazy loading de composables
-5. **Escalabilidad**: Agregar features sin inflar app.js
+- **utils/**: 100% Cobertura de Tests
+- **composables/**: Gestión de estado eficiente (Singletons)
+- **services/**: Capa de abstracción de API limpia
+- **JSDoc**: Tipado documentado en archivos críticos
 
 ---
 
 ## ⚠️ Riesgos y Mitigaciones
 
 ### Riesgos
-1. **Romper funcionalidad existente**: Refactor introduce bugs
-2. **Pérdida de contexto**: Código disperso en muchos archivos
-3. **Overhead**: Abstracciones innecesarias
+1. **Regresiones en lógica de negocio**: Al mover validaciones complejas.
+2. **Estado desincronizado**: Al mover datos a composables.
 
 ### Mitigaciones
-1. **Thin slice checklist**: Validar después de CADA fase
-2. **Mantener referencias**: Comentarios indicando origen del código
-3. **No sobre-abstraer**: Solo extraer código duplicado/complejo
-4. **Git branches**: Una branch por fase
-5. **Testing manual**: Probar flujos críticos después de cada fase
-
----
-
-## 📊 Orden de Prioridad
-
-**Alta prioridad** (hacer primero):
-1. ✅ Fase 1: Constantes (bajo riesgo, alto valor)
-2. ✅ Fase 2: Validadores (elimina duplicación crítica)
-3. ✅ Fase 4: usePuntosDeVenta (mayor duplicación identificada)
-
-**Media prioridad**:
-4. Fase 3: Transformadores
-5. Fase 5: useFacturas
-6. Fase 8: xubioApi service
-
-**Baja prioridad** (puede esperar):
-7. Fase 6: useCobranzas
-8. Fase 7: useDiagnostico (temporal, considerar eliminar)
-
----
-
-## 🔍 Checklist de Validación (Thin Slice)
-
-Después de **CADA** fase, validar:
-
-- [ ] `npm run dev` arranca sin errores
-- [ ] No hay warnings en consola del navegador
-- [ ] No hay errores de importación
-- [ ] Aplicación carga correctamente
-- [ ] **Flujo crítico 1**: Seleccionar punto de venta funciona
-- [ ] **Flujo crítico 2**: Crear factura funciona
-- [ ] **Flujo crítico 3**: Generar PDF funciona
-- [ ] **Flujo crítico 4**: Búsqueda/filtros funcionan
-- [ ] Validaciones muestran mensajes correctos
-- [ ] Performance no empeoró (cargas rápidas)
-
----
-
-## 📝 Notas Adicionales
-
-### Archivos a NO tocar (fuera de scope)
-- `App.vue` (solo actualizar imports si es necesario)
-- `components/` (usar como está)
-- `useXubio.js` (wrapper de API ya funciona bien)
-
-### Archivos ya refactorizados ✅
-- `utils/domain-filters.js` (filtros de negocio)
-- `utils/formatters.js` (formateo de CUIT, números, etc)
-
-### Código a eliminar eventualmente
-- Todo el código de diagnóstico (Section 2.7 en App.vue)
-- Funciones de testing (`probarCampo*`, `evaluarBooleano`, etc)
-- Refs temporales (`mostrarDiagnosticoPV`, `logDiagnosticoPV`, etc)
-
-### Compatibilidad
-- Mantener compatibilidad con Vue 3 Composition API
-- No cambiar estructura de App.vue
-- No romper selectores existentes
-- Mantener mismos nombres de variables exportadas (para templates)
+1. **Tests Automáticos**: Los tests en Fases 2 y 3 son la red de seguridad principal.
+2. **Validación Manual Cruzada**: Verificar contra la versión anterior en cada paso.
+3. **Commits Atómicos**: Un commit por cambio funcional pequeño.
 
 ---
 
 ## 🚀 Cómo Empezar
 
-1. Crear branch: `git checkout -b refactor/app-js-fase-1`
-2. Ejecutar Fase 0 (preparación)
-3. Validar thin slice
-4. Commit: `git commit -m "Fase 0: Preparar estructura para refactoring"`
-5. Continuar con Fase 1
-6. Repetir validación + commit después de cada fase
+1. Crear branch: `git checkout -b refactor/app-js-fase-0`
+2. Ejecutar Fase 0 (preparación y setup de tests)
+3. Validar entorno de pruebas
+4. Continuar con Fase 1
 
 ---
 
 **Última actualización**: 2025-12-30
-**Estado**: Plan listo para implementación
-**Estimación total**: 8 fases incrementales, validación continua
+**Estado**: Plan Aprobado y Mejorado
+**Estrategia**: Incremental con Testing Obligatorio
