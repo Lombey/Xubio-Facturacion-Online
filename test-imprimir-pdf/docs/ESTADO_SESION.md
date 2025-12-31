@@ -1,7 +1,7 @@
 # Estado de la Sesión - Xubio API Laboratory
 
 > **Última actualización:** 31 Diciembre 2025
-> **Sesión:** Descubrimiento completo de facturación + Planificación API REST
+> **Sesión:** Investigación de API REST + Bearer Token + Creación de proxies Vercel
 
 ---
 
@@ -12,10 +12,10 @@
 **Archivo:** `test-imprimir-pdf/sdk/xubioLegacyXml.js`
 
 **Flujo completo:**
-1. ✅ Crear factura → `POST /NXV/DF_submit` (XML payload)
+1. ✅ Crear factura → `POST https://xubio.com/NXV/DF_submit` (XML payload)
 2. ✅ Extraer TransaccionID → Buscar en DOM después de 3 segundos
 3. ✅ Obtener config reportes → `DINAMICFORM_ImprimirReportesGetReportes(220, false)`
-4. ✅ Generar URL PDF → `/NXV/general/includes/sr2.jsp` con parámetros
+4. ✅ Generar URL PDF → `https://xubio.com/NXV/general/includes/sr2.jsp` con parámetros
 5. ✅ Abrir PDF automáticamente
 
 **Función principal:**
@@ -36,7 +36,7 @@ crearFacturaConPDF({
 **Autenticación:**
 - Cookie-based (SessionId, JSESSIONID)
 - Se obtiene al hacer login en Xubio con Visma Connect
-- Expira al cerrar navegador (session cookies)
+- ❌ **CONFIRMADO:** Expira al cerrar navegador (NO VIABLE para automatización)
 
 **Documentación:**
 - `docs/FLUJO_COMPLETO_FACTURACION.md` - Guía completa con todos los detalles
@@ -48,234 +48,318 @@ crearFacturaConPDF({
 
 ### **Método 2: API REST + Bearer Token**
 
-**Descubrimiento:**
-- Al hacer login con Visma Connect, Xubio genera automáticamente:
-  - Session cookies (para XML legacy)
-  - Bearer token (para API REST)
+**Estado:** ⏳ En prueba - esperando deployment de Vercel para verificación final
 
-**Bearer Token encontrado:**
-```
-Authorization: Bearer 17672115954180896103847217637501596365
+#### **Descubrimientos Confirmados:**
+
+**1. Arquitectura de Dominios de Xubio:**
+
+Xubio tiene DOS dominios API diferentes:
+
+| Dominio | Propósito | Endpoints Confirmados |
+|---------|-----------|----------------------|
+| **xubio.com** | Frontend legacy + API mixta | `/NXV/*` (XML legacy)<br>`/api/dashboard/datosUsuario` ✅<br>`/api/dashboard/cardsdashboard` ✅ |
+| **microservice.xubio.com** | Microservicios REST puros | `/api/autorizacion/autorizar` ✅ |
+
+**2. Bearer Token:**
+
+- **Formato:** Numérico largo (ejemplo: `17672144603098004776931473459293379488`)
+- **Generación:** Automática al hacer login con Visma Connect
+- **Uso:** Headers HTTP `Authorization: Bearer {token}`
+- **Duración:** Desconocida (probablemente mayor que session cookies)
+- **Compatibilidad:** Funciona con ambos dominios (xubio.com y microservice.xubio.com)
+
+**3. Headers Requeridos (Confirmados del Network Tab):**
+
+```javascript
+{
+  "accept": "application/json, text/plain, */*",
+  "authorization": "Bearer 17672144603098004776931473459293379488",
+  "sec-fetch-site": "same-site"  // Indica request desde app.xubio.com
+}
 ```
 
-**Endpoint a probar:**
-```
-POST https://xubio.com/api/argentina/comprobanteVentaBean
-Headers: Authorization: Bearer xxx
-Body: JSON (similar a XML legacy pero formato JSON)
-```
+**Nota importante:** Los requests desde `app.xubio.com` a `xubio.com` también incluyen `credentials: "include"`, lo que significa que envían cookies además del Bearer token.
 
-**Estado actual:**
-- ❓ No sabemos si funciona para crear facturas electrónicas
-- ❓ Probamos antes y dio error "comprobante vacío"
-- ❓ Puede que con Bearer token funcione diferente
+**4. Endpoints Descubiertos:**
+
+✅ **Confirmados que existen:**
+- `GET https://xubio.com/api/dashboard/datosUsuario` - Datos del usuario/empresa
+- `GET https://xubio.com/api/dashboard/cardsdashboard` - Dashboard cards
+- `GET https://microservice.xubio.com/api/autorizacion/autorizar?ruta=X&verbo=Y` - Autorización
+
+❓ **Por confirmar:**
+- `POST https://xubio.com/api/argentina/comprobanteVentaBean` - Crear factura (probado antes con error "comprobante vacío")
+- `POST https://microservice.xubio.com/api/argentina/comprobanteVentaBean` - Versión en microservicio
 
 ---
 
-## 🎯 PLAN INMEDIATO
+## 🛠️ Infraestructura Creada
 
-### **Objetivo:** Probar método API REST + Bearer Token en app de laboratorio
+### **Vercel Functions (Proxies para evitar CORS):**
 
-**Pasos:**
+**Creados en esta sesión:**
 
-1. **Crear nueva pestaña `TabApiRest.vue`**
-   - Input: Credenciales (o usar token existente)
-   - Botón: Obtener Bearer Token
-   - Mostrar: Token obtenido
-   - Selector: Cliente + Productos
-   - Botón: Crear Factura con API REST
-   - Debug panel: Request/Response JSON
+```
+test-imprimir-pdf/api/proxy/
+├── datosUsuario.js           ✅ Proxy para verificar Bearer token
+├── comprobanteVentaBean.js   ✅ Proxy para crear facturas
+└── xubio.js                  ✅ Proxy genérico (acepta cualquier ruta)
+```
 
-2. **Implementar lógica:**
-   - Función para obtener Bearer token
-   - Función para crear factura con API REST
-   - Comparar resultado con XML legacy
+**Función del proxy genérico (`/api/proxy/xubio`):**
+```javascript
+// Permite probar cualquier endpoint sin CORS
+POST /api/proxy/xubio
+{
+  "bearerToken": "17672144603098004776931473459293379488",
+  "ruta": "/api/dashboard/datosUsuario",
+  "method": "GET",  // opcional, default GET
+  "domain": "xubio.com"  // opcional, default xubio.com
+}
+```
 
-3. **Comparación:**
-   ```
-   XML Legacy          vs    API REST + Bearer
-   ✅ Funciona              ❓ Por probar
-   Cookie-based             Token-based
-   XML payload              JSON payload
-   DOM scraping             Response directo
-   Complejo                 Simple (si funciona)
-   ```
+**Evolución de los proxies:**
+1. ❌ Primera versión: Llamaba a `xubio.com` → Error 401
+2. ❌ Segunda versión: Cambiado a `microservice.xubio.com` → Error 401
+3. ✅ Tercera versión: Revertido a `xubio.com` con headers simplificados → En prueba
 
-4. **Decisión:**
-   - Si API REST funciona → Usar para Apps Script (más simple)
-   - Si API REST falla → Usar XML legacy (ya validado)
+**Lección aprendida:** Los endpoints de dashboard están en `xubio.com`, no en `microservice.xubio.com`.
+
+### **Componente Vue: TabApiRest.vue**
+
+**Características:**
+- ✅ Input manual de Bearer token
+- ✅ Botón para verificar token con `/api/dashboard/datosUsuario`
+- ✅ Sección para probar endpoints manualmente (🔬 Probar Endpoint Manualmente)
+- ✅ Selector de clientes y productos (cuando token es válido)
+- ✅ Botón para crear factura con API REST
+- ✅ Debug panel con request/response JSON
+- ✅ Tabla comparativa: API REST vs XML Legacy
+
+**URL:** https://xubio-facturacion-online.vercel.app/ → Pestaña "🔬 API REST (Exp.)"
 
 ---
 
-## 📊 Comparación de Métodos
+## 📊 Comparación de Métodos (Actualizada)
 
 | Aspecto | XML Legacy | API REST + Bearer |
 |---------|------------|-------------------|
-| Estado | ✅ VALIDADO | ❓ EXPERIMENTAL |
-| Endpoint | `/NXV/DF_submit` | `/api/argentina/comprobanteVentaBean` |
-| Auth | Session cookies | Bearer token |
-| Payload | XML (complejo) | JSON (simple) |
-| Response | XML malformado | JSON (esperado) |
-| TransaccionID | DOM scraping | Response directo (esperado) |
-| PDF URL | Construir manualmente | ❓ Por descubrir |
-| Complejidad | Alta | Baja (si funciona) |
-| Confiabilidad | Alta (UI oficial) | ❓ Desconocida |
+| **Estado** | ✅ VALIDADO | ⏳ EN PRUEBA |
+| **Endpoint** | `POST /NXV/DF_submit` | `POST /api/argentina/comprobanteVentaBean` |
+| **Dominio** | `xubio.com` | `xubio.com` ó `microservice.xubio.com` |
+| **Auth** | Session cookies | Bearer token |
+| **Duración Auth** | Hasta cerrar navegador ❌ | Desconocida (probablemente mayor) |
+| **Payload** | XML (complejo) | JSON (simple) |
+| **Response** | XML malformado | JSON (esperado) |
+| **TransaccionID** | DOM scraping (3s delay) | ❓ Por confirmar |
+| **PDF URL** | Construir manualmente | ❓ Por confirmar |
+| **Complejidad** | Alta | Baja (si funciona) |
+| **Confiabilidad** | Alta (UI oficial) | ❓ Desconocida |
+| **Viable para Apps Script** | Sí (pero complejo) | Sí (si funciona) |
 
 ---
 
-## 🔐 Desafío de Autenticación para Apps Script
+## 🔐 Autenticación para Apps Script - Actualizado
 
-### **Problema:**
-Xubio usa **Visma Connect** (OAuth) para login:
-1. Usuario → `connect.visma.com/password` (email + password)
-2. Visma → OAuth callback con code/token
-3. Xubio → Genera sesión (cookies + Bearer token)
+### **Problema Confirmado:**
 
-### **Opciones:**
+Session cookies **expiran al cerrar navegador** → ❌ NO VIABLE para automatización que corre sin intervención humana.
 
-**A) Cookies manuales (NO VIABLE)**
-- Session cookies expiran al cerrar navegador
-- Requiere intervención manual constante
-- ❌ Descartado
+### **Opciones Evaluadas:**
 
-**B) Login en cada request (LENTO)**
-- Login completo cada vez que se crea factura
-- Riesgo de bloqueo por rate limiting
-- ⚠️ Solo si no hay alternativa
+| Opción | Viabilidad | Razón |
+|--------|-----------|-------|
+| **A) Cookies manuales** | ❌ DESCARTADO | Expiran al cerrar navegador - requiere intervención manual constante |
+| **B) Bearer Token manual** | ⚠️ TEMPORAL | Dura más que cookies pero duración desconocida - viable para pruebas |
+| **C) Login programático** | ✅ RECOMENDADO | Automatizar login de Visma Connect + capturar Bearer token |
 
-**C) Login con renovación inteligente (RECOMENDADO)**
-- Login una vez al inicio
-- Guardar cookies/token en Properties
-- Renovar solo cuando expire
-- Usar mismo token para múltiples facturas
-- ✅ Mejor opción
+### **Implementación Propuesta (Opción C):**
 
-### **Implementación pendiente:**
-1. Replicar flujo de login de Visma Connect
-2. Capturar cookies/Bearer token del callback
-3. Guardar en Apps Script Properties
-4. Verificar validez antes de cada request
-5. Renovar automáticamente si expira
+1. **Replicar flujo de login de Visma Connect:**
+   - POST a `connect.visma.com` con credenciales
+   - Seguir OAuth redirects
+   - Capturar Bearer token del response/headers
 
----
+2. **Guardar en Apps Script Properties:**
+   ```javascript
+   PropertiesService.getScriptProperties().setProperty('XUBIO_BEARER_TOKEN', token);
+   PropertiesService.getScriptProperties().setProperty('XUBIO_TOKEN_EXPIRY', expiry);
+   ```
 
-## 📝 Decisiones Importantes Tomadas
+3. **Renovación inteligente:**
+   ```javascript
+   function getValidToken() {
+     const stored = PropertiesService.getScriptProperties().getProperty('XUBIO_BEARER_TOKEN');
+     const expiry = PropertiesService.getScriptProperties().getProperty('XUBIO_TOKEN_EXPIRY');
 
-1. **API REST original rechazada:**
-   - Intentamos `/api/argentina/comprobanteVentaBean` con payload JSON
-   - Error: "Este recurso sólo admite la creación de facturas con punto de venta editable-sugerido"
-   - No funciona con punto de venta electrónico
+     if (Date.now() < expiry - 60000) {
+       return stored;  // Token aún válido
+     }
 
-2. **Endpoint XML legacy adoptado:**
-   - Mismo que usa la UI oficial de Xubio
-   - Funciona perfectamente con punto de venta electrónico
-   - Respuesta XML tiene errores de formato pero factura se crea
-
-3. **DOM scraping necesario:**
-   - Response XML no contiene TransaccionID
-   - Solución: Esperar 3s + buscar en `document.body.innerHTML`
-   - Funciona de forma confiable
-
-4. **Próximo experimento:**
-   - Probar API REST con Bearer token en lugar de cookies
-   - Si funciona, es mejor para Apps Script
-   - Si no funciona, usamos XML legacy (ya listo)
+     return renewToken();  // Token expirado, renovar
+   }
+   ```
 
 ---
 
-## 🚀 Estado del Código
+## 🎯 Estado Actual y Próximos Pasos
 
-### **Archivos Creados/Modificados:**
+### **Estado de Prueba Actual:**
+
+**Esperando:** Deployment de Vercel con proxies corregidos (usando `xubio.com`)
+
+**Token de prueba:** `17672144603098004776931473459293379488`
+
+**Pasos de verificación pendientes:**
+1. ⏳ Verificar Bearer token con `/api/proxy/datosUsuario`
+2. ⏳ Si funciona, probar creación de factura con `/api/proxy/comprobanteVentaBean`
+3. ⏳ Analizar response para ver si incluye TransaccionID y PDF URL
+4. ⏳ Comparar velocidad y simplicidad vs XML Legacy
+
+### **Preguntas a Responder:**
+
+1. ❓ ¿El Bearer token funciona para `/api/dashboard/datosUsuario`?
+   - **Cómo responder:** Probar en TabApiRest después del deployment
+
+2. ❓ ¿El Bearer token funciona para crear facturas en `/api/argentina/comprobanteVentaBean`?
+   - **Cómo responder:** Usar TabApiRest con clientes/productos reales
+
+3. ❓ ¿El response de creación de factura incluye TransaccionID directamente?
+   - **Cómo responder:** Revisar JSON response en debug panel
+
+4. ❓ ¿El response incluye PDF URL o hay que construirla?
+   - **Cómo responder:** Revisar JSON response en debug panel
+
+5. ❓ ¿Cuánto dura el Bearer token antes de expirar?
+   - **Cómo responder:** Dejar pasar tiempo y re-probar, o buscar en response del login
+
+6. ❓ ¿Cómo replicar login de Visma Connect programáticamente?
+   - **Cómo responder:** Analizar Network tab durante login completo
+
+### **Decisión Final (Pendiente):**
+
+**Si API REST funciona:**
+- ✅ Usar para Google Apps Script (más simple)
+- ✅ Payload JSON es más fácil de construir que XML
+- ✅ Response JSON es más fácil de parsear
+- ✅ No requiere DOM scraping ni delays
+
+**Si API REST NO funciona:**
+- ✅ Usar XML Legacy (ya validado al 100%)
+- ⚠️ Más complejo de implementar en Apps Script
+- ⚠️ Requiere construir XML payload manualmente
+- ⚠️ Requiere parsear response XML malformado
+- ⚠️ Requiere delay + pattern matching para TransaccionID
+
+---
+
+## 🚀 Archivos del Proyecto
+
+### **Creados/Modificados en esta Sesión:**
 
 ```
 test-imprimir-pdf/
-├── sdk/
-│   └── xubioLegacyXml.js          ✅ NUEVO - Completo y funcionando
-├── docs/
-│   ├── FLUJO_COMPLETO_FACTURACION.md  ✅ NUEVO - Documentación exhaustiva
-│   └── ESTADO_SESION.md               ✅ NUEVO - Este archivo
+├── api/proxy/                      ✅ NUEVO - Vercel Functions
+│   ├── datosUsuario.js            ✅ Verificar Bearer token
+│   ├── comprobanteVentaBean.js    ✅ Crear facturas
+│   └── xubio.js                   ✅ Proxy genérico
+├── assets/components/
+│   └── TabApiRest.vue             ✅ NUEVO - UI experimental para API REST
 ├── assets/
-│   └── components/
-│       ├── TabFactura.vue         ✅ Modificado - Debug panel agregado
-│       └── TabApiRest.vue         ⏳ PENDIENTE - Por crear
+│   ├── app.js                     ✅ Modificado - Agregado TabApiRest
+│   └── App.vue                    ✅ Modificado - Agregado botón pestaña
+└── docs/
+    └── ESTADO_SESION.md           ✅ Actualizado - Este archivo
 ```
 
-### **Git Status:**
+### **Commits Importantes:**
+
+```bash
+99856dc - fix: Revertir proxies a xubio.com (no microservice)
+6472436 - feat: Agregar proxy genérico y prueba manual de endpoints
+0ba22b9 - fix: Actualizar proxies para usar microservice.xubio.com
+212b4e3 - fix: Corregir CORS en TabApiRest.vue agregando proxies de Vercel
+ae3e6ef - feat: Crear TabApiRest.vue para probar API REST + Bearer Token
 ```
-✅ Commit: "feat: flujo completo de facturación con endpoint XML legacy VALIDADO"
-✅ Push: Subido a GitHub
-📦 2 archivos nuevos: xubioLegacyXml.js + FLUJO_COMPLETO_FACTURACION.md
+
+---
+
+## 🎓 Aprendizajes Clave de Esta Sesión
+
+### **1. Arquitectura de Xubio (Descubierta)**
+
+Xubio usa una arquitectura mixta:
+- **Frontend moderno:** `app.xubio.com` (React/Vue)
+- **Frontend legacy:** `xubio.com` (JSP/XML)
+- **API REST:** `xubio.com/api/*` + `microservice.xubio.com/api/*`
+- **API XML Legacy:** `xubio.com/NXV/*`
+
+### **2. Sistema de Autenticación Dual**
+
+Al hacer login con Visma Connect, Xubio genera:
+- **Session Cookies:** Para compatibilidad con frontend legacy
+  - `SessionId`, `JSESSIONID`
+  - Expiran al cerrar navegador
+  - Usados por `/NXV/*` endpoints
+
+- **Bearer Token:** Para API REST moderna
+  - Formato numérico largo
+  - Duración desconocida (probablemente mayor)
+  - Usado por `/api/*` endpoints
+
+### **3. CORS y Proxies**
+
+Llamadas directas desde `vercel.app` a `xubio.com` causan CORS.
+**Solución:** Vercel Functions como proxy intermedio.
+
+### **4. Headers HTTP Críticos**
+
+Los headers mínimos necesarios son:
+```javascript
+{
+  "Authorization": "Bearer {token}",
+  "Accept": "application/json, text/plain, */*"
+}
 ```
 
----
+Headers como `Origin` y `Referer` **NO son necesarios** desde el proxy (servidor).
 
-## 💡 Próximos Pasos (Ordenados)
+### **5. Método de Investigación Efectivo**
 
-### **Inmediato (Hoy):**
-1. ✅ Crear `TabApiRest.vue`
-2. ✅ Implementar obtención de Bearer token
-3. ✅ Probar creación de factura con API REST
-4. ✅ Comparar resultados
-5. ✅ Documentar hallazgos
-
-### **Corto Plazo:**
-1. Decidir método final (XML vs REST)
-2. Implementar login automático en Apps Script
-3. Crear función completa de facturación en Apps Script
-4. Probar desde AppSheet
-
-### **Mediano Plazo:**
-1. Integrar con AppSheet (webhook → Apps Script)
-2. Mapeo de IDs (AppSheet ↔ Xubio)
-3. Guardar PDFs en Google Drive
-4. Actualizar estado en AppSheet
+**Red de prueba iterativa:**
+1. Observar Network tab en browser (requests reales de Xubio)
+2. Copiar fetch exacto que funciona
+3. Extraer Bearer token y endpoint
+4. Probar en app de laboratorio con proxy
+5. Iterar hasta funcionar
 
 ---
 
-## 🎓 Aprendizajes Clave
+## 📌 Resumen Ejecutivo
 
-1. **Xubio tiene DOS sistemas de autenticación:**
-   - Legacy XML: Session cookies
-   - API REST: Bearer token
-   - Ambos se obtienen al hacer login con Visma Connect
+### **Para la Próxima Sesión:**
 
-2. **La UI oficial usa XML legacy:**
-   - Endpoint `/NXV/DF_submit`
-   - Es el más confiable (lo usa Xubio mismo)
+**Tienes 2 métodos disponibles:**
 
-3. **DOM scraping es necesario:**
-   - Response XML no contiene TransaccionID
-   - Pero Xubio actualiza el HTML con la factura creada
-   - Esperar 3s y buscar patrón en innerHTML funciona
+1. **XML Legacy (xubioLegacyXml.js):**
+   - ✅ Funciona al 100%
+   - ✅ Documentado completamente
+   - ✅ Listo para Google Apps Script
+   - ⚠️ Requiere session cookies (manual refresh)
+   - ⚠️ Complejo (XML payload + DOM scraping)
 
-4. **Bearer token se genera automáticamente:**
-   - Al hacer login con Visma Connect
-   - Sirve para endpoints `/api/*`
-   - Dura más que session cookies (probablemente)
+2. **API REST + Bearer Token (TabApiRest.vue):**
+   - ⏳ En verificación final
+   - ✅ Proxies creados y desplegados
+   - ✅ UI de prueba lista
+   - ❓ Falta confirmar que funciona end-to-end
+   - ✅ Más simple (JSON + response directo)
 
----
+**Token actual para pruebas:** `17672144603098004776931473459293379488`
 
-## 🤔 Preguntas Sin Resolver
-
-1. ¿El Bearer token funciona para crear facturas en `/api/argentina/comprobanteVentaBean`?
-2. ¿Cuánto dura el Bearer token antes de expirar?
-3. ¿Cómo replicar el login de Visma Connect programáticamente?
-4. ¿El API REST devuelve TransaccionID en la respuesta?
-5. ¿El API REST permite obtener PDF directamente?
-
-**Responderemos estas preguntas en la nueva pestaña `TabApiRest.vue`.**
+**Próxima acción:** Probar en https://xubio-facturacion-online.vercel.app/ después del deployment.
 
 ---
 
-## 📌 Notas Finales
-
-- **XML Legacy está listo para producción** - funciona al 100%
-- **API REST es experimental** - puede o no funcionar
-- **Ambos métodos valen la pena explorar** - API REST sería más simple si funciona
-- **La decisión final se tomará después de probar API REST**
-
-**Estado general:** ✅ Exitoso - Tenemos método funcional + explorando alternativa mejor
-
----
-
-*Documentación generada automáticamente el 31/12/2025*
+*Documentación actualizada el 31/12/2025 - Sesión de investigación API REST + Bearer Token*
