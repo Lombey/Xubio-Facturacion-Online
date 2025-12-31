@@ -94,36 +94,36 @@
       <div v-if="puntosDeVentaResult.visible" :class="['result', puntosDeVentaResult.type]" v-html="formatoMensaje(puntosDeVentaResult.message)"></div>
       
       <div v-if="puntosDeVenta.length > 0" style="margin-top: 15px;">
-        <punto-venta-selector
-          :puntos-de-venta="puntosDeVenta"
-          :punto-venta-seleccionado="puntoVentaSeleccionadoParaFactura"
-          @select-punto-venta="seleccionarPuntoVentaDelDropdown"
-        />
-      </div>
-      <div v-else-if="!isLoading" style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 4px; color: #856404;">
-        ⚠️ No hay puntos de venta cargados. Haz clic en "Actualizar desde API" para cargarlos.
-      </div>
-    </div>
+            <PuntoVentaSelector
+              :puntos-de-venta="puntosDeVenta"
+              :punto-venta-seleccionado="puntoVentaSeleccionadoParaFactura"
+              @select-punto-venta="seleccionarPuntoVentaDelDropdown"
+            />
+            
+            <!-- 🧪 CONTROLES DE LABORATORIO (Solo para diagnóstico) -->
+            <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px dashed #6c757d; border-radius: 4px;">
+              <strong style="font-size: 12px; display: block; margin-bottom: 5px;">🧪 Estrategia de Envío (Prueba):</strong>
+              <div style="display: flex; gap: 15px; font-size: 12px;">
+                <label style="cursor: pointer; display: flex; align-items: center;">
+                  <input type="radio" v-model="estrategiaPuntoVenta" value="normal" name="estrategiaPV">
+                  <span style="margin-left: 4px;">🔵 Normal (API)</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center;">
+                  <input type="radio" v-model="estrategiaPuntoVenta" value="forzar" name="estrategiaPV">
+                  <span style="margin-left: 4px;">🔴 Forzar Editable</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center;">
+                  <input type="radio" v-model="estrategiaPuntoVenta" value="soloId" name="estrategiaPV">
+                  <span style="margin-left: 4px;">🟠 Solo ID</span>
+                </label>
+              </div>
+              <div style="font-size: 11px; color: #666; margin-top: 5px; font-style: italic;">
+                {{ descripcionEstrategia }}
+              </div>
+            </div>
+            <!-- FIN CONTROLES -->
 
-    <!-- Sección 2.7: Diagnóstico de Punto de Venta -->
-    <div class="section" v-if="mostrarDiagnosticoPV">
-      <h2>🔧 2.7. Diagnóstico de Punto de Venta</h2>
-      <div class="info" style="background: #fff3cd; border-color: #ffc107;">
-        <strong>🔍 Guía de diagnóstico:</strong><br>
-        1. Primero revisa los "Datos crudos" para ver qué campos tiene el punto de venta<br>
-        2. Prueba diferentes "Campo ID" hasta que uno muestre un valor válido<br>
-        3. Prueba diferentes "Campo Editable/Sugerido" hasta encontrar el correcto<br>
-        4. Cuando encuentres la combinación correcta, el estado cambiará a ✅ Válido
-      </div>
-
-      <!-- Toggle para mostrar/ocultar datos crudos -->
-      <div style="margin-top: 15px;">
-        <button @click="toggleDatosCrudosPV" class="test-btn">
-          {{ mostrarDatosCrudosPV ? '🔽 Ocultar' : '▶️ Mostrar' }} Datos Crudos del Punto de Venta
-        </button>
-      </div>
-
-      <!-- Datos crudos del punto de venta -->
+            <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"
       <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"
            style="margin-top: 10px; padding: 15px; background: #1e1e1e; border-radius: 8px; overflow-x: auto;">
         <pre style="color: #d4d4d4; margin: 0; font-size: 12px; white-space: pre-wrap;">{{ JSON.stringify(puntoVentaSeleccionadoParaFactura, null, 2) }}</pre>

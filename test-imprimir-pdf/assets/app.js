@@ -136,6 +136,7 @@ export const appOptions = {
       puntosDeVentaResult: { message: '', type: '', visible: false },
       puntoVentaSeleccionadoId: null, // ID del punto de venta seleccionado (similar a facturaMoneda)
       puntoVentaSeleccionadoParaFactura: null, // Punto de venta seleccionado para la factura
+      estrategiaPuntoVenta: 'normal', // 'normal', 'forzar', 'soloId'
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
       
@@ -176,6 +177,18 @@ export const appOptions = {
              Date.now() < this.tokenExpiration - 60000;
     },
     
+    /**
+     * Descripción de la estrategia de prueba seleccionada
+     */
+    descripcionEstrategia() {
+      switch(this.estrategiaPuntoVenta) {
+        case 'normal': return 'Envía el objeto tal cual viene de la API o normalizado.';
+        case 'forzar': return 'Envía el ID con flags hardcodeados (editable: true, sugerido: true).';
+        case 'soloId': return 'Envía un objeto limpio con solo ID y nombre.';
+        default: return '';
+      }
+    },
+
     /**
      * Calcula el total de productos seleccionados
      */
@@ -1712,21 +1725,35 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
             fechaVto: fechaISO,
             condicionDePago: 1, // 1=Cuenta Corriente
             
-            // --- Opciones de Prueba de Punto de Venta ---
-            // Opción 1 (Estándar): Envía lo que selecciona la UI
-            puntoVenta: this.obtenerPuntoVentaPorDefecto(),
-            
-            // Opción 2 (Forzada): Descomentar para enviar flags hardcodeados
-            /*
-            puntoVenta: {
-               ID: this.obtenerPuntoVentaPorDefecto().ID || this.obtenerPuntoVentaPorDefecto().id,
-               editable: true,
-               sugerido: true,
-               modoNumeracion: 'editablesugerido',
-               activo: 1
-            },
-            */
-            // ---------------------------------------------
+            // --- Selección de Punto de Venta según estrategia ---
+            puntoVenta: (() => {
+              const pvOriginal = this.obtenerPuntoVentaPorDefecto();
+              const pvId = pvOriginal.ID || pvOriginal.id;
+              
+              if (this.estrategiaPuntoVenta === 'forzar') {
+                return {
+                   ID: pvId,
+                   id: pvId,
+                   editable: true,
+                   sugerido: true,
+                   modoNumeracion: 'editablesugerido',
+                   activo: 1,
+                   nombre: pvOriginal.nombre,
+                   codigo: pvOriginal.codigo
+                };
+              } else if (this.estrategiaPuntoVenta === 'soloId') {
+                return {
+                   ID: pvId,
+                   id: pvId,
+                   nombre: pvOriginal.nombre || 'PV Test',
+                   codigo: pvOriginal.codigo || ''
+                };
+              } else {
+                // Estrategia 'normal'
+                return pvOriginal;
+              }
+            })(),
+            // --------------------------------------------------
 
             vendedor: this.obtenerVendedorPorDefecto(),
             transaccionProductoItems: [{
