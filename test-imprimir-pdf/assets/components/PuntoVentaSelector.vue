@@ -23,10 +23,10 @@
           </span>
         </div>
         <div v-if="puntoVenta.editable && puntoVenta.sugerido" style="font-size: 11px; color: #4caf50; margin-top: 3px;">
-          ✅ Editable-Sugerido (válido para facturas)
+          ✅ Editable-Sugerido ({{ puntoVenta.modoNumeracion || 'manual' }})
         </div>
         <div v-else style="font-size: 11px; color: #dc3545; margin-top: 3px;">
-          ❌ No válido ({{ puntoVenta.editable ? 'Editable' : 'No Ed.' }} | {{ puntoVenta.sugerido ? 'Sugerido' : 'No Sug.' }})
+          ❌ No válido (Modo: {{ puntoVenta.modoNumeracion || 'N/A' }})
         </div>
       </div>
     </template>

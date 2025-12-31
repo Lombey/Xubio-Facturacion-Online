@@ -113,6 +113,7 @@ export function normalizarProducto(productoRaw) {
  * @property {boolean} [editable]
  * @property {boolean} [sugerido]
  * @property {boolean} [editableSugerido]
+ * @property {string} [modoNumeracion]
  */
 
 /**
@@ -123,6 +124,7 @@ export function normalizarProducto(productoRaw) {
  * @property {boolean} editable
  * @property {boolean} sugerido
  * @property {boolean} editableSugerido
+ * @property {string} modoNumeracion
  * @property {Object} metadata
  * @property {PuntoVentaRaw} metadata.original
  */
@@ -135,13 +137,20 @@ export function normalizarProducto(productoRaw) {
 export function normalizarPuntoVenta(puntoVentaRaw) {
   if (!puntoVentaRaw) return null;
   
+  // Mapeo de modoNumeracion basado en datos reales:
+  // "1" suele ser "automatico"
+  // "editablesugerido" es el valor requerido
+  const modo = String(puntoVentaRaw.modoNumeracion || '').toLowerCase();
+  const esEditableSugerido = modo === 'editablesugerido' || modo === '2'; // '2' es el estándar para manual/sugerido
+  
   return {
     id: puntoVentaRaw.puntoVentaId || puntoVentaRaw.ID || puntoVentaRaw.id || null,
     name: puntoVentaRaw.nombre || '',
     code: puntoVentaRaw.codigo || puntoVentaRaw.puntoVenta || '',
-    editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : false,
-    sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : false,
-    editableSugerido: puntoVentaRaw.editableSugerido !== undefined ? puntoVentaRaw.editableSugerido : false,
+    // Si la API no envía el flag booleano, nos basamos en el modo de numeración
+    editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : esEditableSugerido,
+    sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : esEditableSugerido,
+    modoNumeracion: puntoVentaRaw.modoNumeracion === "1" ? "Automático (1)" : (puntoVentaRaw.modoNumeracion || 'N/A'),
     metadata: {
       original: puntoVentaRaw
     }
