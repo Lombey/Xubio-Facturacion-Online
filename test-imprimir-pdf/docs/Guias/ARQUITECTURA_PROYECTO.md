@@ -36,10 +36,12 @@ Aplicación Vue 3 para crear facturas y cobranzas usando la API de Xubio, con ge
 
 | Métrica | Valor |
 |---------|-------|
-| **Total de Líneas** | 168 líneas (app.js + App.vue) |
-| **Bundle Size** | 108.69 kB |
+| **Total de Líneas** | 233 líneas (app.js + App.vue) |
+| **app.js** | 178 líneas (orquestador + token management) |
+| **App.vue** | 55 líneas (template) |
+| **Bundle Size** | 110.31 kB |
 | **Componentes Tab** | 3 (Auth, Factura, Cobranza) |
-| **Reducción vs Legacy** | -95.9% de código |
+| **Reducción vs Legacy** | -94.3% de código (4118 → 233) |
 
 ---
 
@@ -50,7 +52,7 @@ test-imprimir-pdf/
 │
 ├── assets/
 │   ├── App.vue                    # 55 líneas - Template principal
-│   ├── app.js                     # 113 líneas - Orquestador
+│   ├── app.js                     # 178 líneas - Orquestador + Token Management
 │   │
 │   ├── components/                # Componentes Vue
 │   │   ├── TabAuth.vue           # 458 líneas - Autenticación
@@ -364,11 +366,11 @@ Los componentes Tab usan selectores como bloques:
 
 ---
 
-### app.js (113 líneas)
+### app.js (178 líneas)
 
-**Responsabilidad**: Orquestador y proveedor de dependencias
+**Responsabilidad**: Orquestador, proveedor de dependencias y token management
 
-**Data (6 propiedades)**:
+**Data (8 propiedades)**:
 ```javascript
 {
   currentTab: 'auth',           // Navegación
@@ -376,7 +378,9 @@ Los componentes Tab usan selectores como bloques:
   pdfVisible: false,            // Visor PDF
   accessToken: null,            // Token JWT
   tokenExpiration: null,        // Timestamp expiración
-  xubioSdk: null               // Instancia XubioClient
+  clientId: null,               // Client ID Xubio
+  secretId: null,               // Secret ID Xubio
+  xubioSdk: null               // Instancia apiClient (createXubioApiClient)
 }
 ```
 
@@ -384,28 +388,42 @@ Los componentes Tab usan selectores como bloques:
 ```javascript
 provide() {
   return {
-    sdk: () => this.xubioSdk,      // SDK compartido
+    sdk: () => this.xubioSdk,      // API Client compartido
     showToast: this.showToast       // Notificaciones
   };
 }
 ```
 
-**methods (4 métodos)**:
+**methods (7 métodos)**:
 
 1. **`showToast(message, type)`**
    - Muestra notificaciones (actualmente console.log)
    - Tipos: 'success', 'error', 'warning', 'info'
 
-2. **`handleShowPdf(url)`**
+2. **`isTokenValid()`**
+   - Verifica si el token actual es válido
+   - Margen de 60 segundos para renovación
+
+3. **`getAccessToken()`**
+   - Retorna el token actual sin renovación
+   - Usado por el API client
+
+4. **`renewToken()`**
+   - Renueva el token usando clientId y secretId
+   - POST a /api/auth
+   - Actualiza accessToken y tokenExpiration
+
+5. **`handleShowPdf(url)`**
    - Abre el visor PDF global
    - Usado por TabFactura y TabCobranza
 
-3. **`closePdf()`**
+6. **`closePdf()`**
    - Cierra el visor PDF global
 
-4. **`handleLogin(data)`**
-   - Recibe token de TabAuth
-   - Crea instancia de XubioClient
+7. **`handleLogin(data)`**
+   - Recibe { token, expiration, clientId, secretId } de TabAuth
+   - Guarda credenciales para renovación automática
+   - Crea apiClient con createXubioApiClient()
    - Cambia a pestaña 'factura'
 
 ---
@@ -416,11 +434,11 @@ provide() {
 
 **Flujo**:
 1. Usuario ingresa `clientId` y `secretId`
-2. Click en "Autenticar"
+2. Click en "Obtener Token"
 3. POST a `/api/auth` vía fetch directo (no usa SDK)
 4. Recibe token JWT + expiración
 5. Guarda en localStorage (opcional)
-6. Emite `@login-success` con { token, expiration }
+6. Emite `@login-success` con { token, expiration, clientId, secretId }
 
 **Características**:
 - ✅ Validación de campos requeridos
@@ -433,7 +451,7 @@ provide() {
 - `showToast`: Para notificaciones
 
 **emits**:
-- `login-success`: { token, expiration }
+- `login-success`: { token, expiration, clientId, secretId }
 
 **Métodos Principales**:
 - `autenticar()`: Proceso completo de auth
@@ -728,52 +746,80 @@ handleShowPdf(url) {
 
 ## 🔌 SDK y Servicios
 
-### XubioClient (sdk/xubioClient.js)
+### Arquitectura de Servicios
 
-**Clase base para comunicación con API Xubio**
+El proyecto usa un **Service Layer** ubicado en `assets/services/xubioApi.js` que abstrae toda la comunicación con la API de Xubio.
+
+**Nota**: Existe una carpeta `/sdk/` con implementaciones alternativas (XubioClient, FacturaService, CobranzaService) que están planificadas para futuro uso pero **NO se usan actualmente**.
+
+### createXubioApiClient (assets/services/xubioApi.js)
+
+**Factory function que crea un cliente de API de Xubio**
 
 ```javascript
-class XubioClient {
-  constructor(token) {
-    this.token = token;
-    this.baseUrl = 'https://app.xubio.com/api';
-  }
+import { createXubioApiClient } from './services/xubioApi.js';
 
-  async request(endpoint, method, payload, queryParams) {
-    // Implementación genérica de HTTP
-  }
-
-  async crearFactura(payload) {
-    return this.request('/comprobanteVentaBean', 'POST', payload);
-  }
-
-  async crearCobranza(payload) {
-    return this.request('/cobranzaBean', 'POST', payload);
-  }
-
-  async obtenerPDF(transaccionId, tipoimpresion = '1') {
-    return this.request(`/imprimir/${transaccionId}`, 'GET', null, {
-      tipo: 'comprobanteVenta',
-      tipoimpresion
-    });
-  }
-
-  async getPuntosVenta() {
-    return this.request('/puntoVentaBean', 'GET');
-  }
-}
+// En app.js - handleLogin()
+this.xubioSdk = createXubioApiClient(
+  () => this.renewToken(),      // Función para renovar token
+  () => this.isTokenValid(),    // Función para verificar validez
+  () => this.getAccessToken()   // Función para obtener token actual
+);
 ```
 
-**Uso**:
+**Métodos del API Client**:
+
+```javascript
+// request genérico
+await sdk.request(endpoint, method, payload, queryParams);
+
+// getPuntosVenta
+const puntosVenta = await sdk.getPuntosVenta(activo = 1);
+
+// crearFactura
+const { response, data } = await sdk.crearFactura(payload);
+
+// obtenerPDF
+const { response, data } = await sdk.obtenerPDF(transaccionId, tipoimpresion);
+
+// crearCobranza
+const { response, data } = await sdk.crearCobranza(payload);
+```
+
+**Uso en componentes Tab**:
 ```javascript
 // En TabFactura.vue
-const sdk = this.sdk();
+const sdk = this.sdk();  // Obtener SDK inyectado desde app.js
 const { response, data } = await sdk.crearFactura(payload);
 
 if (response.ok) {
   const transaccionId = data.transaccion.ID;
   const pdfResult = await sdk.obtenerPDF(transaccionId, '1');
   // ...
+}
+```
+
+### Token Management (app.js)
+
+app.js mantiene las credenciales y maneja renovación automática de tokens:
+
+```javascript
+// Métodos en app.js
+isTokenValid() {
+  return this.accessToken &&
+         this.tokenExpiration &&
+         Date.now() < this.tokenExpiration - 60000;
+}
+
+async renewToken() {
+  const response = await fetch('/api/auth', {
+    method: 'POST',
+    body: JSON.stringify({
+      clientId: this.clientId,
+      secretId: this.secretId
+    })
+  });
+  // Actualiza this.accessToken y this.tokenExpiration
 }
 ```
 
