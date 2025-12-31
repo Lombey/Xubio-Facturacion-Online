@@ -224,11 +224,15 @@ export default {
       this.tokenError = null;
 
       try {
-        const response = await fetch('https://xubio.com/api/dashboard/datosUsuario', {
+        // Llamar a proxy de Vercel en lugar de xubio.com directamente
+        const response = await fetch('/api/proxy/datosUsuario', {
+          method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.bearerToken.trim()}`,
-            'Accept': 'application/json'
-          }
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            bearerToken: this.bearerToken.trim()
+          })
         });
 
         if (response.ok) {
@@ -240,7 +244,8 @@ export default {
           // Cargar datos
           await this.cargarDatos();
         } else {
-          this.tokenError = `Token inválido (${response.status})`;
+          const errorData = await response.json();
+          this.tokenError = `Token inválido (${response.status}): ${errorData.error || errorData.message || 'Error desconocido'}`;
         }
       } catch (error) {
         this.tokenError = `Error: ${error.message}`;
@@ -302,15 +307,16 @@ export default {
 
         this.debugData.request = JSON.stringify(payload, null, 2);
 
-        // Hacer request
-        const response = await fetch('https://xubio.com/api/argentina/comprobanteVentaBean', {
+        // Hacer request a proxy de Vercel en lugar de xubio.com directamente
+        const response = await fetch('/api/proxy/comprobanteVentaBean', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.bearerToken.trim()}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            bearerToken: this.bearerToken.trim(),
+            payload
+          })
         });
 
         this.tiempoRespuesta = Date.now() - startTime;
