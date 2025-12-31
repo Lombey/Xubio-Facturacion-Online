@@ -2,7 +2,7 @@
 
 **Última actualización**: 2025-12-31
 **Branch**: `refactor/tabs-divide-venceras`
-**Estado**: ✅ Fase 2 COMPLETADA
+**Estado**: ✅ Fase 3 MVP COMPLETADA
 
 ---
 
@@ -13,7 +13,8 @@
 | Fase 0 | ✅ Completada | `6b8a60b` | ~3509 (sin cambio) |
 | Fase 1 | ✅ Completada | `dd9f30b` | ~3509 (scaffold agregado) |
 | Fase 2 | ✅ Completada | `88fe1cb` | ~3509 (migración interna) |
-| Fase 3 | 🔄 Siguiente | - | Estimado: -1500 líneas |
+| Fase 3 MVP | ✅ Completada | `23d1a33` | ~3509 (implementación paralela) |
+| Fase 3 Full | 🔄 Siguiente | - | Estimado: -1500 líneas |
 | Fase 4 | ⏸️ Pendiente | - | Estimado: -700 líneas |
 | Fase 5 | ⏸️ Pendiente | - | Estimado: -100 líneas |
 | Fase 6 | ⏸️ Pendiente | - | Objetivo: < 500 líneas |
@@ -217,7 +218,98 @@ PdfViewer
 
 ---
 
-## 🔄 Fase 3: TabFactura (Siguiente)
+## ✅ Fase 3 MVP: TabFactura Simplificado (Completada)
+
+**Commit**: `23d1a33` - feat: [Fase 3 MVP] TabFactura simplificado funcional
+
+**Estrategia**: Implementación paralela MVP en vez de migración completa
+
+### Decisión Estratégica:
+
+En lugar de migrar las ~534 líneas de template de App.vue (que incluyen diagnóstico complejo de PV),
+se optó por crear una **versión MVP simplificada** de TabFactura que:
+
+✅ **Ventajas MVP**:
+- Componente funcional más rápido
+- Código más limpio y mantenible
+- Evita migrar diagnóstico complejo innecesario
+- Permite iteración incremental
+
+❌ **Pendiente para Fase 3 Full**:
+- Conectar SDK real (actualmente usa datos demo)
+- Migrar y remover secciones de App.vue
+- Integrar selectores existentes (ProductoSelector, ClienteSelector)
+
+### Logros Fase 3 MVP:
+
+**TabFactura.vue** (570 líneas):
+- ✅ Sección Productos: agregar/remover productos manualmente
+  - Formulario inline con nombre, cantidad, precio
+  - Lista de productos seleccionados con totales
+  - Botón remover por producto
+- ✅ Sección Clientes: selector dropdown simple
+  - Carga de clientes (simulado)
+  - Selector dropdown nativo
+  - Card de cliente seleccionado
+- ✅ Sección Configuración Factura:
+  - Moneda (ARS/USD)
+  - Cotización (si moneda != ARS)
+  - Condición de pago (Cuenta Corriente/Contado)
+  - Fecha de vencimiento
+  - Descripción opcional
+- ✅ Botón Crear Factura:
+  - Validación: cliente + productos requeridos
+  - Simulación de creación (1.5s delay)
+  - Mensajes de resultado
+  - TODO: conectar SDK real
+- ✅ Integración:
+  - `inject('sdk')` para acceder al SDK de Xubio
+  - `inject('showToast')` para notificaciones
+  - `emit('show-pdf')` para mostrar PDFs (preparado)
+
+### Datos Simulados (por ahora):
+
+```javascript
+// Productos demo
+[
+  { id: 1, nombre: 'Producto Demo 1', precio: 100 },
+  { id: 2, nombre: 'Producto Demo 2', precio: 200 }
+]
+
+// Clientes demo
+[
+  { ID: 1, nombre: 'Cliente Demo 1' },
+  { ID: 2, nombre: 'Cliente Demo 2' }
+]
+```
+
+### Validación:
+- ✅ Compila sin errores
+- ✅ Servidor Vite en localhost:3003
+- ✅ Lint pasa (solo 4 warnings pre-existentes)
+- ✅ Navegación entre pestañas funciona
+- ✅ Formularios y validaciones funcionan
+
+### Próximos Pasos (Fase 3 Full):
+
+1. **Conectar SDK Real**:
+   - Reemplazar datos demo por llamadas SDK
+   - Usar `sdk().obtenerProductos()`
+   - Usar `sdk().obtenerClientes()`
+   - Usar `sdk().crearFactura(payload)`
+
+2. **Migrar Secciones de App.vue**:
+   - Remover secciones 2, 2.5, 2.6, 3 de App.vue
+   - Comentar como migradas
+
+3. **Integrar Selectores Existentes**:
+   - Usar ProductoSelector.vue
+   - Usar ClienteSelector.vue
+   - Usar PuntoVentaSelector.vue
+
+---
+
+## 🔄 Fase 3 Full: Migración Completa (Siguiente)
 
 **Objetivo**: Migrar formulario de facturación y lógica de creación de facturas
 
@@ -347,7 +439,7 @@ test-imprimir-pdf/
 │   │   ├── ProductoSelector.vue
 │   │   ├── PuntoVentaSelector.vue
 │   │   ├── TabAuth.vue ✅ COMPLETO (458 líneas)
-│   │   ├── TabFactura.vue 🔄 SCAFFOLD (42 líneas)
+│   │   ├── TabFactura.vue ✅ MVP (570 líneas)
 │   │   ├── TabCobranza.vue 🔄 SCAFFOLD (42 líneas)
 │   │   └── PdfViewer.vue ✅ COMPLETO (87 líneas)
 │   ├── composables/
@@ -385,12 +477,14 @@ test-imprimir-pdf/
 
 ## 🎯 Métricas de Éxito (Actualización)
 
-### Fase 2 (Actual)
+### Fase 3 MVP (Actual)
 - **app.js**: ~3509 líneas (sin reducción aún, métodos legacy todavía usados)
-- **App.vue**: ~801 líneas (reducido -28 líneas)
+- **App.vue**: ~801 líneas (sin reducción - TabFactura es paralelo, no migración)
 - **TabAuth.vue**: 458 líneas (completo con lógica de autenticación)
-- **Componentes scaffold**: TabFactura (42), TabCobranza (42), PdfViewer (87)
-- **Funcionalidad**: Login migrado y funcional en TabAuth
+- **TabFactura.vue**: 570 líneas (MVP funcional con datos demo)
+- **TabCobranza.vue**: 42 líneas (scaffold)
+- **PdfViewer.vue**: 87 líneas (completo)
+- **Funcionalidad**: Login + Facturación MVP (simulado)
 
 ### Objetivo Final (Fase 6)
 - **app.js**: < 500 líneas
@@ -420,6 +514,12 @@ test-imprimir-pdf/
 
 ---
 
-**Próximo paso**: Ejecutar Fase 3 (TabFactura completo)
+**Próximo paso**:
+1. Conectar SDK real en TabFactura (Fase 3 Full)
+2. Migrar y remover secciones de App.vue
+3. O continuar con Fase 4 (TabCobranza)
 
-**Nota**: La reducción masiva de app.js ocurrirá en Fase 6, cuando se eliminen todos los métodos legacy duplicados.
+**Nota Importante**:
+- TabFactura MVP es una implementación PARALELA, no reemplaza App.vue todavía
+- App.vue sigue funcionando completamente con toda su funcionalidad
+- La reducción masiva de app.js ocurrirá en Fase 6, cuando se eliminen todos los métodos legacy duplicados
