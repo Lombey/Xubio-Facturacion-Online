@@ -2,24 +2,24 @@
 
 **Última actualización**: 2025-12-31
 **Branch**: `refactor/tabs-divide-venceras`
-**Estado**: ✅ Fase 4 COMPLETADA
+**Estado**: ✅ Fase 5 COMPLETADA
 
 ---
 
 ## 📊 Progreso General
 
-| Fase | Estado | Commit | Líneas app.js |
-|------|--------|--------|---------------|
-| Fase 0 | ✅ Completada | `6b8a60b` | ~3509 (sin cambio) |
-| Fase 1 | ✅ Completada | `dd9f30b` | ~3509 (scaffold agregado) |
-| Fase 2 | ✅ Completada | `88fe1cb` | ~3509 (migración interna) |
-| Fase 3 MVP | ✅ Completada | `23d1a33` | ~3509 (implementación paralela) |
-| Fase 3 Full | ✅ Completada | `297f11e` | ~3509 (SDK conectado) |
-| Fase 4 | ✅ Completada | `fcacc9f` | ~3509 (cobranzas funcionales) |
-| Fase 5 | 🔄 Siguiente | - | Estimado: -2000 líneas |
-| Fase 6 | ⏸️ Pendiente | - | Objetivo: < 500 líneas |
+| Fase | Estado | Commit | Líneas App.vue / app.js |
+|------|--------|--------|-------------------------|
+| Fase 0 | ✅ Completada | `6b8a60b` | 803 / ~3509 (sin cambio) |
+| Fase 1 | ✅ Completada | `dd9f30b` | 803 / ~3509 (scaffold agregado) |
+| Fase 2 | ✅ Completada | `88fe1cb` | 803 / ~3509 (migración interna) |
+| Fase 3 MVP | ✅ Completada | `23d1a33` | 803 / ~3509 (implementación paralela) |
+| Fase 3 Full | ✅ Completada | `297f11e` | 803 / ~3509 (SDK conectado) |
+| Fase 4 | ✅ Completada | `fcacc9f` | 803 / ~3509 (cobranzas funcionales) |
+| **Fase 5** | **✅ Completada** | **`9f9763c`** | **55 / ~3315 (App.vue -93%)** |
+| Fase 6 | ⏸️ Pendiente | - | Objetivo: < 100 / < 500 |
 
-**Objetivo Final**: app.js con < 500 líneas (actualmente ~3509)
+**Objetivo Final**: app.js con < 500 líneas (actualmente ~3315)
 
 ---
 
@@ -503,9 +503,77 @@ se optó por crear una **versión MVP simplificada** de TabFactura que:
 **Computed**:
 - `puedeCrearCobranza()`: Validación de requisitos
 
-### Próximos Pasos (Fase 5):
-- Eliminar código legacy de facturación y cobranzas en app.js y App.vue
-- Reducir app.js de ~3509 líneas a < 1000 líneas
+---
+
+## ✅ Fase 5: Eliminar Código Legacy (Completada)
+
+**Commit**: `9f9763c` - feat: [Fase 5] Eliminar código legacy de App.vue
+
+**Objetivo**: Limpiar App.vue eliminando todo el código legacy migrado a componentes Tab
+
+### Logros Fase 5:
+
+**✅ App.vue Reducido Drásticamente**:
+- **Antes**: 803 líneas (template gigante con todo legacy)
+- **Después**: 55 líneas (solo navegación y containers)
+- **Reducción**: -746 líneas (-93% del tamaño original)
+
+**✅ Código Legacy Eliminado**:
+- ❌ Sección 2: Productos y Lista de Precios (~100 líneas)
+- ❌ Sección 2.5: Clientes (~50 líneas)
+- ❌ Sección 2.6: Puntos de Venta + diagnóstico (~150 líneas)
+- ❌ Sección 3: Flujo Completo Factura (~250 líneas)
+- ❌ Sección 4: Flujo Completo Cobranza (~150 líneas)
+- ❌ Sección 5: Listar Facturas del Último Mes (~30 líneas)
+- ❌ Sección 6: Obtener PDF Comprobante Existente (~30 líneas)
+
+**✅ App.vue Estructura Final**:
+```vue
+<template>
+  <div class="container">
+    <h1>🧪 Test Xubio - Imprimir PDF</h1>
+
+    <!-- Navegación de Tabs -->
+    <div style="...">
+      <button @click="currentTab = 'auth'">🔐 Autenticación</button>
+      <button @click="currentTab = 'factura'">🧾 Facturas</button>
+      <button @click="currentTab = 'cobranza'">💰 Cobranzas</button>
+    </div>
+
+    <!-- Componentes de Pestañas -->
+    <tab-auth v-if="currentTab === 'auth'" @login-success="handleLogin"></tab-auth>
+    <tab-factura v-if="currentTab === 'factura'" @show-pdf="handleShowPdf"></tab-factura>
+    <tab-cobranza v-if="currentTab === 'cobranza'" @show-pdf="handleShowPdf"></tab-cobranza>
+
+    <!-- Visor PDF Global -->
+    <pdf-viewer :url="pdfUrl" :visible="pdfVisible" @close="closePdf"></pdf-viewer>
+  </div>
+</template>
+
+<script>
+import { appOptions } from './app.js';
+export default { ...appOptions, name: 'App' };
+</script>
+```
+
+**✅ Métodos Requeridos en app.js**:
+App.vue ahora solo necesita estos métodos de app.js:
+- `handleLogin()`: Maneja evento @login-success de TabAuth
+- `handleShowPdf()`: Maneja evento @show-pdf de TabFactura/TabCobranza
+- `closePdf()`: Cierra el visor de PDF
+- Data: `currentTab`, `pdfUrl`, `pdfVisible`
+
+### Validación:
+- ✅ Compila sin errores (npm run build)
+- ✅ Lint pasa (solo 4 warnings pre-existentes)
+- ✅ Bundle size: 199.83 kB (sin cambio significativo)
+- ✅ App.vue es ahora limpio y mantenible
+- ✅ Toda funcionalidad delegada a componentes Tab
+
+### Próximos Pasos (Fase 6):
+- Simplificar app.js eliminando métodos legacy no usados
+- Reducir app.js de ~3315 líneas a < 500 líneas
+- Mantener solo: provide/inject setup, handlers de eventos, state global
 
 ---
 
