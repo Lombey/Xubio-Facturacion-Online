@@ -507,9 +507,35 @@
       </div>
       
       <div class="flow-buttons">
-        <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading || !puedeCrearFactura">🚀 Crear Factura y Obtener PDF</button>
-        <button @click="soloCrearFactura()" :disabled="isLoading || !puedeCrearFactura">Solo Crear Factura</button>
-      </div>
+                    <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading || !puedeCrearFactura">🚀 Crear Factura y Obtener PDF</button>
+                    <button @click="soloCrearFactura()" :disabled="isLoading || !puedeCrearFactura">Solo Crear Factura</button>
+                    
+                    <!-- 🕵️ DIAGNÓSTICO DE BLOQUEO (Solo visible si no se puede crear factura) -->
+                    <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 11px;">
+                      <strong>⚠️ No se puede crear la factura. Verifica:</strong>
+                      <ul style="margin: 5px 0 0 20px; padding: 0;">
+                        <li :style="{ color: tokenValido ? '#28a745' : '#dc3545' }">
+                          {{ tokenValido ? '✅' : '❌' }} Token de acceso válido
+                        </li>
+                        <li :style="{ color: (clienteSeleccionadoParaFactura && facturaClienteId) ? '#28a745' : '#dc3545' }">
+                          {{ (clienteSeleccionadoParaFactura && facturaClienteId) ? '✅' : '❌' }} Cliente seleccionado (ID: {{ facturaClienteId || 'N/A' }})
+                        </li>
+                        <li :style="{ color: (productosSeleccionados.length > 0 || facturaJson.trim()) ? '#28a745' : '#dc3545' }">
+                          {{ (productosSeleccionados.length > 0 || facturaJson.trim()) ? '✅' : '❌' }} Productos seleccionados ({{ productosSeleccionados.length }})
+                        </li>
+                        <li :style="{ color: facturaMoneda ? '#28a745' : '#dc3545' }">
+                          {{ facturaMoneda ? '✅' : '❌' }} Moneda seleccionada
+                        </li>
+                        <li :style="{ color: puntoVentaValido ? '#28a745' : '#dc3545' }">
+                          {{ puntoVentaValido ? '✅' : '❌' }} Punto de venta activo con ID válido
+                          <div v-if="!puntoVentaValido" style="font-size: 10px; margin-left: 22px; color: #666; margin-top: 2px;">
+                            Verifica que el punto de venta seleccionado:<br>
+                            • Tenga un ID válido (puntoVentaId)<br>
+                            • Esté activo en Xubio
+                          </div>
+                        </li>
+                      </ul>
+                    </div>      </div>
       <!-- Mensaje informativo cuando los botones están deshabilitados -->
       <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404; font-size: 13px;">
         <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No se puede crear la factura. Verifica:</div>
