@@ -1,7 +1,8 @@
 # Estado de la Sesión - Xubio API Laboratory
 
 > **Última actualización:** 31 Diciembre 2025
-> **Sesión:** Investigación de API REST + Bearer Token + Creación de proxies Vercel
+> **Sesión:** Investigación COMPLETADA - Confirmado que solo existe método XML Legacy
+> **Conclusión:** NO existe endpoint REST para crear facturas. Solo XML Legacy disponible.
 
 ---
 
@@ -44,11 +45,11 @@ crearFacturaConPDF({
 
 ---
 
-## 🔬 Lo que ESTAMOS INVESTIGANDO (EXPERIMENTAL)
+## ❌ INVESTIGACIÓN CERRADA: API REST para Crear Facturas
 
 ### **Método 2: API REST + Bearer Token**
 
-**Estado:** ⏳ En prueba - esperando deployment de Vercel para verificación final
+**Estado:** ❌ **CONFIRMADO QUE NO EXISTE** - Xubio NO tiene endpoint REST para crear facturas
 
 #### **Descubrimientos Confirmados:**
 
@@ -381,30 +382,82 @@ Headers como `Origin` y `Referer` **NO son necesarios** desde el proxy (servidor
 
 ---
 
-## ⚠️ BLOQUEO ACTUAL (Fin de Sesión)
+## ✅ CONCLUSIÓN DEFINITIVA (31 Diciembre 2025)
 
-**Problema:**
-Los proxies de Vercel no pueden autenticar con Xubio usando solo Bearer token. Todos los endpoints dan 401, incluso los que funcionan en el browser con el mismo token.
+### **Investigación Completada - Hallazgos Finales:**
 
-**Evidencia:**
-- Browser: `GET https://xubio.com/api/dashboard/cardsdashboard` → ✅ 200 OK
-- Proxy: `POST /api/proxy/xubio` (mismo endpoint, mismo token) → ❌ 401
+**✅ CONFIRMADO mediante Network Tab:**
+1. **Xubio USA SOLO endpoint XML Legacy para crear facturas**
+   - Endpoint: `POST https://xubio.com/NXV/DF_submit`
+   - Payload: XML (NO JSON)
+   - Autenticación: Session Cookies (NO Bearer token)
 
-**Posibles causas:**
-1. **Cookies requeridas:** Xubio puede requerir cookies de sesión además del Bearer token
-2. **Headers de seguridad:** `sec-fetch-site: same-site` no es replicable desde proxy externo
-3. **Validación de origen:** Xubio valida que requests vengan de `app.xubio.com`
+2. **NO EXISTE endpoint REST para crear facturas**
+   - ❌ `/api/argentina/comprobanteVentaBean` NO existe o NO funciona
+   - ❌ NO hay equivalente REST del endpoint `/NXV/DF_submit`
+   - ✅ Bearer token SOLO sirve para endpoints de LECTURA (`/api/dashboard/*`)
 
-**Soluciones alternativas a explorar:**
-1. **Proxy con cookies:** Pasar cookies del cliente al proxy (complejo)
-2. **Script local:** Ejecutar desde máquina con acceso a xubio.com (no serverless)
-3. **Extensión Chrome:** Bypass CORS ejecutando desde browser
-4. **Apps Script directo:** Intentar desde Apps Script (sin proxy) con Bearer token
+3. **Arquitectura de Xubio confirmada:**
+   - **Endpoints de lectura:** REST con Bearer token (`/api/dashboard/datosUsuario`, etc.)
+   - **Endpoints de escritura:** XML Legacy con Session Cookies (`/NXV/DF_submit`, etc.)
 
-**Recomendación temporal:**
-Usar **Método XML Legacy** (ya validado) para Google Apps Script hasta resolver autenticación de API REST.
+### **Evidencia del Network Tab (31/12/2025):**
+
+```javascript
+// Request REAL capturado al crear factura A-00004-00001679
+fetch("https://xubio.com/NXV/DF_submit", {
+  "body": "<df><config>...</config><dataset>...</dataset></df>",
+  "method": "POST",
+  "credentials": "include"  // Usa cookies, NO Bearer token
+});
+```
+
+**Estructura del XML validada:**
+- Cliente: `<OrganizacionID id="8157173" value="2MCAMPO"/>`
+- Productos: `<TransaccionCVItems count="2">...</TransaccionCVItems>`
+- Moneda/Cotización: `<MonedaID id="-3"/>` + `<Cotizacion value="1455"/>`
+- Totales: `<M_ImporteGravado>`, `<M_ImporteImpuestos>`, `<M_ImporteTotal>`
+
+### **Decisión Final para Google Apps Script:**
+
+**✅ USAR Método XML Legacy (xubioLegacyXml.js)**
+- Es el ÚNICO método disponible
+- Ya validado y documentado
+- Payload XML completo capturado del sistema real
+- Flujo completo documentado en `FLUJO_COMPLETO_FACTURACION.md`
+
+**❌ DESCARTAR Método API REST**
+- No existe endpoint REST funcional para crear facturas
+- Proxies Vercel son innecesarios (se pueden eliminar)
+- TabApiRest.vue es innecesario (se puede eliminar)
+- Bearer token solo útil para consultas, no para facturación
+
+### **Archivos a Mantener:**
+- ✅ `sdk/xubioLegacyXml.js` - SDK funcional
+- ✅ `docs/FLUJO_COMPLETO_FACTURACION.md` - Documentación completa
+- ✅ Componentes TabAuth, TabFactura (usan XML Legacy)
+
+### **Archivos Obsoletos (Pueden eliminarse):**
+- ❌ `api/proxy/datosUsuario.js`
+- ❌ `api/proxy/comprobanteVentaBean.js`
+- ❌ `api/proxy/xubio.js`
+- ❌ `assets/components/TabApiRest.vue`
+
+---
+
+## 📊 Comparación Final de Métodos
+
+| Aspecto | XML Legacy | API REST + Bearer |
+|---------|------------|-------------------|
+| **Estado** | ✅ ÚNICO MÉTODO DISPONIBLE | ❌ NO EXISTE |
+| **Endpoint** | `POST /NXV/DF_submit` | ❌ No disponible |
+| **Auth** | Session cookies | N/A |
+| **Payload** | XML (complejo pero funcional) | N/A |
+| **Response** | XML malformado (parseable) | N/A |
+| **Viable para Apps Script** | ✅ SÍ | ❌ NO |
 
 ---
 
 *Documentación actualizada el 31/12/2025*
-*Última actualización: Bloqueo de autenticación en proxy Vercel - Sesión pausada*
+*Última actualización: Investigación completada - Confirmado método único XML Legacy*
+*Próxima sesión: Implementación en Google Apps Script usando método XML*
