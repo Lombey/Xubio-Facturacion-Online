@@ -2544,9 +2544,11 @@ export const appOptions = {
       // Si hay un punto de venta seleccionado manualmente, usarlo
       if (this.puntoVentaSeleccionadoId && this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
+        // Obtener ID del punto de venta (PuntoVentaBean usa puntoVentaId, pero también acepta ID/id como fallback)
         const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
         if (puntoVentaId) {
-          // Según la documentación de la API, los objetos anidados solo necesitan ID, id, nombre y codigo
+          // Mapear a PuntoVentaBeanSelector según Swagger: requiere ID, id, nombre, codigo
+          // PuntoVentaBean (de la API) tiene: puntoVentaId -> se mapea a ID e id
           return {
             ID: puntoVentaId,
             id: puntoVentaId,
@@ -2588,9 +2590,11 @@ export const appOptions = {
         }
         
         if (puntoVenta) {
+          // Obtener ID del punto de venta (PuntoVentaBean usa puntoVentaId, pero también acepta ID/id como fallback)
           const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
           if (puntoVentaId) {
-            // Según la documentación de la API, los objetos anidados solo necesitan ID, id, nombre y codigo
+            // Mapear a PuntoVentaBeanSelector según Swagger: requiere ID, id, nombre, codigo
+            // PuntoVentaBean (de la API) tiene: puntoVentaId -> se mapea a ID e id
             return {
               ID: puntoVentaId,
               id: puntoVentaId,
