@@ -155,6 +155,78 @@
         <li v-if="productosSeleccionados.length === 0">✓ Agregar al menos un producto</li>
       </ul>
     </div>
+
+    <!-- Panel de Debug -->
+    <div class="section debug-section" v-if="puedeCrearFactura">
+      <div class="debug-header" @click="showDebugPanel = !showDebugPanel" style="cursor: pointer;">
+        <h3>🔍 Debug - Pinpointing API {{ showDebugPanel ? '▼' : '▶' }}</h3>
+        <p style="margin: 0; font-size: 12px; color: #666;">
+          Haz clic para ver/ocultar el payload y la respuesta del servidor
+        </p>
+      </div>
+
+      <div v-if="showDebugPanel" class="debug-content">
+        <!-- Resumen Visual -->
+        <div class="debug-summary">
+          <h4>📋 Resumen de Datos a Enviar:</h4>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <strong>Cliente:</strong>
+              <span>{{ clienteSeleccionado.nombre || clienteSeleccionado.razonSocial }} (ID: {{ obtenerClienteId(clienteSeleccionado) }})</span>
+            </div>
+            <div class="summary-item">
+              <strong>Productos:</strong>
+              <span>{{ productosSeleccionados.length }} items - Total: ${{ formatearPrecio(totalProductos) }}</span>
+            </div>
+            <div class="summary-item">
+              <strong>Moneda:</strong>
+              <span>{{ facturaMoneda }}</span>
+            </div>
+            <div class="summary-item">
+              <strong>Condición Pago:</strong>
+              <span>{{ facturaCondicionPago === 1 ? 'Cuenta Corriente' : 'Contado' }}</span>
+            </div>
+            <div class="summary-item">
+              <strong>Punto de Venta:</strong>
+              <span v-if="puntosDeVenta.length > 0">{{ puntosDeVenta[0].nombre }} (ID: {{ puntosDeVenta[0].puntoVentaId || puntosDeVenta[0].ID }})</span>
+              <span v-else style="color: red;">⚠️ Sin punto de venta</span>
+            </div>
+          </div>
+
+          <!-- Lista de productos detallada -->
+          <div class="products-detail">
+            <strong>Detalle de Productos:</strong>
+            <ul>
+              <li v-for="(p, idx) in productosSeleccionados" :key="idx">
+                <code>ID: {{ p.id }}</code> - {{ p.nombre }} - Cant: {{ p.cantidad }} - Precio Unit: ${{ formatearPrecio(p.precio) }} - Subtotal: ${{ formatearPrecio(p.precio * p.cantidad) }}
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- JSON del Payload (Request) -->
+        <div v-if="debugPayload" class="debug-box">
+          <div class="debug-box-header">
+            <h4>📤 JSON Request (Payload enviado a Xubio)</h4>
+            <button @click="copiarAlPortapapeles(debugPayload)" class="btn-copy">📋 Copiar JSON</button>
+          </div>
+          <pre class="json-code">{{ debugPayload }}</pre>
+        </div>
+
+        <!-- JSON de la Respuesta (Response) -->
+        <div v-if="debugResponse" class="debug-box">
+          <div class="debug-box-header">
+            <h4>📥 JSON Response (Respuesta de Xubio)</h4>
+            <button @click="copiarAlPortapapeles(debugResponse)" class="btn-copy">📋 Copiar JSON</button>
+          </div>
+          <pre class="json-code" :class="{ 'json-error': debugResponse.includes('error') || debugResponse.includes('Error') }">{{ debugResponse }}</pre>
+        </div>
+
+        <div v-if="!debugPayload && !debugResponse" class="info">
+          💡 Presiona "🚀 Crear Factura" para ver el JSON del payload y la respuesta del servidor
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -198,7 +270,12 @@ export default {
       facturaCondicionPago: 2,
       facturaFechaVto: '',
       facturaDescripcion: '',
-      facturaResult: { message: '', type: '', visible: false }
+      facturaResult: { message: '', type: '', visible: false },
+
+      // Debug
+      debugPayload: null,
+      debugResponse: null,
+      showDebugPanel: false
     };
   },
   computed: {
@@ -496,8 +573,20 @@ export default {
 
         console.log('📤 Payload factura completo:', payload);
 
+        // Guardar payload en debug (formatted)
+        this.debugPayload = JSON.stringify(payload, null, 2);
+        this.showDebugPanel = true; // Auto-abrir el panel al crear factura
+
         // Llamada real al SDK
         const { response, data } = await sdk.crearFactura(payload);
+
+        // Guardar respuesta en debug (formatted)
+        this.debugResponse = JSON.stringify({
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          data: data
+        }, null, 2);
 
         if (!response.ok) {
           const errorMsg = data?.message || data?.error || `Error ${response.status}: ${response.statusText}`;
@@ -568,6 +657,16 @@ export default {
 
     formatearPrecio(precio) {
       return precio ? precio.toFixed(2) : '0.00';
+    },
+
+    async copiarAlPortapapeles(texto) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        this.showToast('JSON copiado al portapapeles', 'success');
+      } catch (error) {
+        console.error('Error copiando al portapapeles:', error);
+        this.showToast('Error copiando al portapapeles', 'error');
+      }
     }
   }
 }
@@ -762,5 +861,142 @@ button:disabled {
   background: #d1ecf1;
   color: #0c5460;
   border: 1px solid #bee5eb;
+}
+
+/* Debug Panel */
+.debug-section {
+  background: #f8f9fa;
+  border: 2px solid #6c757d;
+}
+
+.debug-header {
+  padding: 0;
+}
+
+.debug-header h3 {
+  margin-bottom: 5px;
+}
+
+.debug-content {
+  margin-top: 1rem;
+}
+
+.debug-summary {
+  background: white;
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.summary-item {
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #2196F3;
+}
+
+.summary-item strong {
+  display: block;
+  color: #495057;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.summary-item span {
+  color: #212529;
+  font-size: 14px;
+}
+
+.products-detail {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+}
+
+.products-detail ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+}
+
+.products-detail li {
+  padding: 6px;
+  background: #fff;
+  margin-bottom: 5px;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  font-size: 13px;
+}
+
+.products-detail code {
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #d63384;
+}
+
+.debug-box {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  overflow: hidden;
+}
+
+.debug-box-header {
+  background: #212529;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.debug-box-header h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.btn-copy {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-copy:hover {
+  background: #218838;
+}
+
+.json-code {
+  background: #f8f9fa;
+  padding: 15px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #212529;
+  max-height: 500px;
+  overflow-y: auto;
+  border-top: 1px solid #dee2e6;
+}
+
+.json-code.json-error {
+  background: #f8d7da;
+  color: #721c24;
 }
 </style>
