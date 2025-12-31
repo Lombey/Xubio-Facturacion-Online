@@ -20,6 +20,7 @@ import { createXubioApiClient } from './services/xubioApi.js';
 import TabAuth from './components/TabAuth.vue';
 import TabFactura from './components/TabFactura.vue';
 import TabCobranza from './components/TabCobranza.vue';
+import TabApiRest from './components/TabApiRest.vue';
 import PdfViewer from './components/PdfViewer.vue';
 
 /**
@@ -30,7 +31,7 @@ export const appOptions = {
   data() {
     return {
       // Sistema de Pestañas
-      currentTab: 'auth', // Pestaña activa: 'auth', 'factura', 'cobranza'
+      currentTab: 'auth', // Pestaña activa: 'auth', 'factura', 'cobranza', 'apirest'
 
       // Visor PDF Global
       pdfUrl: null, // URL del PDF a mostrar
@@ -60,6 +61,7 @@ export const appOptions = {
     TabAuth,
     TabFactura,
     TabCobranza,
+    TabApiRest,
     PdfViewer
   },
 
