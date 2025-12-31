@@ -187,6 +187,9 @@ export default {
       clienteIdTemp: '',
       clientesListResult: { message: '', type: '', visible: false },
 
+      // Puntos de Venta
+      puntosDeVenta: [],
+
       // Factura
       facturaMoneda: 'ARS',
       facturaCotizacion: 1,
@@ -217,31 +220,61 @@ export default {
       // Auto-cargar datos
       await Promise.all([
         this.cargarProductos(),
-        this.cargarClientes()
+        this.cargarClientes(),
+        this.cargarPuntosDeVenta()
       ]);
+    },
+
+    async cargarPuntosDeVenta() {
+      try {
+        const sdk = this.sdk();
+        if (!sdk) throw new Error('SDK no disponible');
+
+        console.log('🏪 Cargando puntos de venta...');
+        this.puntosDeVenta = await sdk.getPuntosVenta(1);
+        console.log(`🏪 ${this.puntosDeVenta.length} puntos de venta cargados`);
+      } catch (error) {
+        console.error('❌ Error cargando puntos de venta:', error);
+        this.puntosDeVenta = [];
+      }
     },
 
     async cargarProductos() {
       this.isLoading = true;
-      this.mostrarResultado('productosList', 'Cargando productos...', 'info');
+      this.mostrarResultado('productosList', 'Cargando productos desde la API...', 'info');
 
       try {
         const sdk = this.sdk();
         if (!sdk) throw new Error('SDK no disponible');
 
-        // TODO: Usar SDK para cargar productos reales
-        // Por ahora, simulación
-        this.productosList = [
-          { id: 1, nombre: 'Producto Demo 1', precio: 100 },
-          { id: 2, nombre: 'Producto Demo 2', precio: 200 }
-        ];
+        // Llamada real al SDK
+        const { response, data } = await sdk.request('/ProductoVentaBean', 'GET', null, { activo: 1 });
 
-        this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos cargados`, 'success');
-        this.showToast('Productos cargados', 'success');
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error('Respuesta inválida: se esperaba un array de productos');
+        }
+
+        // Normalizar estructura de productos
+        this.productosList = data.map(p => ({
+          id: p.ID || p.id || p.productoVentaId,
+          nombre: p.nombre || p.descripcion || 'Sin nombre',
+          precio: p.precio || p.precioVenta || 0,
+          descripcion: p.descripcion || '',
+          ...p
+        }));
+
+        console.log(`📦 ${this.productosList.length} productos cargados desde la API`);
+        this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos cargados desde la API`, 'success');
+        this.showToast(`${this.productosList.length} productos cargados`, 'success');
       } catch (error) {
-        console.error('Error cargando productos:', error);
+        console.error('❌ Error cargando productos:', error);
         this.mostrarResultado('productosList', `❌ Error: ${error.message}`, 'error');
         this.showToast(`Error: ${error.message}`, 'error');
+        this.productosList = [];
       } finally {
         this.isLoading = false;
       }
@@ -249,25 +282,49 @@ export default {
 
     async cargarClientes() {
       this.isLoading = true;
-      this.mostrarResultado('clientesList', 'Cargando clientes...', 'info');
+      this.mostrarResultado('clientesList', 'Cargando clientes desde la API...', 'info');
 
       try {
         const sdk = this.sdk();
         if (!sdk) throw new Error('SDK no disponible');
 
-        // TODO: Usar SDK para cargar clientes reales
-        // Por ahora, simulación
-        this.clientesList = [
-          { ID: 1, nombre: 'Cliente Demo 1' },
-          { ID: 2, nombre: 'Cliente Demo 2' }
-        ];
+        // Llamada real al SDK
+        const { response, data } = await sdk.request('/clienteBean', 'GET', null, { activo: 1 });
 
-        this.mostrarResultado('clientesList', `✅ ${this.clientesList.length} clientes cargados`, 'success');
-        this.showToast('Clientes cargados', 'success');
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        if (!Array.isArray(data)) {
+          throw new Error('Respuesta inválida: se esperaba un array de clientes');
+        }
+
+        // Normalizar estructura de clientes (según app.js líneas 3232-3246)
+        this.clientesList = data.map(cliente => {
+          const clienteId = cliente.cliente_id || cliente.id || cliente.ID;
+          const cuit = cliente.cuit ||
+                      cliente.identificacionTributaria?.numero ||
+                      cliente.CUIT ||
+                      '';
+
+          return {
+            ...cliente,
+            cliente_id: clienteId,
+            ID: clienteId,
+            cuit: cuit,
+            razonSocial: cliente.razonSocial || cliente.nombre || '',
+            nombre: cliente.nombre || cliente.razonSocial || ''
+          };
+        });
+
+        console.log(`👥 ${this.clientesList.length} clientes cargados desde la API`);
+        this.mostrarResultado('clientesList', `✅ ${this.clientesList.length} clientes cargados desde la API`, 'success');
+        this.showToast(`${this.clientesList.length} clientes cargados`, 'success');
       } catch (error) {
-        console.error('Error cargando clientes:', error);
+        console.error('❌ Error cargando clientes:', error);
         this.mostrarResultado('clientesList', `❌ Error: ${error.message}`, 'error');
         this.showToast(`Error: ${error.message}`, 'error');
+        this.clientesList = [];
       } finally {
         this.isLoading = false;
       }
@@ -320,41 +377,142 @@ export default {
         const sdk = this.sdk();
         if (!sdk) throw new Error('SDK no disponible');
 
-        const payload = {
-          clienteId: this.obtenerClienteId(this.clienteSeleccionado),
-          items: this.productosSeleccionados.map(p => ({
-            productoid: p.id,
+        // Validaciones
+        if (!this.clienteSeleccionado) {
+          throw new Error('Debes seleccionar un cliente');
+        }
+        if (this.productosSeleccionados.length === 0) {
+          throw new Error('Debes agregar al menos un producto');
+        }
+        if (this.puntosDeVenta.length === 0) {
+          throw new Error('No hay puntos de venta disponibles');
+        }
+
+        // Obtener punto de venta por defecto
+        const puntoVenta = this.puntosDeVenta[0];
+        const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+
+        // Construir fechas
+        const fecha = new Date();
+        const fechaISO = fecha.toISOString().split('T')[0];
+        const fechaVto = this.facturaFechaVto || fechaISO;
+
+        // Construir items de productos
+        const transaccionProductoItems = this.productosSeleccionados.map(p => {
+          const subtotal = p.precio * p.cantidad;
+          const iva = parseFloat((subtotal - (subtotal / 1.21)).toFixed(2)); // IVA 21%
+
+          return {
             cantidad: p.cantidad,
             precio: p.precio,
-            descripcion: p.nombre
-          })),
-          moneda: this.facturaMoneda,
-          cotizacion: this.facturaCotizacion,
-          condicionPago: this.facturaCondicionPago,
-          fechaVto: this.facturaFechaVto,
-          descripcion: this.facturaDescripcion
+            descripcion: p.nombre,
+            iva: iva,
+            importe: subtotal,
+            total: subtotal,
+            montoExento: 0,
+            porcentajeDescuento: 0,
+            centroDeCosto: { ID: 1 } // Valor por defecto
+          };
+        });
+
+        // Construir payload completo
+        const payload = {
+          circuitoContable: { ID: 1 }, // Valor por defecto
+          comprobante: 1,
+          tipo: 1, // 1=Factura
+          comprobanteAsociado: 1,
+          tienePeriodoServicio: false,
+          fechaFacturacionServicioDesde: null,
+          fechaFacturacionServicioHasta: null,
+          cliente: {
+            cliente_id: parseInt(this.obtenerClienteId(this.clienteSeleccionado))
+          },
+          fecha: fechaISO,
+          fechaVto: fechaVto,
+          condicionDePago: this.facturaCondicionPago,
+          puntoVenta: {
+            ID: puntoVentaId,
+            id: puntoVentaId,
+            nombre: puntoVenta.nombre || '',
+            codigo: puntoVenta.codigo || ''
+          },
+          vendedor: { ID: 1 }, // Valor por defecto
+          transaccionProductoItems: transaccionProductoItems,
+          cantComprobantesCancelados: 0,
+          cantComprobantesEmitidos: 0,
+          cbuinformada: false,
+          cotizacionListaDePrecio: this.facturaCotizacion,
+          descripcion: this.facturaDescripcion || '',
+          externalId: '',
+          facturaNoExportacion: false,
+          listaDePrecio: null,
+          mailEstado: '',
+          nombre: '',
+          numeroDocumento: '',
+          porcentajeComision: 0,
+          provincia: null,
+          transaccionCobranzaItems: [],
+          transaccionPercepcionItems: []
         };
 
-        console.log('📤 Payload factura:', payload);
+        console.log('📤 Payload factura completo:', payload);
 
-        // TODO: Usar SDK real para crear factura
-        // const resultado = await sdk.crearFactura(payload);
+        // Llamada real al SDK
+        const { response, data } = await sdk.crearFactura(payload);
 
-        // Simulación
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (!response.ok) {
+          const errorMsg = data?.message || data?.error || `Error ${response.status}: ${response.statusText}`;
+          throw new Error(errorMsg);
+        }
 
-        this.mostrarResultado('factura', '✅ Factura creada exitosamente (DEMO)', 'success');
+        console.log('✅ Factura creada:', data);
+
+        // Construir mensaje de éxito
+        const transaccionId = data.ID || data.id || data.transaccionId;
+        const numeroComprobante = data.numeroComprobante || data.numero || 'N/A';
+
+        this.mostrarResultado('factura',
+          `✅ Factura creada exitosamente!\n\nNúmero: ${numeroComprobante}\nID: ${transaccionId}`,
+          'success'
+        );
         this.showToast('Factura creada exitosamente', 'success');
 
-        // Emitir evento para mostrar PDF (cuando esté implementado)
-        // this.$emit('show-pdf', resultado.pdfUrl);
+        // Obtener PDF si hay transacción ID
+        if (transaccionId) {
+          await this.obtenerPDF(transaccionId);
+        }
 
       } catch (error) {
-        console.error('Error creando factura:', error);
+        console.error('❌ Error creando factura:', error);
         this.mostrarResultado('factura', `❌ Error: ${error.message}`, 'error');
         this.showToast(`Error: ${error.message}`, 'error');
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    async obtenerPDF(transaccionId) {
+      try {
+        const sdk = this.sdk();
+        if (!sdk) return;
+
+        console.log('📄 Obteniendo PDF para transacción:', transaccionId);
+
+        const { response, data } = await sdk.obtenerPDF(transaccionId, '1');
+
+        if (response.ok && data) {
+          console.log('✅ PDF obtenido:', data);
+
+          // Emitir evento para mostrar PDF
+          const pdfUrl = data.url || data.pdfUrl || data.link;
+          if (pdfUrl) {
+            this.$emit('show-pdf', pdfUrl);
+            this.showToast('PDF generado', 'success');
+          }
+        }
+      } catch (error) {
+        console.error('⚠️ Error obteniendo PDF:', error);
+        // No mostrar error al usuario, el PDF es opcional
       }
     },
 
