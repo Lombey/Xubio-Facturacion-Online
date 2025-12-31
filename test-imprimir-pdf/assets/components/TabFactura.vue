@@ -106,14 +106,14 @@
         <select v-model="puntoVentaSeleccionado" class="select">
           <option :value="null">-- Automático (primer punto de venta) --</option>
           <option v-for="pv in puntosDeVenta"
-                  :key="pv.ID || pv.id"
+                  :key="pv.puntoVentaId || pv.ID || pv.id"
                   :value="pv">
-            {{ pv.nombre }} (ID: {{ pv.ID || pv.id }})
-            {{ pv.tipoAsignacion ? ` - ${pv.tipoAsignacion}` : '' }}
+            {{ pv.nombre }} (ID: {{ pv.puntoVentaId || pv.ID || pv.id }})
+            - Modo {{ pv.modoNumeracion }}
           </option>
         </select>
         <small v-if="puntosDeVenta.length > 0" style="color: #666; display: block; margin-top: 5px;">
-          💡 {{ puntosDeVenta.length }} punto(s) de venta disponible(s).
+          💡 {{ puntosDeVenta.length }} punto(s) de venta disponible(s) (modoNumeracion="2").
           <span v-if="puntoVentaSeleccionado">
             Usando: <strong>{{ puntoVentaSeleccionado.nombre }}</strong>
           </span>
@@ -216,7 +216,7 @@
                 (ID: {{ (puntoVentaSeleccionado || puntosDeVenta[0]).puntoVentaId || (puntoVentaSeleccionado || puntosDeVenta[0]).ID }})
                 <br>
                 <small style="color: #666;">
-                  Tipo: {{ (puntoVentaSeleccionado || puntosDeVenta[0]).tipoAsignacion || (puntoVentaSeleccionado || puntosDeVenta[0]).tipo || 'N/A' }}
+                  Modo Numeración: {{ (puntoVentaSeleccionado || puntosDeVenta[0]).modoNumeracion }} ({{ (puntoVentaSeleccionado || puntosDeVenta[0]).modoNumeracion === '2' || (puntoVentaSeleccionado || puntosDeVenta[0]).modoNumeracion === 2 ? 'Editable-Sugerido ✅' : 'Automático ❌' }})
                 </small>
               </span>
               <span v-else style="color: red;">⚠️ Sin punto de venta</span>
@@ -345,28 +345,21 @@ export default {
 
         console.log('🏪 ESTRUCTURA COMPLETA DE PUNTOS DE VENTA:', JSON.stringify(todosPuntosVenta, null, 2));
 
-        // Filtrar solo puntos de venta "editable-sugerido"
-        // Campos posibles: tipoAsignacion, tipo, editable, sugerido
+        // Filtrar solo puntos de venta con modoNumeracion = "2" (editable-sugerido)
         this.puntosDeVenta = todosPuntosVenta.filter(pv => {
-          const tipoAsignacion = pv.tipoAsignacion || pv.tipo || pv.tipoAsignacionPuntoVenta || '';
-          const esEditable = pv.editable === true || pv.editable === 1;
-          const esSugerido = pv.sugerido === true || pv.sugerido === 1;
+          const modoNumeracion = pv.modoNumeracion;
+          const esEditableSugerido = modoNumeracion === "2" || modoNumeracion === 2;
 
-          console.log(`🔍 Punto de venta: ${pv.nombre} (ID: ${pv.ID || pv.id}) - Tipo: ${tipoAsignacion}, Editable: ${esEditable}, Sugerido: ${esSugerido}`);
-
-          // Intentar detectar "editable-sugerido" de varias formas
-          const esEditableSugerido =
-            tipoAsignacion.toLowerCase().includes('editable') && tipoAsignacion.toLowerCase().includes('sugerido') ||
-            (esEditable && esSugerido);
+          console.log(`🔍 Punto de venta: ${pv.nombre} (ID: ${pv.puntoVentaId || pv.ID}) - Modo Numeración: ${modoNumeracion}, Editable-Sugerido: ${esEditableSugerido ? '✅' : '❌'}`);
 
           return esEditableSugerido;
         });
 
-        console.log(`🏪 ${this.puntosDeVenta.length} puntos de venta tipo "editable-sugerido" encontrados de ${todosPuntosVenta.length} totales`);
+        console.log(`🏪 ${this.puntosDeVenta.length} puntos de venta con modoNumeracion="2" (editable-sugerido) encontrados de ${todosPuntosVenta.length} totales`);
 
         // Si no hay puntos de venta editable-sugerido, usar todos (para debug)
         if (this.puntosDeVenta.length === 0) {
-          console.warn('⚠️ No se encontraron puntos de venta "editable-sugerido". Usando todos los puntos de venta disponibles.');
+          console.warn('⚠️ No se encontraron puntos de venta con modoNumeracion="2". Usando todos los puntos de venta disponibles.');
           this.puntosDeVenta = todosPuntosVenta;
         }
       } catch (error) {
@@ -569,7 +562,8 @@ export default {
           id: puntoVentaId,
           nombre: puntoVenta.nombre,
           codigo: puntoVenta.codigo,
-          tipoAsignacion: puntoVenta.tipoAsignacion || puntoVenta.tipo || 'N/A',
+          modoNumeracion: puntoVenta.modoNumeracion,
+          esEditableSugerido: puntoVenta.modoNumeracion === "2" || puntoVenta.modoNumeracion === 2,
           esSeleccionado: !!this.puntoVentaSeleccionado
         });
 
