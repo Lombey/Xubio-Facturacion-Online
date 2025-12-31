@@ -100,6 +100,29 @@
     <div class="section" v-if="sdk && clienteSeleccionado && productosSeleccionados.length > 0">
       <h3>⚙️ 3. Configuración</h3>
 
+      <!-- Selector de Punto de Venta -->
+      <div class="form-group">
+        <label>Punto de Venta:</label>
+        <select v-model="puntoVentaSeleccionado" class="select">
+          <option :value="null">-- Automático (primer punto de venta) --</option>
+          <option v-for="pv in puntosDeVenta"
+                  :key="pv.ID || pv.id"
+                  :value="pv">
+            {{ pv.nombre }} (ID: {{ pv.ID || pv.id }})
+            {{ pv.tipoAsignacion ? ` - ${pv.tipoAsignacion}` : '' }}
+          </option>
+        </select>
+        <small v-if="puntosDeVenta.length > 0" style="color: #666; display: block; margin-top: 5px;">
+          💡 {{ puntosDeVenta.length }} punto(s) de venta disponible(s).
+          <span v-if="puntoVentaSeleccionado">
+            Usando: <strong>{{ puntoVentaSeleccionado.nombre }}</strong>
+          </span>
+          <span v-else>
+            Usando: <strong>{{ puntosDeVenta[0]?.nombre || 'N/A' }}</strong> (automático)
+          </span>
+        </small>
+      </div>
+
       <div class="form-group">
         <label>Moneda:</label>
         <select v-model="facturaMoneda" class="select">
@@ -188,7 +211,14 @@
             </div>
             <div class="summary-item">
               <strong>Punto de Venta:</strong>
-              <span v-if="puntosDeVenta.length > 0">{{ puntosDeVenta[0].nombre }} (ID: {{ puntosDeVenta[0].puntoVentaId || puntosDeVenta[0].ID }})</span>
+              <span v-if="puntoVentaSeleccionado || puntosDeVenta.length > 0">
+                {{ (puntoVentaSeleccionado || puntosDeVenta[0]).nombre }}
+                (ID: {{ (puntoVentaSeleccionado || puntosDeVenta[0]).puntoVentaId || (puntoVentaSeleccionado || puntosDeVenta[0]).ID }})
+                <br>
+                <small style="color: #666;">
+                  Tipo: {{ (puntoVentaSeleccionado || puntosDeVenta[0]).tipoAsignacion || (puntoVentaSeleccionado || puntosDeVenta[0]).tipo || 'N/A' }}
+                </small>
+              </span>
               <span v-else style="color: red;">⚠️ Sin punto de venta</span>
             </div>
           </div>
@@ -263,6 +293,7 @@ export default {
 
       // Puntos de Venta
       puntosDeVenta: [],
+      puntoVentaSeleccionado: null,
 
       // Factura
       facturaMoneda: 'ARS',
@@ -310,8 +341,34 @@ export default {
         if (!sdk) throw new Error('SDK no disponible');
 
         console.log('🏪 Cargando puntos de venta...');
-        this.puntosDeVenta = await sdk.getPuntosVenta(1);
-        console.log(`🏪 ${this.puntosDeVenta.length} puntos de venta cargados`);
+        const todosPuntosVenta = await sdk.getPuntosVenta(1);
+
+        console.log('🏪 ESTRUCTURA COMPLETA DE PUNTOS DE VENTA:', JSON.stringify(todosPuntosVenta, null, 2));
+
+        // Filtrar solo puntos de venta "editable-sugerido"
+        // Campos posibles: tipoAsignacion, tipo, editable, sugerido
+        this.puntosDeVenta = todosPuntosVenta.filter(pv => {
+          const tipoAsignacion = pv.tipoAsignacion || pv.tipo || pv.tipoAsignacionPuntoVenta || '';
+          const esEditable = pv.editable === true || pv.editable === 1;
+          const esSugerido = pv.sugerido === true || pv.sugerido === 1;
+
+          console.log(`🔍 Punto de venta: ${pv.nombre} (ID: ${pv.ID || pv.id}) - Tipo: ${tipoAsignacion}, Editable: ${esEditable}, Sugerido: ${esSugerido}`);
+
+          // Intentar detectar "editable-sugerido" de varias formas
+          const esEditableSugerido =
+            tipoAsignacion.toLowerCase().includes('editable') && tipoAsignacion.toLowerCase().includes('sugerido') ||
+            (esEditable && esSugerido);
+
+          return esEditableSugerido;
+        });
+
+        console.log(`🏪 ${this.puntosDeVenta.length} puntos de venta tipo "editable-sugerido" encontrados de ${todosPuntosVenta.length} totales`);
+
+        // Si no hay puntos de venta editable-sugerido, usar todos (para debug)
+        if (this.puntosDeVenta.length === 0) {
+          console.warn('⚠️ No se encontraron puntos de venta "editable-sugerido". Usando todos los puntos de venta disponibles.');
+          this.puntosDeVenta = todosPuntosVenta;
+        }
       } catch (error) {
         console.error('❌ Error cargando puntos de venta:', error);
         this.puntosDeVenta = [];
@@ -504,9 +561,17 @@ export default {
           throw new Error('No hay puntos de venta disponibles');
         }
 
-        // Obtener punto de venta por defecto
-        const puntoVenta = this.puntosDeVenta[0];
+        // Obtener punto de venta (seleccionado o primero por defecto)
+        const puntoVenta = this.puntoVentaSeleccionado || this.puntosDeVenta[0];
         const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id;
+
+        console.log('🏪 Usando punto de venta:', {
+          id: puntoVentaId,
+          nombre: puntoVenta.nombre,
+          codigo: puntoVenta.codigo,
+          tipoAsignacion: puntoVenta.tipoAsignacion || puntoVenta.tipo || 'N/A',
+          esSeleccionado: !!this.puntoVentaSeleccionado
+        });
 
         // Construir fechas
         const fecha = new Date();
