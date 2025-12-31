@@ -19,11 +19,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://xubio.com/api/dashboard/datosUsuario', {
+    const response = await fetch('https://microservice.xubio.com/api/dashboard/datosUsuario', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${bearerToken}`,
-        'Accept': 'application/json'
+        'Accept': 'application/json, text/plain, */*',
+        'Origin': 'https://app.xubio.com',
+        'Referer': 'https://app.xubio.com/'
       }
     });
 

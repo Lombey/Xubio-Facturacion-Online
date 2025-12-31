@@ -23,12 +23,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://xubio.com/api/argentina/comprobanteVentaBean', {
+    const response = await fetch('https://microservice.xubio.com/api/argentina/comprobanteVentaBean', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${bearerToken}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json, text/plain, */*',
+        'Origin': 'https://app.xubio.com',
+        'Referer': 'https://app.xubio.com/'
       },
       body: JSON.stringify(payload)
     });
