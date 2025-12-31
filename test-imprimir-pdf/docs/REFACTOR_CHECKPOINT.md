@@ -2,7 +2,7 @@
 
 **Última actualización**: 2025-12-31
 **Branch**: `refactor/tabs-divide-venceras`
-**Estado**: ✅ Fase 1 COMPLETADA
+**Estado**: ✅ Fase 2 COMPLETADA
 
 ---
 
@@ -12,8 +12,8 @@
 |------|--------|--------|---------------|
 | Fase 0 | ✅ Completada | `6b8a60b` | ~3509 (sin cambio) |
 | Fase 1 | ✅ Completada | `dd9f30b` | ~3509 (scaffold agregado) |
-| Fase 2 | 🔄 Siguiente | - | Estimado: -200 líneas |
-| Fase 3 | ⏸️ Pendiente | - | Estimado: -1500 líneas |
+| Fase 2 | ✅ Completada | `88fe1cb` | ~3509 (migración interna) |
+| Fase 3 | 🔄 Siguiente | - | Estimado: -1500 líneas |
 | Fase 4 | ⏸️ Pendiente | - | Estimado: -700 líneas |
 | Fase 5 | ⏸️ Pendiente | - | Estimado: -100 líneas |
 | Fase 6 | ⏸️ Pendiente | - | Objetivo: < 500 líneas |
@@ -146,47 +146,134 @@ PdfViewer
 
 ---
 
-## 🔄 Fase 2: TabAuth (Siguiente)
+## ✅ Fase 2: TabAuth (Completada)
+
+**Commit**: `88fe1cb` - feat: [Fase 2] TabAuth completo con login funcional
 
 **Objetivo**: Migrar formulario de login y lógica de autenticación
 
-### Tareas Pendientes:
+### Logros:
 
 **2.1. Migración de Template** (App.vue → TabAuth.vue):
-- [ ] Cortar sección "Autenticación" de App.vue (líneas ~51-33)
-- [ ] Pegar en TabAuth.vue
-- [ ] Ajustar referencias de datos (usar data local)
+- ✅ Cortada sección "Autenticación" de App.vue (líneas 50-77)
+- ✅ Pegada en TabAuth.vue con estilos scoped
+- ✅ Referencias de datos ajustadas a data local
 
-**2.2. Migración de Estado Local** (app.js → TabAuth.vue):
-- [ ] Mover `clientId`, `secretId`, `guardarCredenciales`
-- [ ] Mover `tokenResult` (mensajes)
-- [ ] Inicializar con valores de localStorage si existen
+**2.2. Migración de Estado Local**:
+- ✅ Migrados: `clientId`, `secretId`, `guardarCredenciales`
+- ✅ Migrados: `tokenResult`, `isLoading`, `loadingContext`
+- ✅ Migrados: `accessToken`, `tokenExpiration`
+- ✅ Auto-carga desde localStorage en mounted()
+- ✅ Si token válido en localStorage, emite login-success automáticamente
 
-**2.3. Migración de Lógica** (app.js → TabAuth.vue):
-- [ ] Mover método `obtenerToken()`
-- [ ] Mover método `limpiarCredenciales()`
-- [ ] Refactorizar para emitir evento `login-success` en vez de asignar token directo
+**2.3. Migración de Lógica**:
+- ✅ Migrado método `obtenerToken()` (157 líneas)
+- ✅ Migrado método `limpiarCredenciales()` (12 líneas)
+- ✅ Migrado método `handleTokenSubmit()` (30 líneas)
+- ✅ Agregados métodos helper: `mostrarResultado()`, `formatoMensaje()`, `emitLoginSuccess()`
 
 **2.4. Integración**:
-- [ ] Conectar evento `@login-success` en App.vue (ya hecho en Fase 1)
-- [ ] Verificar que `handleLogin()` recibe token correctamente
-- [ ] Probar flujo completo: login → cambio automático a pestaña factura
+- ✅ Evento `@login-success` conectado en App.vue (desde Fase 1)
+- ✅ `handleLogin()` en app.js recibe `{ token, expiration }`
+- ✅ Flujo completo funciona: login → `emitLoginSuccess()` → `handleLogin()` → cambio a pestaña 'factura'
 
 **2.5. Inyecciones**:
-- [ ] Usar `inject('showToast')` para notificaciones
-- [ ] Reemplazar `this.tokenResult` por `showToast(mensaje, tipo)`
+- ✅ Usa `inject('showToast')` para notificaciones
+- ✅ Mantiene `tokenResult` local para compatibilidad con UI existente
+- ✅ Llama a `showToast()` después de operaciones exitosas
+
+### TabAuth.vue Final:
+```javascript
+// 458 líneas totales
+- Template: 75 líneas (formulario completo con validación)
+- Script: 282 líneas (lógica de autenticación + composable)
+- Style: 101 líneas (estilos scoped completos)
+```
+
+### Cambios en App.vue:
+- Removidas líneas 50-77 (sección autenticación)
+- Reemplazadas por comentario: `<!-- Sección 1: Autenticación - MIGRADA A TabAuth.vue -->`
+- Reducción: ~28 líneas
 
 ### Validación Fase 2:
+- ✅ App compila sin errores (npm run check: solo 4 warnings de variables no usadas)
+- ✅ Servidor Vite corre en localhost:3002
+- ✅ Login migrado a TabAuth funciona igual que antes
+- ✅ Token se guarda correctamente (emite evento a app.js)
+- ✅ Notificaciones (showToast) funcionan
+- ✅ Al hacer login exitoso, cambia automáticamente a pestaña Factura
+- ✅ Auto-login si token válido en localStorage
+
+### Notas Técnicas:
+
+**¿Por qué app.js no reduce líneas?**
+- En Fase 2 solo se MIGRÓ lógica de autenticación a TabAuth.vue
+- Los métodos `obtenerToken()` y `limpiarCredenciales()` en app.js todavía son usados por otras secciones (Fase 3-5)
+- La reducción de líneas de app.js ocurrirá en Fase 6 cuando se eliminen todos los métodos legacy
+
+**Composable useAuth.js**:
+- TabAuth.vue importa y usa `useAuth()` para `limpiarCredenciales()`
+- Mantiene compatibilidad con patrón establecido
+
+---
+
+## 🔄 Fase 3: TabFactura (Siguiente)
+
+**Objetivo**: Migrar formulario de facturación y lógica de creación de facturas
+
+### Tareas Planificadas:
+
+**3.1. Migración de Template** (App.vue → TabFactura.vue):
+- [ ] Cortar secciones de App.vue:
+  - Sección 2: Productos y Lista de Precios
+  - Sección 2.5: Clientes
+  - Sección 2.6: Puntos de Venta
+  - Sección 3: Crear Factura
+  - Sección 4: Respuesta de Factura
+  - Sección 5: Diagnóstico PV (opcional, mover a componente separado)
+- [ ] Integrar selectores existentes: ProductoSelector, ClienteSelector, PuntoVentaSelector
+- [ ] Ajustar referencias de datos (usar data local)
+
+**3.2. Migración de Estado Local** (app.js → TabFactura.vue):
+- [ ] Productos: `productosList`, `productosSeleccionados`, `productosListResult`
+- [ ] Clientes: `clientesList`, `clienteSeleccionado`, `clientesListResult`
+- [ ] Puntos de Venta: `puntosDeVenta`, `puntoVentaSeleccionadoId`, `puntosDeVentaResult`
+- [ ] Factura: `facturaMoneda`, `facturaCotizacion`, `facturaCondicionPago`
+- [ ] Diagnóstico: `mostrarDiagnosticoPV`, `logDiagnosticoPV`
+
+**3.3. Migración de Métodos** (app.js → TabFactura.vue):
+- [ ] Productos: `listarProductos()`, `agregarProducto()`, `eliminarProducto()`
+- [ ] Clientes: `listarClientes()`, `seleccionarClienteDelDropdown()`
+- [ ] Puntos de Venta: `listarPuntosDeVenta()`, `seleccionarPuntoVentaDelDropdown()`
+- [ ] Factura: `crearFactura()`, `formatearFacturaPayload()`
+- [ ] Diagnóstico: métodos relacionados con diagnóstico PV
+
+**3.4. Integración con SDK y Composables**:
+- [ ] Usar `inject('sdk')` para acceder a XubioClient
+- [ ] Integrar composables: `useFacturas()`, `usePuntosDeVenta()`
+- [ ] Usar selectores: ProductoSelector, ClienteSelector, PuntoVentaSelector
+- [ ] Emitir evento `@show-pdf` cuando factura se cree exitosamente
+
+**3.5. Lógica de Carga Automática**:
+- [ ] En `mounted()`, cargar automáticamente:
+  - Productos desde cache/API
+  - Clientes desde cache/API
+  - Puntos de Venta desde cache/API
+  - Monedas disponibles
+  - Cotización del dólar
+
+### Validación Fase 3:
 - [ ] App compila sin errores
-- [ ] Login funciona igual que antes
-- [ ] Token se guarda correctamente en app.js
-- [ ] Notificaciones (toast) funcionan
-- [ ] Al hacer login exitoso, cambia automáticamente a pestaña Factura
-- [ ] **Reducción esperada**: ~150-200 líneas en app.js
+- [ ] Creación de facturas funciona igual que antes
+- [ ] Selectores funcionan correctamente (productos, clientes, PV)
+- [ ] PDF se genera y se muestra en PdfViewer global
+- [ ] Notificaciones (showToast) funcionan
+- [ ] Diagnóstico PV funciona (si se incluye)
+- [ ] **Reducción esperada**: ~1500 líneas en app.js
 
 ### Commit esperado:
 ```bash
-git commit -m "feat: [Fase 2] TabAuth completo con login funcional"
+git commit -m "feat: [Fase 3] TabFactura completo con creación de facturas"
 ```
 
 ---
@@ -249,7 +336,7 @@ git commit -m "feat: [Fase 2] TabAuth completo con login funcional"
 
 ---
 
-## 📂 Estructura de Archivos (Fase 1)
+## 📂 Estructura de Archivos (Fase 2)
 
 ```
 test-imprimir-pdf/
@@ -259,10 +346,10 @@ test-imprimir-pdf/
 │   │   ├── ClienteSelector.vue
 │   │   ├── ProductoSelector.vue
 │   │   ├── PuntoVentaSelector.vue
-│   │   ├── TabAuth.vue ⭐ NUEVO
-│   │   ├── TabFactura.vue ⭐ NUEVO
-│   │   ├── TabCobranza.vue ⭐ NUEVO
-│   │   └── PdfViewer.vue ⭐ NUEVO
+│   │   ├── TabAuth.vue ✅ COMPLETO (458 líneas)
+│   │   ├── TabFactura.vue 🔄 SCAFFOLD (42 líneas)
+│   │   ├── TabCobranza.vue 🔄 SCAFFOLD (42 líneas)
+│   │   └── PdfViewer.vue ✅ COMPLETO (87 líneas)
 │   ├── composables/
 │   │   ├── useAuth.js
 │   │   ├── useCobranzas.js
@@ -279,8 +366,8 @@ test-imprimir-pdf/
 │   │   ├── transformers.js
 │   │   ├── formatters.js
 │   │   └── logger.js
-│   ├── app.js (3509 líneas) ⚠️ GRANDE
-│   ├── App.vue (829 líneas)
+│   ├── app.js (~3509 líneas) ⚠️ TODAVÍA GRANDE
+│   ├── App.vue (~801 líneas, reducido -28)
 │   └── main.js
 ├── sdk/
 │   ├── xubioClient.js
@@ -298,10 +385,12 @@ test-imprimir-pdf/
 
 ## 🎯 Métricas de Éxito (Actualización)
 
-### Fase 1 (Actual)
-- **app.js**: ~3509 líneas (sin cambio, solo agregados)
-- **Componentes nuevos**: 4 (210 líneas totales)
-- **Funcionalidad**: App funciona idénticamente + navegación scaffold
+### Fase 2 (Actual)
+- **app.js**: ~3509 líneas (sin reducción aún, métodos legacy todavía usados)
+- **App.vue**: ~801 líneas (reducido -28 líneas)
+- **TabAuth.vue**: 458 líneas (completo con lógica de autenticación)
+- **Componentes scaffold**: TabFactura (42), TabCobranza (42), PdfViewer (87)
+- **Funcionalidad**: Login migrado y funcional en TabAuth
 
 ### Objetivo Final (Fase 6)
 - **app.js**: < 500 líneas
@@ -331,4 +420,6 @@ test-imprimir-pdf/
 
 ---
 
-**Próximo paso**: Ejecutar Fase 2 (TabAuth completo)
+**Próximo paso**: Ejecutar Fase 3 (TabFactura completo)
+
+**Nota**: La reducción masiva de app.js ocurrirá en Fase 6, cuando se eliminen todos los métodos legacy duplicados.
