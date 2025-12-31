@@ -1613,9 +1613,6 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
           nombre: payload.puntoVenta?.nombre,
           codigo: payload.puntoVenta?.codigo
         });
-        
-          }; 
-        }
 
         const { response, data } = await this.requestXubio(this.endpointDestino, 'POST', payload);
 
