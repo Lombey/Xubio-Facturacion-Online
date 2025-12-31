@@ -22,6 +22,27 @@
         {{ productosListResult.message }}
       </div>
 
+      <!-- Selector de productos desde la lista cargada -->
+      <div v-if="productosList.length > 0" class="form-inline" style="margin-top: 1rem;">
+        <select v-model="productoIdTemp" class="select" style="flex: 2;">
+          <option value="">-- Seleccionar producto de la lista --</option>
+          <option v-for="producto in productosList"
+                  :key="producto.id"
+                  :value="producto.id">
+            {{ producto.nombre }} - ${{ formatearPrecio(producto.precio) }}
+          </option>
+        </select>
+        <input
+          v-model.number="cantidadTemp"
+          type="number"
+          min="1"
+          placeholder="Cantidad"
+          class="input-small">
+        <button @click="agregarProductoDesdeLista" :disabled="!productoIdTemp" class="btn-secondary">
+          ➕ Agregar
+        </button>
+      </div>
+
       <!-- Card de Productos Seleccionados -->
       <div v-if="productosSeleccionados.length > 0" class="card">
         <h4>📦 Productos Seleccionados ({{ productosSeleccionados.length }})</h4>
@@ -180,6 +201,8 @@ export default {
       productosSeleccionados: [],
       productosListResult: { message: '', type: '', visible: false },
       nuevoProducto: { nombre: '', cantidad: 1, precio: 0 },
+      productoIdTemp: '',
+      cantidadTemp: 1,
 
       // Clientes
       clientesList: [],
@@ -345,6 +368,33 @@ export default {
 
       // Reset
       this.nuevoProducto = { nombre: '', cantidad: 1, precio: 0 };
+    },
+
+    agregarProductoDesdeLista() {
+      const producto = this.productosList.find(p => p.id === parseInt(this.productoIdTemp));
+
+      if (!producto) {
+        this.showToast('Error: Producto no encontrado', 'error');
+        return;
+      }
+
+      if (this.cantidadTemp <= 0) {
+        this.showToast('La cantidad debe ser mayor a 0', 'error');
+        return;
+      }
+
+      this.productosSeleccionados.push({
+        id: producto.id,
+        nombre: producto.nombre,
+        cantidad: this.cantidadTemp,
+        precio: producto.precio
+      });
+
+      this.showToast(`Producto agregado: ${producto.nombre} x${this.cantidadTemp}`, 'success');
+
+      // Reset
+      this.productoIdTemp = '';
+      this.cantidadTemp = 1;
     },
 
     removerProducto(index) {
