@@ -264,34 +264,52 @@ export default {
 
     async cargarProductos() {
       this.isLoading = true;
-      this.mostrarResultado('productosList', 'Cargando productos desde la API...', 'info');
+      this.mostrarResultado('productosList', 'Cargando productos con precios desde la API...', 'info');
 
       try {
         const sdk = this.sdk();
         if (!sdk) throw new Error('SDK no disponible');
 
-        // Llamada real al SDK
-        const { response, data } = await sdk.request('/ProductoVentaBean', 'GET', null, { activo: 1 });
+        // Usar endpoint que incluye precios: /listasDePreciosConProductos
+        const { response, data } = await sdk.request('/listasDePreciosConProductos', 'GET');
 
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
 
         if (!Array.isArray(data)) {
-          throw new Error('Respuesta inválida: se esperaba un array de productos');
+          throw new Error('Respuesta inválida: se esperaba un array de listas de precios');
         }
 
-        // Normalizar estructura de productos
-        this.productosList = data.map(p => ({
-          id: p.ID || p.id || p.productoVentaId,
-          nombre: p.nombre || p.descripcion || 'Sin nombre',
-          precio: p.precio || p.precioVenta || 0,
-          descripcion: p.descripcion || '',
-          ...p
-        }));
+        // Extraer productos de todas las listas de precios
+        const productosMap = new Map();
 
-        console.log(`📦 ${this.productosList.length} productos cargados desde la API`);
-        this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos cargados desde la API`, 'success');
+        data.forEach(lista => {
+          if (lista.items && Array.isArray(lista.items)) {
+            lista.items.forEach(item => {
+              const producto = item.producto || item;
+              const productoId = producto.ID || producto.id || producto.productoVentaId;
+
+              // Si el producto ya existe, mantener el precio más bajo
+              if (!productosMap.has(productoId) || item.precioConIva < productosMap.get(productoId).precio) {
+                productosMap.set(productoId, {
+                  id: productoId,
+                  nombre: producto.nombre || producto.descripcion || 'Sin nombre',
+                  precio: item.precioConIva || item.precio || 0,
+                  descripcion: producto.descripcion || '',
+                  listaPrecioId: lista.ID,
+                  listaPrecioNombre: lista.nombre,
+                  ...producto
+                });
+              }
+            });
+          }
+        });
+
+        this.productosList = Array.from(productosMap.values());
+
+        console.log(`📦 ${this.productosList.length} productos con precios cargados desde la API`);
+        this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos con precios cargados`, 'success');
         this.showToast(`${this.productosList.length} productos cargados`, 'success');
       } catch (error) {
         console.error('❌ Error cargando productos:', error);
