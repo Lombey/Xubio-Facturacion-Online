@@ -1,5 +1,7 @@
 # Xubio API Laboratory (Proof of Concept)
 
+> 🔗 **Demo en vivo**: [https://xubio-facturacion-online.vercel.app/](https://xubio-facturacion-online.vercel.app/)
+
 > ⚠️ **NOTA IMPORTANTE**: Este NO es un producto final. Es un entorno experimental para validar payloads antes de implementar en producción (AppSheet/Google Apps Script).
 
 Este repositorio es un **Laboratorio de Pruebas** diseñado para realizar ingeniería inversa y pinpointing exacto de los endpoints de la API de Xubio.
