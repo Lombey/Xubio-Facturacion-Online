@@ -270,43 +270,52 @@ export default {
         const sdk = this.sdk();
         if (!sdk) throw new Error('SDK no disponible');
 
-        // Usar endpoint que incluye precios: /listasDePreciosConProductos
-        const { response, data } = await sdk.request('/listasDePreciosConProductos', 'GET');
+        // Paso 1: Obtener listas de precios disponibles
+        const { response: listasResponse, data: listas } = await sdk.request('/listaPrecioBean', 'GET');
 
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        if (!listasResponse.ok) {
+          throw new Error(`Error obteniendo listas de precios: ${listasResponse.status}`);
         }
 
-        if (!Array.isArray(data)) {
-          throw new Error('Respuesta inválida: se esperaba un array de listas de precios');
+        if (!Array.isArray(listas) || listas.length === 0) {
+          throw new Error('No hay listas de precios disponibles');
         }
 
-        // Extraer productos de todas las listas de precios
-        const productosMap = new Map();
+        // Usar la primera lista de precios disponible (o buscar la activa/por defecto)
+        const listaPrecioId = listas[0].ID || listas[0].listaPrecioID || listas[0].id;
+        const listaPrecioNombre = listas[0].nombre || 'Lista Principal';
 
-        data.forEach(lista => {
-          if (lista.items && Array.isArray(lista.items)) {
-            lista.items.forEach(item => {
-              const producto = item.producto || item;
-              const productoId = producto.ID || producto.id || producto.productoVentaId;
+        console.log(`📋 Usando lista de precios: ${listaPrecioNombre} (ID: ${listaPrecioId})`);
 
-              // Si el producto ya existe, mantener el precio más bajo
-              if (!productosMap.has(productoId) || item.precioConIva < productosMap.get(productoId).precio) {
-                productosMap.set(productoId, {
-                  id: productoId,
-                  nombre: producto.nombre || producto.descripcion || 'Sin nombre',
-                  precio: item.precioConIva || item.precio || 0,
-                  descripcion: producto.descripcion || '',
-                  listaPrecioId: lista.ID,
-                  listaPrecioNombre: lista.nombre,
-                  ...producto
-                });
-              }
-            });
-          }
-        });
+        // Paso 2: Obtener items de la lista con precios
+        const { response: itemsResponse, data: listaDetalle } = await sdk.request(`/listaPrecioBean/${listaPrecioId}`, 'GET');
 
-        this.productosList = Array.from(productosMap.values());
+        if (!itemsResponse.ok) {
+          throw new Error(`Error obteniendo items de lista de precios: ${itemsResponse.status}`);
+        }
+
+        const items = listaDetalle.listaPrecioItem || [];
+
+        if (!Array.isArray(items)) {
+          throw new Error('Respuesta inválida: no se encontraron items en la lista de precios');
+        }
+
+        // Mapear productos con precios
+        this.productosList = items.map(item => {
+          const producto = item.producto || {};
+          const productoId = producto.ID || producto.id || producto.productoid;
+
+          return {
+            id: productoId,
+            nombre: producto.nombre || producto.descripcion || 'Sin nombre',
+            precio: item.precio || 0,
+            descripcion: producto.descripcion || '',
+            codigo: producto.codigo || '',
+            listaPrecioId: listaPrecioId,
+            listaPrecioNombre: listaPrecioNombre,
+            listaPrecioItemId: item.listaPrecioID
+          };
+        }).filter(p => p.id && p.precio > 0); // Filtrar productos sin ID o precio
 
         console.log(`📦 ${this.productosList.length} productos con precios cargados desde la API`);
         this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos con precios cargados`, 'success');
