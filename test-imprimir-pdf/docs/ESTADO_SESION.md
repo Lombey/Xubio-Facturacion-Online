@@ -435,6 +435,7 @@ fetch("https://xubio.com/NXV/DF_submit", {
 ### **Archivos a Mantener:**
 - ✅ `sdk/xubioLegacyXml.js` - SDK funcional
 - ✅ `docs/FLUJO_COMPLETO_FACTURACION.md` - Documentación completa
+- ✅ `docs/TEMPLATE_FACTURA_AGDP.md` - ⭐ **TEMPLATE GOLD** - Datos reales del producto principal
 - ✅ Componentes TabAuth, TabFactura (usan XML Legacy)
 
 ### **Archivos Obsoletos (Pueden eliminarse):**
