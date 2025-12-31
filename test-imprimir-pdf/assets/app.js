@@ -3,10 +3,32 @@
 import cacheManager from './utils/cache.js';
 // Importar formatters
 import { formatoMensaje as formatoMensajeUtil, formatearPrecio as formatearPrecioUtil, formatearCUIT as formatearCUITUtil } from './utils/formatters.js';
+// Importar constantes
+import {
+  MONEDAS,
+  ESTRATEGIAS_PUNTO_VENTA,
+  CAMPOS_DIAGNOSTICO,
+  ENDPOINTS,
+  DEFAULTS,
+  VALORES_ACTIVO
+} from './utils/constants.js';
+// Importar validadores
+import { esPuntoVentaValido } from './utils/validators.js';
 // Importar composable Xubio
 import useXubio from './composables/useXubio.js';
 // Importar composable Auth (para funciones auxiliares)
 import useAuth from './composables/useAuth.js';
+// Importar composables de negocio
+import { usePuntosDeVenta } from './composables/usePuntosDeVenta.js';
+import { useFacturas } from './composables/useFacturas.js';
+import { useCobranzas } from './composables/useCobranzas.js';
+import { useDiagnostico } from './composables/useDiagnostico.js';
+// Importar service layer
+import { createXubioApiClient } from './services/xubioApi.js';
+// Importar nuevo SDK Puro
+import { XubioClient } from '../sdk/xubioClient.js';
+import { FacturaService } from '../sdk/facturaService.js';
+import { CobranzaService } from '../sdk/cobranzaService.js';
 // Importar componentes
 import ProductoSelector from './components/ProductoSelector.vue';
 import ClienteSelector from './components/ClienteSelector.vue';
@@ -81,8 +103,8 @@ export const appOptions = {
       
       // Facturas
       facturaClienteId: '',
-      facturaTipoimpresion: '1',
-      facturaCotizacion: '1',
+      facturaTipoimpresion: DEFAULTS.TIPO_IMPRESION,
+      facturaCotizacion: DEFAULTS.COTIZACION,
       facturaMoneda: '', // Moneda seleccionada para la factura (se selecciona DOLARES automáticamente al cargar)
       monedasList: [], // Lista de monedas disponibles desde la API
       facturaDescripcion: 'CC ARS 261-6044134-3 // CBU 0270261410060441340032 // ALIAS corvus.super// Razón Social CORVUSWEB SRL CUIT 30-71241712-5', // Descripción general de la factura (campo documentado en swagger)
@@ -98,12 +120,12 @@ export const appOptions = {
       cobranzaClienteId: '',
       cobranzaIdComprobante: '',
       cobranzaImporte: '',
-      cobranzaTipoimpresion: '1',
+      cobranzaTipoimpresion: DEFAULTS.TIPO_IMPRESION,
       cobranzaJson: '',
       facturasPendientes: [],
       mostrarFacturasPendientes: false,
       facturaParaCobrar: null,
-      cobranzaFormaPago: 'efectivo', // 'efectivo', 'cheque', 'transferencia'
+      cobranzaFormaPago: DEFAULTS.FORMA_PAGO, // 'efectivo', 'cheque', 'transferencia'
       cobranzaCuentaId: null, // ID de la cuenta seleccionada
       cuentasDisponibles: [],
       cobranzaResult: { message: '', type: '', visible: false },
@@ -112,7 +134,7 @@ export const appOptions = {
       
       // PDF Comprobante Existente
       transaccionId: '',
-      tipoimpresion: '1',
+      tipoimpresion: DEFAULTS.TIPO_IMPRESION,
       pdfResult: { message: '', type: '', visible: false },
       pdfViewerHtml: '',
       pdfViewerVisible: false,
@@ -136,8 +158,8 @@ export const appOptions = {
       puntosDeVentaResult: { message: '', type: '', visible: false },
       puntoVentaSeleccionadoId: null, // ID del punto de venta seleccionado (similar a facturaMoneda)
       puntoVentaSeleccionadoParaFactura: null, // Punto de venta seleccionado para la factura
-      estrategiaPuntoVenta: 'normal', // 'normal', 'forzar', 'soloId'
-      endpointDestino: '/comprobanteVentaBean', // Endpoint a utilizar
+      estrategiaPuntoVenta: DEFAULTS.ESTRATEGIA_PV, // 'normal', 'forzar', 'soloId'
+      endpointDestino: ENDPOINTS.COMPROBANTE_VENTA, // Endpoint a utilizar
       resultadoTransaccion: null, // Guardará { status, statusText, body } de la última petición
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
@@ -156,16 +178,25 @@ export const appOptions = {
       // Diagnóstico de Punto de Venta
       mostrarDiagnosticoPV: false,
       mostrarDatosCrudosPV: false,
-      campoIdActivo: 'auto', // 'auto', 'puntoVentaId', 'ID', 'id', 'puntoVenta_id', etc.
-      campoEditableActivo: 'auto', // 'auto', 'editable+sugerido', 'editableSugerido', etc.
+      campoIdActivo: CAMPOS_DIAGNOSTICO.AUTO, // 'auto', 'puntoVentaId', 'ID', 'id', 'puntoVenta_id', etc.
+      campoEditableActivo: CAMPOS_DIAGNOSTICO.AUTO, // 'auto', 'editable+sugerido', 'editableSugerido', etc.
       logDiagnosticoPV: [],
 
       // Estados de carga y error
       isLoading: false,
       loadingContext: '',
       
+      // Instancia del SDK Puro
+      xubioSdk: null,
       // Cliente Xubio (se inicializa en mounted)
-      xubioClient: null
+      xubioClient: null,
+      // Cliente API (se inicializa en mounted)
+      apiClient: null,
+      // Composables (se inicializan en mounted)
+      puntosDeVentaComposable: null,
+      facturasComposable: null,
+      cobranzasComposable: null,
+      diagnosticoComposable: null
     };
   },
   computed: {
@@ -184,13 +215,13 @@ export const appOptions = {
      */
     descripcionEstrategia() {
       switch(this.estrategiaPuntoVenta) {
-        case 'normal': return 'Envía el objeto tal cual viene de la API o normalizado.';
-        case 'forzar_bool': return 'Inyecta editable: true, sugerido: true.';
-        case 'forzar_int': return 'Inyecta editable: 1, sugerido: 1.';
-        case 'modo_texto': return 'Inyecta modoNumeracion: "editablesugerido".';
-        case 'modo_num': return 'Inyecta modoNumeracion: 2 (Integer).';
-        case 'modo_str_num': return 'Inyecta modoNumeracion: "2" (String).';
-        case 'solo_id': return 'Envía un objeto limpio con solo ID, nombre y código.';
+        case ESTRATEGIAS_PUNTO_VENTA.NORMAL: return 'Envía el objeto tal cual viene de la API o normalizado.';
+        case ESTRATEGIAS_PUNTO_VENTA.FORZAR_BOOL: return 'Inyecta editable: true, sugerido: true.';
+        case ESTRATEGIAS_PUNTO_VENTA.FORZAR_INT: return 'Inyecta editable: 1, sugerido: 1.';
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_TEXTO: return 'Inyecta modoNumeracion: "editablesugerido".';
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_NUM: return 'Inyecta modoNumeracion: 2 (Integer).';
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_STR_NUM: return 'Inyecta modoNumeracion: "2" (String).';
+        case ESTRATEGIAS_PUNTO_VENTA.SOLO_ID: return 'Envía un objeto limpio con solo ID, nombre y código.';
         default: return '';
       }
     },
@@ -332,53 +363,14 @@ export const appOptions = {
     },
     
     /**
-     * Valida si se puede crear una factura (todos los requisitos cumplidos)
+     * Valida si se puede crear una factura (validación mínima para laboratorio)
      * @returns {boolean}
      */
     puedeCrearFactura() {
-      // 1. Validar token válido
-      if (!this.tokenValido) {
-        return false;
-      }
-      
-      // 2. Validar cliente seleccionado
-      if (!this.clienteSeleccionadoParaFactura || !this.facturaClienteId) {
-        return false;
-      }
-      
-      // 3. Validar productos seleccionados o JSON manual
-      if (!this.facturaJson.trim() && this.productosSeleccionados.length === 0) {
-        return false;
-      }
-      
-      // 4. Validar moneda seleccionada
-      if (!this.facturaMoneda) {
-        return false;
-      }
-      
-      // 5. Validar punto de venta válido (editable-sugerido)
-      // Puede estar seleccionado manualmente o automáticamente
-      if (!this.puntoVentaValido) {
-        return false;
-      }
-      
-      // Verificar que haya un punto de venta seleccionado (manual o automático)
-      const puntoVentaDefault = this.obtenerPuntoVentaPorDefecto();
-      if (!this.puntoVentaSeleccionadoParaFactura && (!puntoVentaDefault.ID && !puntoVentaDefault.id)) {
-        return false;
-      }
-      
-      // 6. Validar cotización si es moneda extranjera
-      if (this.facturaMoneda && 
-          this.facturaMoneda !== 'ARS' && 
-          this.facturaMoneda !== 'PESOS_ARGENTINOS') {
-        const cotizacion = parseFloat(this.facturaCotizacion);
-        if (!cotizacion || cotizacion <= 0) {
-          return false;
-        }
-      }
-      
-      return true;
+      // Solo validar que tengamos lo mínimo indispensable para intentar el request
+      return this.tokenValido && 
+             !!this.facturaClienteId && 
+             (this.productosSeleccionados.length > 0 || !!this.facturaJson);
     },
     
     /**
@@ -389,10 +381,7 @@ export const appOptions = {
     puntoVentaValido() {
       // MODO PRUEBA: Validación relajada solicitada por usuario
       if (this.puntoVentaSeleccionadoParaFactura) {
-        const pv = this.puntoVentaSeleccionadoParaFactura;
-        const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        // Solo validamos que tenga ID. Ignoramos activo/editable/sugerido para pruebas.
-        return !!puntoVentaId;
+        return esPuntoVentaValido(this.puntoVentaSeleccionadoParaFactura, true);
       }
 
       // Si no hay selección manual, validar el automático
@@ -401,21 +390,16 @@ export const appOptions = {
       }
 
       // Verificar que haya puntos de venta activos y válidos (editable+sugerido)
-      const puntosActivos = this.puntosDeVenta.filter(pv => {
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        const esValidoXubio = pv.editable && pv.sugerido;
-        return esActivo && esValidoXubio;
-      });
+      const puntosActivos = this.puntosDeVenta.filter(pv => esPuntoVentaValido(pv, false));
 
       if (puntosActivos.length === 0) {
         return false;
       }
 
       const puntoVenta = this.obtenerPuntoVentaPorDefecto();
-      const puntoVentaId = puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVentaId;
-
-      // Verificar que tenga ID válido
-      return !!puntoVentaId;
+      
+      // Verificar que tenga ID válido usando el validador
+      return esPuntoVentaValido(puntoVenta, true);
     },
 
     /**
@@ -469,7 +453,7 @@ export const appOptions = {
       let idEncontrado = null;
       let campoIdUsado = null;
 
-      if (this.campoIdActivo === 'auto') {
+      if (this.campoIdActivo === CAMPOS_DIAGNOSTICO.AUTO) {
         idEncontrado = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
         campoIdUsado = pv.puntoVentaId ? 'puntoVentaId' : (pv.ID ? 'ID' : (pv.id ? 'id' : (pv.puntoVenta_id ? 'puntoVenta_id' : 'ninguno')));
       } else {
@@ -482,7 +466,7 @@ export const appOptions = {
       let esSugerido = false;
       let campoEditableUsado = null;
 
-      if (this.campoEditableActivo === 'auto') {
+      if (this.campoEditableActivo === CAMPOS_DIAGNOSTICO.AUTO) {
         esEditable = this.evaluarBooleano(pv.editable) || this.evaluarBooleano(pv.editableSugerido);
         esSugerido = this.evaluarBooleano(pv.sugerido) || this.evaluarBooleano(pv.editableSugerido);
         campoEditableUsado = 'auto (editable+sugerido o editableSugerido)';
@@ -512,12 +496,25 @@ export const appOptions = {
   },
   async mounted() {
     try {
-      // Inicializar cliente Xubio
+      // Inicializar cliente Xubio (compatible con código existente)
       this.xubioClient = useXubio(
         (forceRefresh) => this.obtenerToken(forceRefresh),
         () => this.tokenValido,
         () => this.accessToken
       );
+
+      // Inicializar cliente API de Xubio (nuevo service layer)
+      this.apiClient = createXubioApiClient(
+        (forceRefresh) => this.obtenerToken(forceRefresh),
+        () => this.tokenValido,
+        () => this.accessToken
+      );
+
+      // Inicializar composables
+      this.puntosDeVentaComposable = usePuntosDeVenta(this.apiClient);
+      this.facturasComposable = useFacturas(this.apiClient);
+      this.cobranzasComposable = useCobranzas(this.apiClient);
+      this.diagnosticoComposable = useDiagnostico();
       
       // Cargar credenciales guardadas
       const savedClientId = localStorage.getItem('xubio_clientId');
@@ -529,6 +526,13 @@ export const appOptions = {
       if (savedSecretId) {
         this.secretId = savedSecretId;
       }
+
+      // Inicializar el SDK con las credenciales cargadas
+      this.xubioSdk = new XubioClient({
+        clientId: this.clientId,
+        secretId: this.secretId,
+        baseUrl: '/api' // Usamos el proxy de Vercel
+      });
 
       // Intentar cargar token guardado primero
       const savedToken = localStorage.getItem('xubio_token');
@@ -660,19 +664,19 @@ export const appOptions = {
       };
 
       switch(this.estrategiaPuntoVenta) {
-        case 'forzar_bool':
+        case ESTRATEGIAS_PUNTO_VENTA.FORZAR_BOOL:
           return { ...base, editable: true, sugerido: true, modoNumeracion: 'editablesugerido' };
-        case 'forzar_int':
+        case ESTRATEGIAS_PUNTO_VENTA.FORZAR_INT:
           return { ...base, editable: 1, sugerido: 1, modoNumeracion: 'editablesugerido' };
-        case 'modo_texto':
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_TEXTO:
           return { ...base, modoNumeracion: 'editablesugerido', editable: true, sugerido: true };
-        case 'modo_num':
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_NUM:
           return { ...base, modoNumeracion: 2, editable: true, sugerido: true };
-        case 'modo_str_num':
+        case ESTRATEGIAS_PUNTO_VENTA.MODO_STR_NUM:
           return { ...base, modoNumeracion: '2', editable: true, sugerido: true };
-        case 'solo_id':
+        case ESTRATEGIAS_PUNTO_VENTA.SOLO_ID:
           return { ID: pvId, id: pvId, nombre: pvOriginal.nombre, codigo: pvOriginal.codigo };
-        case 'normal':
+        case ESTRATEGIAS_PUNTO_VENTA.NORMAL:
         default:
           return pvOriginal;
       }
@@ -723,9 +727,14 @@ export const appOptions = {
 
     /**
      * Evalúa un valor como booleano (maneja strings, numbers, booleans)
+     * Usa el composable de diagnóstico si está disponible
      */
     evaluarBooleano(valor) {
-      if (valor === true || valor === 1 || valor === '1' || valor === 'true' || valor === 'TRUE' || valor === 'True') {
+      if (this.diagnosticoComposable) {
+        return this.diagnosticoComposable.evaluarBooleano(valor);
+      }
+      // Fallback al método original
+      if (valor === VALORES_ACTIVO.TRUE || valor === VALORES_ACTIVO.ONE || valor === VALORES_ACTIVO.ONE_STRING || valor === VALORES_ACTIVO.TRUE_STRING || valor === VALORES_ACTIVO.TRUE_UPPER || valor === VALORES_ACTIVO.TRUE_TITLE) {
         return true;
       }
       return false;
@@ -733,8 +742,13 @@ export const appOptions = {
 
     /**
      * Evalúa el estado editable-sugerido actual de un PV
+     * Usa el composable de diagnóstico si está disponible
      */
     evaluarEditableSugeridoActual(pv) {
+      if (this.diagnosticoComposable) {
+        return this.diagnosticoComposable.evaluarEditableSugeridoActual(pv);
+      }
+      // Fallback al método original
       if (!pv) return 'N/A';
       const esEditable = this.evaluarBooleano(pv.editable) || this.evaluarBooleano(pv.editableSugerido);
       const esSugerido = this.evaluarBooleano(pv.sugerido) || this.evaluarBooleano(pv.editableSugerido);
@@ -743,51 +757,69 @@ export const appOptions = {
 
     /**
      * Prueba un campo ID específico
+     * Usa el composable de diagnóstico si está disponible
      */
     probarCampoId(campo) {
       this.campoIdActivo = campo;
       const pv = this.puntoVentaSeleccionadoParaFactura;
-      const valor = campo === 'auto' ? (pv?.puntoVentaId || pv?.ID || pv?.id || pv?.puntoVenta_id) : pv?.[campo];
-
-      this.logDiagnosticoPV.unshift({
-        mensaje: `[${new Date().toLocaleTimeString()}] Probando campo ID: ${campo} = ${valor}`,
-        exito: !!valor
-      });
-
-      console.log(`🔧 Diagnóstico PV - Probando campo ID: ${campo}`, { campo, valor, pv });
+      
+      if (this.diagnosticoComposable) {
+        this.diagnosticoComposable.probarCampoId(pv, campo);
+        // Sincronizar log con el estado de Vue
+        this.logDiagnosticoPV = this.diagnosticoComposable.logDiagnostico;
+      } else {
+        // Fallback al método original
+        const valor = campo === CAMPOS_DIAGNOSTICO.AUTO ? (pv?.puntoVentaId || pv?.ID || pv?.id || pv?.puntoVenta_id) : pv?.[campo];
+        this.logDiagnosticoPV.unshift({
+          mensaje: `[${new Date().toLocaleTimeString()}] Probando campo ID: ${campo} = ${valor}`,
+          exito: !!valor
+        });
+        console.log(`🔧 Diagnóstico PV - Probando campo ID: ${campo}`, { campo, valor, pv });
+      }
     },
 
     /**
      * Prueba un campo editable/sugerido específico
+     * Usa el composable de diagnóstico si está disponible
      */
     probarCampoEditable(campo) {
       this.campoEditableActivo = campo;
       const pv = this.puntoVentaSeleccionadoParaFactura;
-      let valor;
-
-      if (campo === 'auto') {
-        valor = this.evaluarEditableSugeridoActual(pv);
-      } else if (campo === 'editable+sugerido') {
-        valor = `editable=${pv?.editable}, sugerido=${pv?.sugerido}`;
-      } else if (campo === 'forzar-true') {
-        valor = 'FORZADO a true';
+      
+      if (this.diagnosticoComposable) {
+        this.diagnosticoComposable.probarCampoEditable(pv, campo);
+        // Sincronizar log con el estado de Vue
+        this.logDiagnosticoPV = this.diagnosticoComposable.logDiagnostico;
       } else {
-        valor = pv?.[campo];
+        // Fallback al método original
+        let valor;
+        if (campo === CAMPOS_DIAGNOSTICO.AUTO) {
+          valor = this.evaluarEditableSugeridoActual(pv);
+        } else if (campo === CAMPOS_DIAGNOSTICO.EDITABLE_SUGERIDO) {
+          valor = `editable=${pv?.editable}, sugerido=${pv?.sugerido}`;
+        } else if (campo === CAMPOS_DIAGNOSTICO.FORZAR_TRUE) {
+          valor = 'FORZADO a true';
+        } else {
+          valor = pv?.[campo];
+        }
+        this.logDiagnosticoPV.unshift({
+          mensaje: `[${new Date().toLocaleTimeString()}] Probando campo Editable: ${campo} = ${valor}`,
+          exito: campo === CAMPOS_DIAGNOSTICO.FORZAR_TRUE || this.evaluarBooleano(valor)
+        });
+        console.log(`🔧 Diagnóstico PV - Probando campo Editable: ${campo}`, { campo, valor, pv });
       }
-
-      this.logDiagnosticoPV.unshift({
-        mensaje: `[${new Date().toLocaleTimeString()}] Probando campo Editable: ${campo} = ${valor}`,
-        exito: campo === 'forzar-true' || this.evaluarBooleano(valor)
-      });
-
-      console.log(`🔧 Diagnóstico PV - Probando campo Editable: ${campo}`, { campo, valor, pv });
     },
 
     /**
      * Limpia el log de diagnóstico
      */
     limpiarLogDiagnostico() {
-      this.logDiagnosticoPV = [];
+      if (this.diagnosticoComposable) {
+        this.diagnosticoComposable.limpiarLog();
+        this.logDiagnosticoPV = [];
+      } else {
+        this.logDiagnosticoPV = [];
+      }
     },
 
     /**
@@ -1223,10 +1255,21 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       this[`${viewerKey}Visible`] = false;
 
       try {
-        const { response, data } = await this.requestXubio('/imprimirPDF', 'GET', null, {
-          idtransaccion: transId,
-          tipoimpresion: tipo
-        });
+        // Usar el service layer si está disponible
+        let response, data;
+        if (this.apiClient) {
+          const resultado = await this.apiClient.obtenerPDF(transId.toString(), tipo.toString());
+          response = resultado.response;
+          data = resultado.data;
+        } else {
+          // Fallback al método original
+          const resultado = await this.requestXubio('/imprimirPDF', 'GET', null, {
+            idtransaccion: transId,
+            tipoimpresion: tipo
+          });
+          response = resultado.response;
+          data = resultado.data;
+        }
 
         if (response.ok && data.urlPdf) {
           let mensaje = `✅ PDF obtenido exitosamente!\n\n`;
@@ -1365,12 +1408,15 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         return;
       }
       
-      // Verificar que haya puntos de venta activos
-      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
-      const puntosActivos = this.puntosDeVenta.filter(pv => {
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        return esActivo;
-      });
+      // Verificar que haya puntos de venta activos y válidos
+      // Usar el composable si está disponible para obtener puntos válidos
+      let puntosActivos;
+      if (this.puntosDeVentaComposable && this.puntosDeVentaComposable.initialized) {
+        puntosActivos = this.puntosDeVentaComposable.obtenerPuntosVentaValidos();
+      } else {
+        // Fallback: filtrar manualmente usando validadores
+        puntosActivos = this.puntosDeVenta.filter(pv => esPuntoVentaValido(pv, false));
+      }
 
       if (puntosActivos.length === 0) {
         this.mostrarResultado('factura',
@@ -1391,7 +1437,7 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       if (this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+        const esActivo = pv.activo === undefined || pv.activo === VALORES_ACTIVO.ONE || pv.activo === VALORES_ACTIVO.ONE_STRING || pv.activo === VALORES_ACTIVO.TRUE;
         puntoVentaValido = !!puntoVentaId && esActivo;
       } else {
         // Si no hay selección manual, usar el método automático
@@ -1421,225 +1467,75 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         if (this.facturaJson.trim()) {
           payload = JSON.parse(this.facturaJson);
         } else {
-          // Obtener datos necesarios
-          const [datosCliente] = await Promise.all([
-            this.obtenerDatosCliente(parseInt(clienteId))
-          ]);
-
-          // Validar provincia del cliente (requerido según Swagger)
-          if (!datosCliente || !datosCliente.provincia) {
-            this.mostrarResultado('factura', 
-              'Error: El cliente seleccionado no tiene provincia configurada.\n\n' +
-              'Por favor, configura la provincia del cliente en Xubio antes de crear la factura.', 
-              'error'
-            );
-            this.isLoading = false;
-            this.loadingContext = '';
-            return;
-          }
-
-          // Asegurar lista de precios para el encabezado
-          let listaDePrecioParaHeader = this.listaPrecioAGDP;
-          if (!listaDePrecioParaHeader) {
-            listaDePrecioParaHeader = await this.obtenerListaPrecioAGDP();
-          }
-
-          // Validar lista de precios (requerido según Swagger)
-          if (!listaDePrecioParaHeader) {
-            this.mostrarResultado('factura', 
-              'Error: No se pudo obtener la lista de precios AGDP.\n\n' +
-              'Por favor, verifica que exista una lista de precios con el código "AGDP" en Xubio.', 
-              'error'
-            );
-            this.isLoading = false;
-            this.loadingContext = '';
-            return;
-          }
-
-          // Construir transaccionProductoItems desde productos seleccionados
-          // Según Swagger: todos los campos son REQUERIDOS
-          const transaccionProductoItems = this.productosSeleccionados.map(item => {
-            const cantidad = parseFloat(item.cantidad) || 1;
-            const precio = parseFloat(item.precio) || 0;
-            const importe = cantidad * precio;
-            
-            // Obtener tasa IVA del producto (si está disponible)
-            const tasaIVA = item.producto?.tasaIva?.porcentaje || 
-                           item.producto?.tasaIVA?.porcentaje || 
-                           item.producto?.porcentajeIVA || 
-                           21; // Por defecto 21%
-            
-            // Calcular IVA (asumiendo que el precio ya incluye IVA)
-            // Si el precio incluye IVA: iva = importe - (importe / (1 + tasaIVA/100))
-            // Si el precio NO incluye IVA: iva = importe * (tasaIVA / 100)
-            // Por defecto asumimos que el precio incluye IVA
-            const iva = importe - (importe / (1 + tasaIVA / 100));
-            const total = importe; // Total con IVA incluido
-            
-            // Obtener ID del producto (según Swagger: productoid es el campo correcto)
-            const productoId = item.producto_id || item.producto?.productoid || item.producto?.id || item.producto?.ID;
-            
-            // Usar descripción personalizada si existe, sino la del producto
-            const descripcionItem = item.descripcionPersonalizada?.trim() 
-              || item.producto?.descripcion 
-              || item.producto?.nombre 
-              || 'Producto sin descripción';
-            
-            const detalle = {
-              cantidad: cantidad,
-              precio: precio,
-              descripcion: descripcionItem,
-              // Según Swagger: producto debe tener al menos ID e id
-              producto: productoId ? { 
-                ID: productoId, 
-                id: productoId,
-                nombre: item.producto?.nombre || '',
-                codigo: item.producto?.codigo || ''
-              } : undefined,
-              // Campos requeridos según Swagger
-              iva: parseFloat(iva.toFixed(2)),
-              importe: parseFloat(importe.toFixed(2)),
-              total: parseFloat(total.toFixed(2)),
-              montoExento: 0, // Por defecto, todo está gravado
-              porcentajeDescuento: 0, // Sin descuento por defecto
-              centroDeCosto: this.obtenerCentroDeCostoPorDefecto() // Centro de costo (requerido)
-            };
-            
-            // Agregar depósito si está disponible (opcional pero recomendado)
-            const deposito = this.obtenerDepositoPorDefecto();
-            if (deposito) {
-              detalle.deposito = deposito;
-            }
-            
-            return detalle;
+          // USO DEL SDK: Construir payload usando FacturaService
+          payload = FacturaService.buildPayload({
+            clienteId: clienteId,
+            puntoVenta: this.puntoVentaSeleccionadoParaFactura || this.obtenerPuntoVentaPorDefecto(),
+            vendedor: this.obtenerVendedorPorDefecto(),
+            circuitoContable: this.obtenerCircuitoContablePorDefecto(),
+            deposito: this.obtenerDepositoPorDefecto(),
+            condicionPago: this.facturaCondicionPago,
+            fechaVto: this.facturaFechaVto,
+            items: this.productosSeleccionados.map(item => ({
+              cantidad: item.cantidad,
+              precio: item.precio,
+              producto: item.producto,
+              descripcion: item.descripcionPersonalizada
+            })),
+            moneda: this.facturaMoneda,
+            cotizacion: this.facturaCotizacion,
+            centroCostoDefault: this.obtenerCentroDeCostoPorDefecto()
           });
 
-          // Construir payload completo
-          const fecha = new Date();
-          const fechaISO = fecha.toISOString().split('T')[0];
-          
-          payload = {
-            circuitoContable: this.obtenerCircuitoContablePorDefecto(),
-            comprobante: 1, // ID del comprobante (puede ser diferente de tipo)
-            tipo: 1, // 1=Factura, 2=Nota de Débito, 3=Nota de Crédito, 4=Informe Z, 6=Recibo
-            cliente: { cliente_id: parseInt(clienteId) },
-            fecha: fechaISO,
-            fechaVto: this.facturaFechaVto || fechaISO, // Fecha de vencimiento (requerido según Swagger)
-            condicionDePago: parseInt(this.facturaCondicionPago) || 1, // 1=Cuenta Corriente, 2=Contado (requerido según Swagger)
-            puntoVenta: this.obtenerPuntoVentaPorDefecto(), // Requerido según Swagger
-            vendedor: this.obtenerVendedorPorDefecto(), // Requerido según Swagger
-            transaccionProductoItems: transaccionProductoItems,
-            // Campos requeridos con valores por defecto
-            cantComprobantesCancelados: 0,
-            cantComprobantesEmitidos: 0,
-            cbuinformada: false,
-            cotizacionListaDePrecio: 1,
-            descripcion: this.facturaDescripcion?.trim() || '', // Descripción del comprobante (campo documentado)
-            externalId: '',
-            facturaNoExportacion: false,
-            listaDePrecio: listaDePrecioParaHeader ? {
-              ID: listaDePrecioParaHeader.listaPrecioID || listaDePrecioParaHeader.id || listaDePrecioParaHeader.ID,
-              id: listaDePrecioParaHeader.listaPrecioID || listaDePrecioParaHeader.id || listaDePrecioParaHeader.ID,
-              nombre: listaDePrecioParaHeader.nombre || '',
-              codigo: listaDePrecioParaHeader.codigo || ''
-            } : null, // Agregar lista de precio (requerido según Swagger)
-            mailEstado: '',
-            nombre: '', // Nombre del comprobante
-            numeroDocumento: '',
-            porcentajeComision: 0,
-            provincia: datosCliente?.provincia ? {
-              ID: datosCliente.provincia.provincia_id || datosCliente.provincia.ID || datosCliente.provincia.id,
-              id: datosCliente.provincia.provincia_id || datosCliente.provincia.ID || datosCliente.provincia.id,
-              nombre: datosCliente.provincia.nombre || '',
-              codigo: datosCliente.provincia.codigo || ''
-            } : null, // Agregar provincia del cliente (requerido según Swagger)
-            transaccionCobranzaItems: [],
-            transaccionPercepcionItems: []
-          };
-          
-          // Agregar depósito a nivel comprobante (requerido según Swagger)
-          const depositoHeader = this.obtenerDepositoPorDefecto();
-          if (!depositoHeader) {
-            this.mostrarResultado('factura', 
-              'Error: No hay depósitos disponibles.\n\n' +
-              'Por favor, asegúrate de que existan depósitos activos en Xubio y que se hayan cargado los valores de configuración.', 
-              'error'
-            );
-            this.isLoading = false;
-            this.loadingContext = '';
-            return;
-          }
-          payload.deposito = depositoHeader;
-
-          // Agregar moneda si no es ARS/PESOS_ARGENTINOS (moneda extranjera)
-          const esMonedaExtranjera = this.facturaMoneda && 
-            this.facturaMoneda !== 'ARS' && 
-            this.facturaMoneda !== 'PESOS_ARGENTINOS';
-          
-          if (esMonedaExtranjera) {
-            const monedaSeleccionada = this.monedasList.find(m => 
-              m.codigo === this.facturaMoneda
-            ) || await this.obtenerMoneda(this.facturaMoneda);
-            
-            if (monedaSeleccionada) {
-              payload.moneda = {
-                ID: monedaSeleccionada.ID || monedaSeleccionada.id,
-                codigo: monedaSeleccionada.codigo,
-                nombre: monedaSeleccionada.nombre
-              };
-              const cotizacion = parseFloat(this.facturaCotizacion) || 1;
-              payload.cotizacion = cotizacion > 0 ? cotizacion : 1;
-              payload.utilizaMonedaExtranjera = 1;
-            }
-          }
-
-          // Agregar CUIT del cliente si está disponible
-          if (datosCliente && datosCliente.identificacionTributaria) {
-            const cuit = datosCliente.identificacionTributaria.numero || datosCliente.cuit;
-            if (cuit) {
-              // El CUIT generalmente va en el objeto cliente o en identificacionTributaria
-              if (!payload.cliente.identificacionTributaria) {
-                payload.cliente.identificacionTributaria = {};
-              }
-              payload.cliente.identificacionTributaria.numero = cuit;
-            }
+          // Inyectar descripción general si existe
+          if (this.facturaDescripcion) {
+            payload.descripcion = this.facturaDescripcion.trim();
           }
         }
 
         // Log específico del punto de venta para debugging
-        console.log('🔍 Punto de venta que se enviará:', {
-          ID: payload.puntoVenta?.ID,
-          id: payload.puntoVenta?.id,
-          nombre: payload.puntoVenta?.nombre,
-          codigo: payload.puntoVenta?.codigo
-        });
+        console.log('🔍 [SDK] Punto de venta que se enviará:', payload.puntoVenta);
 
-        const { response, data } = await this.requestXubio(this.endpointDestino, 'POST', payload);
+        // USO DEL SDK: Enviar petición de Factura
+        const data = await this.xubioSdk.request(this.endpointDestino, 'POST', payload);
 
         // --- DIAGNÓSTICO: Guardar respuesta completa ---
         this.resultadoTransaccion = {
-          status: response.status,
-          statusText: response.statusText,
+          status: 200,
+          statusText: 'OK',
           body: JSON.stringify(data, null, 2)
         };
         // -----------------------------------------------
 
-        if (response.ok) {
+        if (data) {
           const transaccionId = data.transaccionId || data.transaccionid || data.id;
-          let mensaje = `✅ Factura creada exitosamente!\n\n`;
-          mensaje += `📋 Detalles:\n`;
-          mensaje += `• Transaction ID: ${transaccionId}\n`;
-          mensaje += `• Número: ${data.numeroComprobante || data.numero || 'N/A'}\n`;
-          mensaje += `• Cliente: ${this.clienteSeleccionadoParaFactura?.razonSocial || this.clienteSeleccionadoParaFactura?.nombre || 'N/A'}\n`;
-          mensaje += `• Total: $${formatearPrecioUtil(this.totalProductosSeleccionados)} ${this.facturaMoneda}\n`;
-          mensaje += `• Moneda: ${this.facturaMoneda}\n\n`;
+          let mensaje = `✅ Factura creada exitosamente (ID: ${transaccionId})\n`;
+          
+          // --- NUEVO: Solicitar CAE ---
+          this.mostrarResultado('factura', mensaje + 'Solicitando CAE a AFIP...', 'info');
+          
+          try {
+              const caePayload = FacturaService.buildCAEPayload({ transaccionId });
+              const caeResponse = await this.xubioSdk.request('/solicitarCAE', 'POST', caePayload);
+              
+              if (caeResponse && caeResponse.CAE) {
+                  mensaje += `✅ CAE Asignado: ${caeResponse.CAE}\n`;
+                  mensaje += `📅 Vencimiento CAE: ${caeResponse.CAEFechaVto || 'N/A'}\n\n`;
+              } else {
+                  mensaje += `⚠️ Factura creada pero NO se obtuvo CAE. Respuesta: ${JSON.stringify(caeResponse)}\n\n`;
+              }
+          } catch (caeError) {
+              mensaje += `❌ Error solicitando CAE: ${caeError.message}\n(La factura ya existe en Xubio, pero no en AFIP)\n\n`;
+          }
+          // ----------------------------
+
           mensaje += `Obteniendo PDF...\n\n`;
 
           this.mostrarResultado('factura', mensaje, 'success');
           await this.obtenerPDF(transaccionId, this.facturaTipoimpresion, 'factura');
         } else {
           // Mejorar el mensaje de error para casos comunes
-          let mensajeError = `❌ Error ${response.status}: `;
+          let mensajeError = `❌ Error al crear la factura: `;
           
           if (data && data.description) {
             // Error del servidor de Xubio
@@ -1743,12 +1639,15 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         return;
       }
       
-      // Verificar que haya puntos de venta activos
-      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
-      const puntosActivos = this.puntosDeVenta.filter(pv => {
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        return esActivo;
-      });
+      // Verificar que haya puntos de venta activos y válidos
+      // Usar el composable si está disponible para obtener puntos válidos
+      let puntosActivos;
+      if (this.puntosDeVentaComposable && this.puntosDeVentaComposable.initialized) {
+        puntosActivos = this.puntosDeVentaComposable.obtenerPuntosVentaValidos();
+      } else {
+        // Fallback: filtrar manualmente usando validadores
+        puntosActivos = this.puntosDeVenta.filter(pv => esPuntoVentaValido(pv, false));
+      }
 
       if (puntosActivos.length === 0) {
         this.mostrarResultado('factura',
@@ -1784,6 +1683,10 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
             circuitoContable: this.obtenerCircuitoContablePorDefecto(),
             comprobante: 1,
             tipo: 1, // 1=Factura
+            comprobanteAsociado: 1, // 1=Comprobante, 2=Período (Requerido por /facturar)
+            tienePeriodoServicio: false,
+            fechaFacturacionServicioDesde: null,
+            fechaFacturacionServicioHasta: null,
             cliente: { cliente_id: parseInt(clienteId) },
             fecha: fechaISO,
             fechaVto: fechaISO,
@@ -1860,9 +1763,28 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       const idComprobante = this.cobranzaIdComprobante.trim();
       const importe = this.cobranzaImporte.trim();
 
-      if (!clienteId || !idComprobante || !importe) {
-        this.mostrarResultado('cobranza', 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
-        return;
+      // Usar el composable de cobranzas para validación si está disponible
+      if (this.cobranzasComposable) {
+        const validacion = this.cobranzasComposable.validarCobranza({
+          clienteId,
+          comprobanteId: idComprobante,
+          importe,
+          formaPago: this.cobranzaFormaPago
+        });
+        
+        if (!validacion.valido) {
+          this.mostrarResultado('cobranza', 
+            `Error: ${validacion.errores.join(', ')}`, 
+            'error'
+          );
+          return;
+        }
+      } else {
+        // Fallback: validación original
+        if (!clienteId || !idComprobante || !importe) {
+          this.mostrarResultado('cobranza', 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
+          return;
+        }
       }
 
       this.mostrarResultado('cobranza', 'Creando cobranza...', 'info');
@@ -1873,43 +1795,28 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         if (this.cobranzaJson.trim()) {
           payload = JSON.parse(this.cobranzaJson);
         } else {
-          const compResponse = await this.requestXubio(`/comprobanteVentaBean/${idComprobante}`, 'GET');
-          if (!compResponse.response.ok) {
+          // USO DEL SDK: Obtener el comprobante original para heredar datos
+          const comp = await this.xubioSdk.request(`/comprobanteVentaBean/${idComprobante}`, 'GET');
+          
+          if (!comp) {
             throw new Error('No se pudo obtener el comprobante. Verifica el ID.');
           }
-          const comp = compResponse.data;
 
-          // Según documentación: CobranzaBean requiere transaccionInstrumentoDeCobro (no mediosDePago)
-          // detalleCobranzas puede ser un campo válido para asociar comprobantes, pero también necesitamos instrumentos de cobro
-          payload = {
-            circuitoContable: comp.circuitoContable || { ID: 1 },
-            cliente: { cliente_id: parseInt(clienteId) },
-            fecha: new Date().toISOString().split('T')[0],
-            monedaCtaCte: comp.moneda || { ID: 1 },
-            cotizacion: comp.cotizacion || 1,
-            utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
-            // Según documentación: transaccionInstrumentoDeCobro es el campo correcto para medios de pago
-            transaccionInstrumentoDeCobro: [{
-              cuentaTipo: 1, // Tipo de cuenta (1 = Caja, ajustar según necesidad)
-              cuenta: { ID: 1, id: 1 }, // Cuenta de caja por defecto
-              moneda: comp.moneda || { ID: 1 },
-              cotizacion: comp.cotizacion || 1,
-              importe: parseFloat(importe),
-              descripcion: `Cobranza de factura ${idComprobante}`
-            }],
-            // detalleCobranzas puede ser necesario para asociar el comprobante (verificar con API)
-            detalleCobranzas: [{
-              idComprobante: parseInt(idComprobante),
-              importe: parseFloat(importe)
-            }]
-          };
+          // USO DEL SDK: Construir payload de cobranza
+          payload = CobranzaService.buildPayload({
+            clienteId: clienteId,
+            facturaRef: comp,
+            importe: importe,
+            // Podríamos pasar cuentaCaja si la tuviéramos seleccionada en la UI
+          });
         }
 
-        const { response, data } = await this.requestXubio('/cobranzaBean', 'POST', payload);
+        // USO DEL SDK: Enviar petición
+        const data = await this.xubioSdk.request('/cobranzaBean', 'POST', payload);
 
-        if (response.ok) {
+        if (data) {
           const transaccionId = data.transaccionId || data.transaccionid || data.id;
-          let mensaje = `✅ Cobranza creada exitosamente!\n\n`;
+          let mensaje = `✅ [SDK] Cobranza creada exitosamente!\n\n`;
           mensaje += `Transaction ID: ${transaccionId}\n`;
           mensaje += `ID: ${data.id || data.ID || 'N/A'}\n\n`;
           mensaje += `Obteniendo PDF...\n\n`;
@@ -1917,13 +1824,13 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
           this.mostrarResultado('cobranza', mensaje, 'success');
           await this.obtenerPDF(transaccionId, this.cobranzaTipoimpresion, 'cobranza');
         } else {
-          this.mostrarResultado('cobranza',
-            `❌ Error ${response.status}:\n${JSON.stringify(data, null, 2)}`, 
-            'error'
-          );
+          throw new Error('No se recibió respuesta del servidor al crear la cobranza');
         }
       } catch (error) {
-        this.mostrarResultado('cobranza', `❌ Error: ${error.message}`, 'error');
+        this.handleError(error, 'Flujo completo cobranza [SDK]', 'cobranza');
+      } finally {
+        this.isLoading = false;
+        this.loadingContext = '';
       }
     },
 
@@ -1937,9 +1844,28 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       const idComprobante = this.cobranzaIdComprobante.trim();
       const importe = this.cobranzaImporte.trim();
 
-      if (!clienteId || !idComprobante || !importe) {
-        this.mostrarResultado('cobranza', 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
-        return;
+      // Usar el composable de cobranzas para validación si está disponible
+      if (this.cobranzasComposable) {
+        const validacion = this.cobranzasComposable.validarCobranza({
+          clienteId,
+          comprobanteId: idComprobante,
+          importe,
+          formaPago: this.cobranzaFormaPago
+        });
+        
+        if (!validacion.valido) {
+          this.mostrarResultado('cobranza', 
+            `Error: ${validacion.errores.join(', ')}`, 
+            'error'
+          );
+          return;
+        }
+      } else {
+        // Fallback: validación original
+        if (!clienteId || !idComprobante || !importe) {
+          this.mostrarResultado('cobranza', 'Error: Completa Cliente ID, ID Comprobante e Importe', 'error');
+          return;
+        }
       }
 
       this.mostrarResultado('cobranza', 'Creando cobranza...', 'info');
@@ -1963,7 +1889,7 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
             fecha: new Date().toISOString().split('T')[0],
             monedaCtaCte: comp.moneda || { ID: 1 },
             cotizacion: comp.cotizacion || 1,
-            utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== 'PESOS_ARGENTINOS') ? 1 : 0,
+            utilizaMonedaExtranjera: (comp.moneda?.codigo && comp.moneda.codigo !== MONEDAS.PESOS_ARGENTINOS) ? 1 : 0,
             // Según documentación: transaccionInstrumentoDeCobro es el campo correcto para medios de pago
             transaccionInstrumentoDeCobro: [{
               cuentaTipo: 1, // Tipo de cuenta (1 = Caja, ajustar según necesidad)
@@ -2441,62 +2367,6 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
     },
     
     /**
-     * Selecciona el punto de venta por defecto (ID 212819 o valor 00004, editable-sugerido)
-     * Similar a seleccionarMonedaDolaresPorDefecto()
-     */
-    seleccionarPuntoVentaPorDefecto() {
-      if (!this.puntosDeVenta || this.puntosDeVenta.length === 0) {
-        console.log('⚠️ No hay puntos de venta cargados para seleccionar');
-        return;
-      }
-      
-      // Filtrar solo puntos de venta activos
-      // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
-      const puntosActivos = this.puntosDeVenta.filter(pv => {
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        return esActivo;
-      });
-
-      if (puntosActivos.length === 0) {
-        console.warn('⚠️ No se encontraron puntos de venta activos');
-        this.puntoVentaSeleccionadoId = null;
-        this.puntoVentaSeleccionadoParaFactura = null;
-        return;
-      }
-
-      // Buscar primero por ID 212819
-      let puntoVentaSeleccionado = puntosActivos.find(pv => {
-        const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        return pvId === 212819 || pvId === '212819';
-      });
-
-      // Si no se encuentra por ID, buscar por campo "Punto de Venta" que contenga 00004
-      if (!puntoVentaSeleccionado) {
-        puntoVentaSeleccionado = puntosActivos.find(pv => {
-          const puntoVenta = (pv.puntoVenta || '').toString().trim();
-          return puntoVenta === '00004' || puntoVenta.includes('00004');
-        });
-      }
-
-      // Si tampoco se encuentra, usar el primero disponible
-      if (!puntoVentaSeleccionado) {
-        puntoVentaSeleccionado = puntosActivos[0];
-      }
-      
-      if (puntoVentaSeleccionado) {
-        const puntoVentaId = puntoVentaSeleccionado.puntoVentaId || puntoVentaSeleccionado.ID || puntoVentaSeleccionado.id || puntoVentaSeleccionado.puntoVenta_id;
-        const idAnterior = this.puntoVentaSeleccionadoId;
-        this.puntoVentaSeleccionadoId = puntoVentaId;
-        this.puntoVentaSeleccionadoParaFactura = puntoVentaSeleccionado;
-        console.log(`🏪 Punto de venta seleccionado por defecto: ID ${puntoVentaId} (antes: ${idAnterior})`, puntoVentaSeleccionado);
-      } else {
-        console.warn('⚠️ No se pudo seleccionar un punto de venta por defecto');
-        this.puntoVentaSeleccionadoId = null;
-        this.puntoVentaSeleccionadoParaFactura = null;
-      }
-    },
-    
-    /**
      * Selecciona la moneda DOLARES por defecto si existe
      */
     seleccionarMonedaDolaresPorDefecto() {
@@ -2509,8 +2379,8 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       
       // Buscar la moneda DOLARES (puede venir como 'DOLARES' o 'USD')
       const monedaDolares = this.monedasList.find(m => 
-        m.codigo === 'DOLARES' || 
-        m.codigo === 'USD' ||
+        m.codigo === MONEDAS.DOLARES || 
+        m.codigo === MONEDAS.USD ||
         m.nombre?.toUpperCase().includes('DÓLAR') ||
         m.nombre?.toUpperCase().includes('DOLAR')
       );
@@ -2684,6 +2554,16 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
      */
     async obtenerPuntosDeVenta() {
       try {
+        // Usar el composable si está disponible
+        if (this.puntosDeVentaComposable) {
+          const data = await this.puntosDeVentaComposable.cargar(false);
+          // Sincronizar con el estado de Vue
+          this.puntosDeVenta = this.puntosDeVentaComposable.puntosDeVenta;
+          console.log(`✅ ${data.length} puntos de venta cargados (via composable)`);
+          return data;
+        }
+
+        // Fallback al método original (compatibilidad)
         const { response, data } = await this.requestXubio('/puntoVentaBean', 'GET', null, {
           activo: 1
         });
@@ -2727,6 +2607,35 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       this.mostrarResultado('puntosDeVentaResult', 'Cargando puntos de venta...', 'info');
 
       try {
+        // Usar el composable si está disponible
+        if (this.puntosDeVentaComposable) {
+          const puntosDeVenta = await this.puntosDeVentaComposable.cargar(forceRefresh);
+          // Sincronizar con el estado de Vue
+          this.puntosDeVenta = this.puntosDeVentaComposable.puntosDeVenta;
+          
+          if (puntosDeVenta && puntosDeVenta.length > 0) {
+            const mensaje = `✅ ${puntosDeVenta.length} punto(s) de venta encontrado(s)\n\n`;
+            
+            // Preseleccionar punto de venta automáticamente usando el composable
+            const puntoVentaDefault = this.puntosDeVentaComposable.obtenerPuntoVentaPorDefecto();
+            if (puntoVentaDefault) {
+              this.puntoVentaSeleccionadoParaFactura = puntoVentaDefault;
+              const nombre = puntoVentaDefault.nombre || puntoVentaDefault.puntoVenta || 'N/A';
+              const id = puntoVentaDefault.puntoVentaId || puntoVentaDefault.ID || puntoVentaDefault.id;
+              this.mostrarResultado('puntosDeVentaResult', mensaje + `⭐ Punto de venta ID ${id} (${nombre}) seleccionado por defecto`, 'success');
+            } else {
+              this.mostrarResultado('puntosDeVentaResult', mensaje + `⚠️ No se encontró punto de venta editable-sugerido válido. Selecciona uno manualmente.`, 'info');
+            }
+          } else {
+            this.mostrarResultado('puntosDeVentaResult', '⚠️ No se encontraron puntos de venta activos', 'info');
+          }
+          
+          this.isLoading = false;
+          this.loadingContext = '';
+          return;
+        }
+
+        // Fallback al método original (compatibilidad)
         // Intentar cargar desde cache primero (si no se fuerza refresh)
         if (!forceRefresh) {
           const cached = cacheManager.getCachedData('puntosDeVenta');
@@ -2855,12 +2764,27 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         }
       }
       
-      // Si no hay selección manual, usar la lógica automática
+      // Usar el composable si está disponible y tiene datos cargados
+      if (this.puntosDeVentaComposable && this.puntosDeVentaComposable.initialized) {
+        const pvDefault = this.puntosDeVentaComposable.obtenerPuntoVentaPorDefecto();
+        if (pvDefault) {
+          const puntoVentaId = pvDefault.puntoVentaId || pvDefault.ID || pvDefault.id || pvDefault.puntoVenta_id;
+          if (puntoVentaId) {
+            return {
+              ID: puntoVentaId,
+              id: puntoVentaId,
+              nombre: pvDefault.nombre || '',
+              codigo: pvDefault.codigo || ''
+            };
+          }
+        }
+      }
+      
+      // Fallback: Si no hay selección manual ni composable, usar la lógica automática original
       if (this.puntosDeVenta && this.puntosDeVenta.length > 0) {
         // Filtrar solo puntos de venta activos
-        // NOTA: Los campos editable/sugerido NO existen en la API (verificado en swagger.json)
         const puntosActivos = this.puntosDeVenta.filter(pv => {
-          const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
+          const esActivo = pv.activo === undefined || pv.activo === VALORES_ACTIVO.ONE || pv.activo === VALORES_ACTIVO.ONE_STRING || pv.activo === VALORES_ACTIVO.TRUE;
           return esActivo;
         });
 
@@ -2887,11 +2811,8 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
         }
         
         if (puntoVenta) {
-          // Obtener ID del punto de venta (PuntoVentaBean usa puntoVentaId, pero también acepta ID/id como fallback)
           const puntoVentaId = puntoVenta.puntoVentaId || puntoVenta.ID || puntoVenta.id || puntoVenta.puntoVenta_id;
           if (puntoVentaId) {
-            // Mapear a PuntoVentaBeanSelector según Swagger: requiere ID, id, nombre, codigo
-            // PuntoVentaBean (de la API) tiene: puntoVentaId -> se mapea a ID e id
             return {
               ID: puntoVentaId,
               id: puntoVentaId,
@@ -2905,6 +2826,25 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
       }
       
       return { ID: null, id: null, nombre: '', codigo: '' };
+    },
+
+    /**
+     * Selecciona el punto de venta por defecto (similar a seleccionarMonedaDolaresPorDefecto)
+     */
+    seleccionarPuntoVentaPorDefecto() {
+      const puntoVentaDefault = this.obtenerPuntoVentaPorDefecto();
+      if (puntoVentaDefault && puntoVentaDefault.ID) {
+        // Buscar el punto de venta completo en la lista
+        const pvCompleto = this.puntosDeVenta.find(pv => {
+          const pvId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
+          return pvId === puntoVentaDefault.ID;
+        });
+        
+        if (pvCompleto) {
+          this.puntoVentaSeleccionadoParaFactura = pvCompleto;
+          this.puntoVentaSeleccionadoId = puntoVentaDefault.ID;
+        }
+      }
     },
     
     /**
@@ -3506,7 +3446,7 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
           }
         }
       }
-    }
+    },
   }
 };
 

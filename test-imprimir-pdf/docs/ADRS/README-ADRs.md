@@ -56,6 +56,27 @@ Un ADR es un documento que captura:
 - ✅ Type safety mejorado sin migrar a TypeScript completo
 - ✅ Arquitectura escalable y mantenible
 
+### [ADR-005: Refactorización de app.js y Sistema de Logging Estructurado](./ADR-005-refactorizacion-app-js-y-sistema-logging.md)
+**Estado:** Propuesto  
+**Fecha:** 2025-01-02  
+**Resumen:** Estrategia para refactorizar el archivo monolítico `app.js` (3523 líneas) e implementar un sistema de logging estructurado para reemplazar 118+ llamadas a `console.log` dispersas.
+
+**Decisiones clave:**
+- Implementar sistema de logging estructurado (`utils/logger.js`)
+- Migrar código de debug a `useDiagnostico` (composable existente)
+- Continuar refactorización incremental (método por método)
+- Mantener compatibilidad hacia atrás durante transición
+
+**Estrategia:**
+- **Fase 1:** Sistema de logging (1-2 días) - Quick Win
+- **Fase 2:** Migrar debug a composable (2-3 días)
+- **Fase 3:** Refactorización incremental (2-4 semanas)
+
+**Resultado esperado:**
+- Reducción de `app.js` de 3523 → ~800-1000 líneas
+- Logging estructurado con niveles (DEBUG, INFO, WARN, ERROR)
+- Código más mantenible y testeable
+
 ## Formato de ADRs
 
 Los ADRs siguen este formato estándar:
