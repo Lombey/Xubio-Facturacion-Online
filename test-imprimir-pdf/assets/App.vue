@@ -47,34 +47,7 @@
     <!-- Contenido Original (se ocultará en fases posteriores cuando currentTab !== 'legacy') -->
     <div v-if="currentTab === 'legacy' || !currentTab">
 
-    <!-- Sección 1: Autenticación -->
-    <div class="section">
-      <h2>1. Autenticación</h2>
-      <div class="info">
-        💡 Las credenciales están en el archivo <code>.xubio-credentials.md</code><br>
-        ✅ Desplegado en Vercel - El proxy API funciona automáticamente
-      </div>
-      <form @submit.prevent="handleTokenSubmit" novalidate>
-        <div class="form-group">
-          <label for="clientId">Client ID:</label>
-          <input type="text" id="clientId" v-model="clientId" placeholder="Ingresa tu Client ID" autocomplete="username">
-        </div>
-        <div class="form-group">
-          <label for="secretId">Secret ID:</label>
-          <input type="password" id="secretId" v-model="secretId" placeholder="Ingresa tu Secret ID" autocomplete="current-password">
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" id="guardarCredenciales" v-model="guardarCredenciales">
-          <label for="guardarCredenciales" style="font-weight: normal; margin: 0;">Guardar credenciales en localStorage</label>
-        </div>
-        <button type="button" @click.prevent="handleTokenSubmit($event)" :disabled="isLoading">Obtener Token</button>
-        <button type="button" class="btn-danger" @click="limpiarCredenciales()" :disabled="isLoading">Limpiar Credenciales</button>
-      </form>
-      <div v-if="isLoading === true && loadingContext && typeof loadingContext === 'string' && loadingContext.includes('token')" class="info">
-        ⏳ <span v-text="loadingContext"></span>
-      </div>
-      <div v-if="tokenResult.visible" :class="['result', tokenResult.type]" v-html="formatoMensaje(tokenResult.message)"></div>
-    </div>
+    <!-- Sección 1: Autenticación - MIGRADA A TabAuth.vue -->
 
     <!-- Sección 2: Productos y Lista de Precios -->
     <div class="section">
