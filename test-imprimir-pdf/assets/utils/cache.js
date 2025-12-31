@@ -166,7 +166,7 @@ class CacheManager {
             const { timestamp } = JSON.parse(cached);
             cacheEntries.push({ key, timestamp });
           }
-        } catch (e) {
+        } catch (_e) {
           // Ignorar
         }
       }

@@ -137,6 +137,7 @@ export const appOptions = {
       puntoVentaSeleccionadoId: null, // ID del punto de venta seleccionado (similar a facturaMoneda)
       puntoVentaSeleccionadoParaFactura: null, // Punto de venta seleccionado para la factura
       estrategiaPuntoVenta: 'normal', // 'normal', 'forzar', 'soloId'
+      endpointDestino: '/comprobanteVentaBean', // Endpoint a utilizar
       resultadoTransaccion: null, // Guardará { status, statusText, body } de la última petición
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
@@ -1613,7 +1614,10 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
           codigo: payload.puntoVenta?.codigo
         });
         
-        const { response, data } = await this.requestXubio('/comprobanteVentaBean', 'POST', payload);
+          }; 
+        }
+
+        const { response, data } = await this.requestXubio(this.endpointDestino, 'POST', payload);
 
         // --- DIAGNÓSTICO: Guardar respuesta completa ---
         this.resultadoTransaccion = {

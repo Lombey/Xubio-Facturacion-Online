@@ -102,20 +102,31 @@
             
             <!-- 🧪 CONTROLES DE LABORATORIO (Solo para diagnóstico) -->
             <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px dashed #6c757d; border-radius: 4px;">
-              <strong style="font-size: 12px; display: block; margin-bottom: 5px;">🧪 Estrategia de Envío (Prueba Combinaciones):</strong>
-              <div style="display: flex; gap: 15px; font-size: 12px; align-items: center;">
-                <select v-model="estrategiaPuntoVenta" style="padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
-                  <option value="normal">🔵 Normal (API)</option>
-                  <option value="forzar_bool">🟢 Forzar Boolean (true)</option>
-                  <option value="forzar_int">🔢 Forzar Integer (1)</option>
-                  <option value="modo_texto">📝 Modo Texto ("editablesugerido")</option>
-                  <option value="modo_num">2️⃣ Modo Numérico (2)</option>
-                  <option value="modo_str_num">🔠 Modo String Num ("2")</option>
-                  <option value="solo_id">🟠 Solo ID (Limpio)</option>
-                </select>
-                <div style="font-size: 11px; color: #666; font-style: italic; flex: 1;">
-                  {{ descripcionEstrategia }}
+              <strong style="font-size: 12px; display: block; margin-bottom: 5px;">🧪 Laboratorio de Envío:</strong>
+              
+              <div style="display: flex; gap: 10px; font-size: 12px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                  <label style="display: block; font-weight: bold; margin-bottom: 3px;">1. Endpoint (Destino):</label>
+                  <select v-model="endpointDestino" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+                    <option value="/comprobanteVentaBean">/comprobanteVentaBean (CRUD Básico)</option>
+                    <option value="/facturar">/facturar (Acción de Negocio)</option>
+                  </select>
                 </div>
+                <div style="flex: 1;">
+                  <label style="display: block; font-weight: bold; margin-bottom: 3px;">2. Estrategia Payload:</label>
+                  <select v-model="estrategiaPuntoVenta" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+                    <option value="normal">🔵 Normal (API)</option>
+                    <option value="forzar_bool">🟢 Forzar Boolean (true)</option>
+                    <option value="forzar_int">🔢 Forzar Integer (1)</option>
+                    <option value="modo_texto">📝 Modo Texto ("editablesugerido")</option>
+                    <option value="modo_num">2️⃣ Modo Numérico (2)</option>
+                    <option value="solo_id">🟠 Solo ID (Limpio)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style="font-size: 11px; color: #666; font-style: italic;">
+                ℹ️ {{ descripcionEstrategia }}
               </div>
             </div>
             <!-- FIN CONTROLES -->
