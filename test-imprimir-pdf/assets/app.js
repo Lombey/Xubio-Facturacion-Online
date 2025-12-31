@@ -137,6 +137,7 @@ export const appOptions = {
       puntoVentaSeleccionadoId: null, // ID del punto de venta seleccionado (similar a facturaMoneda)
       puntoVentaSeleccionadoParaFactura: null, // Punto de venta seleccionado para la factura
       estrategiaPuntoVenta: 'normal', // 'normal', 'forzar', 'soloId'
+      resultadoTransaccion: null, // Guardará { status, statusText, body } de la última petición
       clienteSeleccionado: null,
       clienteSeleccionadoParaFactura: null, // Cliente seleccionado para la factura
       
@@ -183,10 +184,22 @@ export const appOptions = {
     descripcionEstrategia() {
       switch(this.estrategiaPuntoVenta) {
         case 'normal': return 'Envía el objeto tal cual viene de la API o normalizado.';
-        case 'forzar': return 'Envía el ID con flags hardcodeados (editable: true, sugerido: true).';
-        case 'soloId': return 'Envía un objeto limpio con solo ID y nombre.';
+        case 'forzar_bool': return 'Inyecta editable: true, sugerido: true.';
+        case 'forzar_int': return 'Inyecta editable: 1, sugerido: 1.';
+        case 'modo_texto': return 'Inyecta modoNumeracion: "editablesugerido".';
+        case 'modo_num': return 'Inyecta modoNumeracion: 2 (Integer).';
+        case 'modo_str_num': return 'Inyecta modoNumeracion: "2" (String).';
+        case 'solo_id': return 'Envía un objeto limpio con solo ID, nombre y código.';
         default: return '';
       }
+    },
+
+    /**
+     * Previsualización del JSON del punto de venta según la estrategia
+     */
+    previewPayloadPuntoVenta() {
+      const objetoPuntoVenta = this.construirPuntoVentaTest();
+      return JSON.stringify({ puntoVenta: objetoPuntoVenta }, null, 2);
     },
 
     /**
@@ -282,6 +295,39 @@ export const appOptions = {
       };
     },
     
+    /**
+     * Construye el objeto de punto de venta según la estrategia de prueba
+     */
+    construirPuntoVentaTest() {
+      const pvOriginal = this.obtenerPuntoVentaPorDefecto();
+      const pvId = pvOriginal.ID || pvOriginal.id;
+      const base = {
+        ID: pvId,
+        id: pvId,
+        nombre: pvOriginal.nombre || '',
+        codigo: pvOriginal.codigo || '',
+        activo: 1
+      };
+
+      switch(this.estrategiaPuntoVenta) {
+        case 'forzar_bool':
+          return { ...base, editable: true, sugerido: true, modoNumeracion: 'editablesugerido' };
+        case 'forzar_int':
+          return { ...base, editable: 1, sugerido: 1, modoNumeracion: 'editablesugerido' };
+        case 'modo_texto':
+          return { ...base, modoNumeracion: 'editablesugerido', editable: true, sugerido: true };
+        case 'modo_num':
+          return { ...base, modoNumeracion: 2, editable: true, sugerido: true };
+        case 'modo_str_num':
+          return { ...base, modoNumeracion: '2', editable: true, sugerido: true };
+        case 'solo_id':
+          return { ID: pvId, id: pvId, nombre: pvOriginal.nombre, codigo: pvOriginal.codigo };
+        case 'normal':
+        default:
+          return pvOriginal;
+      }
+    },
+
     /**
      * Calcula el subtotal sin IVA
      */
@@ -1556,9 +1602,15 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
           codigo: payload.puntoVenta?.codigo
         });
         
-        console.log('📤 Payload de factura:', JSON.stringify(payload, null, 2));
-
         const { response, data } = await this.requestXubio('/comprobanteVentaBean', 'POST', payload);
+
+        // --- DIAGNÓSTICO: Guardar respuesta completa ---
+        this.resultadoTransaccion = {
+          status: response.status,
+          statusText: response.statusText,
+          body: JSON.stringify(data, null, 2)
+        };
+        // -----------------------------------------------
 
         if (response.ok) {
           const transaccionId = data.transaccionId || data.transaccionid || data.id;
@@ -1726,33 +1778,7 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
             condicionDePago: 1, // 1=Cuenta Corriente
             
             // --- Selección de Punto de Venta según estrategia ---
-            puntoVenta: (() => {
-              const pvOriginal = this.obtenerPuntoVentaPorDefecto();
-              const pvId = pvOriginal.ID || pvOriginal.id;
-              
-              if (this.estrategiaPuntoVenta === 'forzar') {
-                return {
-                   ID: pvId,
-                   id: pvId,
-                   editable: true,
-                   sugerido: true,
-                   modoNumeracion: 'editablesugerido',
-                   activo: 1,
-                   nombre: pvOriginal.nombre,
-                   codigo: pvOriginal.codigo
-                };
-              } else if (this.estrategiaPuntoVenta === 'soloId') {
-                return {
-                   ID: pvId,
-                   id: pvId,
-                   nombre: pvOriginal.nombre || 'PV Test',
-                   codigo: pvOriginal.codigo || ''
-                };
-              } else {
-                // Estrategia 'normal'
-                return pvOriginal;
-              }
-            })(),
+            puntoVenta: this.construirPuntoVentaTest(),
             // --------------------------------------------------
 
             vendedor: this.obtenerVendedorPorDefecto(),

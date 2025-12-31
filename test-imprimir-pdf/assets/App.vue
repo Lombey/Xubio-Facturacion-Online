@@ -102,23 +102,20 @@
             
             <!-- 🧪 CONTROLES DE LABORATORIO (Solo para diagnóstico) -->
             <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border: 1px dashed #6c757d; border-radius: 4px;">
-              <strong style="font-size: 12px; display: block; margin-bottom: 5px;">🧪 Estrategia de Envío (Prueba):</strong>
-              <div style="display: flex; gap: 15px; font-size: 12px;">
-                <label style="cursor: pointer; display: flex; align-items: center;">
-                  <input type="radio" v-model="estrategiaPuntoVenta" value="normal" name="estrategiaPV">
-                  <span style="margin-left: 4px;">🔵 Normal (API)</span>
-                </label>
-                <label style="cursor: pointer; display: flex; align-items: center;">
-                  <input type="radio" v-model="estrategiaPuntoVenta" value="forzar" name="estrategiaPV">
-                  <span style="margin-left: 4px;">🔴 Forzar Editable</span>
-                </label>
-                <label style="cursor: pointer; display: flex; align-items: center;">
-                  <input type="radio" v-model="estrategiaPuntoVenta" value="soloId" name="estrategiaPV">
-                  <span style="margin-left: 4px;">🟠 Solo ID</span>
-                </label>
-              </div>
-              <div style="font-size: 11px; color: #666; margin-top: 5px; font-style: italic;">
-                {{ descripcionEstrategia }}
+              <strong style="font-size: 12px; display: block; margin-bottom: 5px;">🧪 Estrategia de Envío (Prueba Combinaciones):</strong>
+              <div style="display: flex; gap: 15px; font-size: 12px; align-items: center;">
+                <select v-model="estrategiaPuntoVenta" style="padding: 5px; border-radius: 4px; border: 1px solid #ced4da;">
+                  <option value="normal">🔵 Normal (API)</option>
+                  <option value="forzar_bool">🟢 Forzar Boolean (true)</option>
+                  <option value="forzar_int">🔢 Forzar Integer (1)</option>
+                  <option value="modo_texto">📝 Modo Texto ("editablesugerido")</option>
+                  <option value="modo_num">2️⃣ Modo Numérico (2)</option>
+                  <option value="modo_str_num">🔠 Modo String Num ("2")</option>
+                  <option value="solo_id">🟠 Solo ID (Limpio)</option>
+                </select>
+                <div style="font-size: 11px; color: #666; font-style: italic; flex: 1;">
+                  {{ descripcionEstrategia }}
+                </div>
               </div>
             </div>
             <!-- FIN CONTROLES -->
@@ -507,35 +504,38 @@
       </div>
       
       <div class="flow-buttons">
-                    <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading || !puedeCrearFactura">🚀 Crear Factura y Obtener PDF</button>
-                    <button @click="soloCrearFactura()" :disabled="isLoading || !puedeCrearFactura">Solo Crear Factura</button>
+                                <!-- BOTONES HABILITADOS PARA PRUEBAS -->
+                                <button class="btn-secondary" @click="flujoCompletoFactura()" :disabled="isLoading">🚀 Crear Factura y Obtener PDF (Forzado)</button>
+                                <button @click="soloCrearFactura()" :disabled="isLoading">Solo Crear Factura (Forzado)</button>
+                                
+                                <!-- 🔬 LABORATORIO JSON: Payload vs Respuesta -->
+                                <div style="margin-top: 20px; border-top: 2px solid #ccc; padding-top: 10px;">
+                                  <h3>🔬 Laboratorio de Diagnóstico</h3>
+                                  <div style="display: flex; gap: 20px;">
+                                    <!-- Columna Izquierda: Lo que enviamos -->
+                                    <div style="flex: 1; background: #f0f4f8; padding: 10px; border-radius: 4px;">
+                                      <strong style="color: #0056b3;">📤 Payload a Enviar (Preview):</strong>
+                                      <pre style="font-size: 11px; overflow: auto; max-height: 300px; color: #333;">{{ previewPayloadPuntoVenta }}</pre>
+                                    </div>
                     
-                    <!-- 🕵️ DIAGNÓSTICO DE BLOQUEO (Solo visible si no se puede crear factura) -->
-                    <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 15px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; font-size: 11px;">
-                      <strong>⚠️ No se puede crear la factura. Verifica:</strong>
-                      <ul style="margin: 5px 0 0 20px; padding: 0;">
-                        <li :style="{ color: tokenValido ? '#28a745' : '#dc3545' }">
-                          {{ tokenValido ? '✅' : '❌' }} Token de acceso válido
-                        </li>
-                        <li :style="{ color: (clienteSeleccionadoParaFactura && facturaClienteId) ? '#28a745' : '#dc3545' }">
-                          {{ (clienteSeleccionadoParaFactura && facturaClienteId) ? '✅' : '❌' }} Cliente seleccionado (ID: {{ facturaClienteId || 'N/A' }})
-                        </li>
-                        <li :style="{ color: (productosSeleccionados.length > 0 || facturaJson.trim()) ? '#28a745' : '#dc3545' }">
-                          {{ (productosSeleccionados.length > 0 || facturaJson.trim()) ? '✅' : '❌' }} Productos seleccionados ({{ productosSeleccionados.length }})
-                        </li>
-                        <li :style="{ color: facturaMoneda ? '#28a745' : '#dc3545' }">
-                          {{ facturaMoneda ? '✅' : '❌' }} Moneda seleccionada
-                        </li>
-                        <li :style="{ color: puntoVentaValido ? '#28a745' : '#dc3545' }">
-                          {{ puntoVentaValido ? '✅' : '❌' }} Punto de venta activo con ID válido
-                          <div v-if="!puntoVentaValido" style="font-size: 10px; margin-left: 22px; color: #666; margin-top: 2px;">
-                            Verifica que el punto de venta seleccionado:<br>
-                            • Tenga un ID válido (puntoVentaId)<br>
-                            • Esté activo en Xubio
-                          </div>
-                        </li>
-                      </ul>
-                    </div>      </div>
+                                    <!-- Columna Derecha: Lo que responde Xubio -->
+                                    <div style="flex: 1; background: #fff0f0; padding: 10px; border-radius: 4px; border: 1px solid #ffc107;">
+                                      <strong style="color: #c82333;">📥 Respuesta API (Último intento):</strong>
+                                      <div v-if="resultadoTransaccion">
+                                        <div style="font-weight: bold; margin-bottom: 5px;">
+                                          Status: {{ resultadoTransaccion.status }} {{ resultadoTransaccion.statusText }}
+                                        </div>
+                                        <pre style="font-size: 11px; overflow: auto; max-height: 300px; color: #d63384;">{{ resultadoTransaccion.body }}</pre>
+                                      </div>
+                                      <div v-else style="color: #666; font-style: italic; margin-top: 10px;">
+                                        Aún no se ha enviado ninguna petición...
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <!-- FIN LABORATORIO -->
+                    
+                                <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"      </div>
       <!-- Mensaje informativo cuando los botones están deshabilitados -->
       <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404; font-size: 13px;">
         <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No se puede crear la factura. Verifica:</div>
