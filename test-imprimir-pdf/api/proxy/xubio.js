@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { bearerToken, ruta, method = 'GET', body = null } = req.body;
+  const { bearerToken, ruta, method = 'GET', body = null, domain = 'xubio.com' } = req.body;
 
   if (!bearerToken) {
     return res.status(400).json({ error: 'bearerToken es requerido' });
@@ -21,15 +21,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://microservice.xubio.com${ruta}`;
+    const url = `https://${domain}${ruta}`;
 
     const options = {
       method,
       headers: {
         'Authorization': `Bearer ${bearerToken}`,
-        'Accept': 'application/json, text/plain, */*',
-        'Origin': 'https://app.xubio.com',
-        'Referer': 'https://app.xubio.com/'
+        'Accept': 'application/json, text/plain, */*'
       }
     };
 
