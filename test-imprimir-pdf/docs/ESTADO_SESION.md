@@ -207,15 +207,34 @@ Session cookies **expiran al cerrar navegador** → ❌ NO VIABLE para automatiz
 
 ### **Estado de Prueba Actual:**
 
-**Esperando:** Deployment de Vercel con proxies corregidos (usando `xubio.com`)
-
 **Token de prueba:** `17672144603098004776931473459293379488`
 
-**Pasos de verificación pendientes:**
-1. ⏳ Verificar Bearer token con `/api/proxy/datosUsuario`
-2. ⏳ Si funciona, probar creación de factura con `/api/proxy/comprobanteVentaBean`
-3. ⏳ Analizar response para ver si incluye TransaccionID y PDF URL
-4. ⏳ Comparar velocidad y simplicidad vs XML Legacy
+**❌ PROBLEMA CRÍTICO DESCUBIERTO:**
+
+Los proxies de Vercel dan **401 UNAUTHORIZED_ACCESS** incluso con endpoints que funcionan en el browser:
+
+- ❌ `/api/proxy/datosUsuario` → 401
+- ❌ `/api/proxy/xubio` con ruta `/api/dashboard/cardsdashboard` → 401
+
+**Confirmado en browser (SIN proxy):**
+- ✅ `GET https://xubio.com/api/dashboard/cardsdashboard` → 200 OK
+- ✅ Authorization: Bearer 17672144603098004776931473459293379488
+- ✅ Headers: `accept`, `authorization`, `origin`, `referer`, `sec-fetch-*`
+
+**Conclusión:**
+El Bearer token ES válido, pero hay algo que el proxy NO está replicando correctamente.
+
+**Hipótesis:**
+1. Xubio requiere **cookies + Bearer token juntos** (`credentials: "include"`)
+2. Xubio valida headers `Origin` y `Referer` (aunque el proxy los envía desde servidor)
+3. Xubio valida `sec-fetch-site: same-site` (no replicable desde proxy externo)
+4. Falta algún header o cookie crítico
+
+**Próximos pasos de investigación:**
+1. ⏳ Verificar si Xubio acepta SOLO Bearer token (sin cookies)
+2. ⏳ Probar agregando headers `origin` y `referer` al proxy
+3. ⏳ Investigar si hay forma de replicar cookies desde el cliente al proxy
+4. ⏳ Considerar alternativa: Extensión de Chrome o script local (no Vercel)
 
 ### **Preguntas a Responder:**
 
@@ -358,8 +377,34 @@ Headers como `Origin` y `Referer` **NO son necesarios** desde el proxy (servidor
 
 **Token actual para pruebas:** `17672144603098004776931473459293379488`
 
-**Próxima acción:** Probar en https://xubio-facturacion-online.vercel.app/ después del deployment.
+**Próxima acción:** Investigar por qué el proxy da 401 cuando el Bearer token es válido.
 
 ---
 
-*Documentación actualizada el 31/12/2025 - Sesión de investigación API REST + Bearer Token*
+## ⚠️ BLOQUEO ACTUAL (Fin de Sesión)
+
+**Problema:**
+Los proxies de Vercel no pueden autenticar con Xubio usando solo Bearer token. Todos los endpoints dan 401, incluso los que funcionan en el browser con el mismo token.
+
+**Evidencia:**
+- Browser: `GET https://xubio.com/api/dashboard/cardsdashboard` → ✅ 200 OK
+- Proxy: `POST /api/proxy/xubio` (mismo endpoint, mismo token) → ❌ 401
+
+**Posibles causas:**
+1. **Cookies requeridas:** Xubio puede requerir cookies de sesión además del Bearer token
+2. **Headers de seguridad:** `sec-fetch-site: same-site` no es replicable desde proxy externo
+3. **Validación de origen:** Xubio valida que requests vengan de `app.xubio.com`
+
+**Soluciones alternativas a explorar:**
+1. **Proxy con cookies:** Pasar cookies del cliente al proxy (complejo)
+2. **Script local:** Ejecutar desde máquina con acceso a xubio.com (no serverless)
+3. **Extensión Chrome:** Bypass CORS ejecutando desde browser
+4. **Apps Script directo:** Intentar desde Apps Script (sin proxy) con Bearer token
+
+**Recomendación temporal:**
+Usar **Método XML Legacy** (ya validado) para Google Apps Script hasta resolver autenticación de API REST.
+
+---
+
+*Documentación actualizada el 31/12/2025*
+*Última actualización: Bloqueo de autenticación en proxy Vercel - Sesión pausada*
