@@ -57,26 +57,6 @@
         </div>
       </div>
 
-      <!-- Formulario simple para agregar producto -->
-      <div class="form-inline">
-        <input
-          v-model="nuevoProducto.nombre"
-          placeholder="Nombre del producto"
-          class="input">
-        <input
-          v-model.number="nuevoProducto.cantidad"
-          type="number"
-          min="1"
-          placeholder="Cantidad"
-          class="input-small">
-        <input
-          v-model.number="nuevoProducto.precio"
-          type="number"
-          step="0.01"
-          placeholder="Precio"
-          class="input-small">
-        <button @click="agregarProductoManual" class="btn-secondary">➕ Agregar</button>
-      </div>
     </div>
 
     <!-- Sección: Cliente -->
@@ -200,7 +180,6 @@ export default {
       productosList: [],
       productosSeleccionados: [],
       productosListResult: { message: '', type: '', visible: false },
-      nuevoProducto: { nombre: '', cantidad: 1, precio: 0 },
       productoIdTemp: '',
       cantidadTemp: 1,
 
@@ -378,23 +357,6 @@ export default {
       } finally {
         this.isLoading = false;
       }
-    },
-
-    agregarProductoManual() {
-      if (!this.nuevoProducto.nombre || this.nuevoProducto.precio <= 0) {
-        this.showToast('Completa nombre y precio válido', 'error');
-        return;
-      }
-
-      this.productosSeleccionados.push({
-        id: Date.now(),
-        ...this.nuevoProducto
-      });
-
-      this.showToast(`Producto agregado: ${this.nuevoProducto.nombre}`, 'success');
-
-      // Reset
-      this.nuevoProducto = { nombre: '', cantidad: 1, precio: 0 };
     },
 
     agregarProductoDesdeLista() {
