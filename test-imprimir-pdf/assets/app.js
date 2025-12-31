@@ -355,9 +355,8 @@ export const appOptions = {
     },
     
     /**
-     * Valida si el punto de venta es válido (activo con ID válido)
-     * NOTA: Los campos editable/sugerido NO existen en la API real (verificado en swagger.json)
-     * Solo existe el campo 'activo' (integer: 1=activo, 0=inactivo)
+     * Valida si el punto de venta es válido (activo, editable y sugerido)
+     * Requerido por la API de Xubio para crear facturas.
      * @returns {boolean}
      */
     puntoVentaValido() {
@@ -365,9 +364,10 @@ export const appOptions = {
       if (this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        // Solo verificamos que tenga ID y esté activo (o no tenga campo activo = asumimos activo)
+        // Debe estar activo Y ser editable Y ser sugerido
         const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        return !!puntoVentaId && esActivo;
+        const esValidoXubio = pv.editable && pv.sugerido;
+        return !!puntoVentaId && esActivo && esValidoXubio;
       }
 
       // Si no hay selección manual, validar el automático
@@ -375,10 +375,11 @@ export const appOptions = {
         return false;
       }
 
-      // Verificar que haya puntos de venta activos
+      // Verificar que haya puntos de venta activos y válidos (editable+sugerido)
       const puntosActivos = this.puntosDeVenta.filter(pv => {
         const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        return esActivo;
+        const esValidoXubio = pv.editable && pv.sugerido;
+        return esActivo && esValidoXubio;
       });
 
       if (puntosActivos.length === 0) {
