@@ -53,7 +53,7 @@ class CacheManager {
           if (item) {
             this.currentSize += new Blob([item]).size;
           }
-        } catch (e) {
+        } catch (_e) {
           // Ignorar errores
         }
       }
@@ -222,7 +222,7 @@ class CacheManager {
               limpiados++;
             }
           }
-        } catch (error) {
+        } catch (_error) {
           localStorage.removeItem(key);
           limpiados++;
         }

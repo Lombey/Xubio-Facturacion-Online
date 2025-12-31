@@ -224,7 +224,7 @@ export const appOptions = {
           nombre: centro.nombre || 'No disponible',
           codigo: centro.codigo || ''
         };
-      } catch (error) {
+      } catch (_error) {
         // Si no hay centros disponibles, retornar valores por defecto para el template
         return {
           id: null,
@@ -293,39 +293,6 @@ export const appOptions = {
         nombre: circuito.nombre || 'No disponible',
         codigo: circuito.codigo || ''
       };
-    },
-    
-    /**
-     * Construye el objeto de punto de venta según la estrategia de prueba
-     */
-    construirPuntoVentaTest() {
-      const pvOriginal = this.obtenerPuntoVentaPorDefecto();
-      const pvId = pvOriginal.ID || pvOriginal.id;
-      const base = {
-        ID: pvId,
-        id: pvId,
-        nombre: pvOriginal.nombre || '',
-        codigo: pvOriginal.codigo || '',
-        activo: 1
-      };
-
-      switch(this.estrategiaPuntoVenta) {
-        case 'forzar_bool':
-          return { ...base, editable: true, sugerido: true, modoNumeracion: 'editablesugerido' };
-        case 'forzar_int':
-          return { ...base, editable: 1, sugerido: 1, modoNumeracion: 'editablesugerido' };
-        case 'modo_texto':
-          return { ...base, modoNumeracion: 'editablesugerido', editable: true, sugerido: true };
-        case 'modo_num':
-          return { ...base, modoNumeracion: 2, editable: true, sugerido: true };
-        case 'modo_str_num':
-          return { ...base, modoNumeracion: '2', editable: true, sugerido: true };
-        case 'solo_id':
-          return { ID: pvId, id: pvId, nombre: pvOriginal.nombre, codigo: pvOriginal.codigo };
-        case 'normal':
-        default:
-          return pvOriginal;
-      }
     },
 
     /**
@@ -670,6 +637,50 @@ export const appOptions = {
     PuntoVentaSelector
   },
   methods: {
+    /**
+     * Construye el objeto de punto de venta según la estrategia de prueba
+     * Mover a methods para evitar problemas de evaluación temprana en computed
+     */
+    construirPuntoVentaTest() {
+      const pvOriginal = this.obtenerPuntoVentaPorDefecto() || {};
+      const pvId = pvOriginal.ID || pvOriginal.id;
+      
+      // Si no hay punto de venta, retornar null seguro
+      if (!pvId) {
+        return null;
+      }
+
+      const base = {
+        ID: pvId,
+        id: pvId,
+        nombre: pvOriginal.nombre || '',
+        codigo: pvOriginal.codigo || '',
+        activo: 1
+      };
+
+      switch(this.estrategiaPuntoVenta) {
+        case 'forzar_bool':
+          return { ...base, editable: true, sugerido: true, modoNumeracion: 'editablesugerido' };
+        case 'forzar_int':
+          return { ...base, editable: 1, sugerido: 1, modoNumeracion: 'editablesugerido' };
+        case 'modo_texto':
+          return { ...base, modoNumeracion: 'editablesugerido', editable: true, sugerido: true };
+        case 'modo_num':
+          return { ...base, modoNumeracion: 2, editable: true, sugerido: true };
+        case 'modo_str_num':
+          return { ...base, modoNumeracion: '2', editable: true, sugerido: true };
+        case 'solo_id':
+          return { ID: pvId, id: pvId, nombre: pvOriginal.nombre, codigo: pvOriginal.codigo };
+        case 'normal':
+        default:
+          return pvOriginal;
+      }
+    },
+
+    /**
+     * Método para formatear mensajes con HTML
+     * @param {string} mensaje - Mensaje a formatear
+     */
     /**
      * Sistema de Cache con TTL - Delegado a cacheManager
      * TTL por tipo de dato:
