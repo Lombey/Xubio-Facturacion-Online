@@ -51,6 +51,25 @@
       <div v-else-if="tokenError" class="result error">
         ❌ {{ tokenError }}
       </div>
+
+      <!-- Probar endpoint manual -->
+      <div v-if="bearerToken" style="margin-top: 20px; padding: 15px; background: #fff3e0; border-radius: 8px;">
+        <h4>🔬 Probar Endpoint Manualmente</h4>
+        <p style="font-size: 13px; margin-bottom: 10px;">
+          Probá cualquier endpoint de microservice.xubio.com para ver si funciona con este token.
+        </p>
+        <div class="form-group">
+          <label>Ruta (ej: /api/dashboard/datosUsuario):</label>
+          <input v-model="testRuta" placeholder="/api/autorizacion/autorizar?ruta=/NXV/reportes/ventas/estadisticas&verbo=GET" />
+        </div>
+        <button @click="testEndpointManual" :disabled="!testRuta || isLoading" class="btn-secondary">
+          {{ isLoading ? '⏳ Probando...' : '🧪 Probar Endpoint' }}
+        </button>
+        <div v-if="testResult" class="result" :class="testResult.success ? 'success' : 'error'" style="margin-top: 10px;">
+          <strong>{{ testResult.success ? '✅ Éxito' : '❌ Error' }} ({{ testResult.status }})</strong>
+          <pre style="margin-top: 5px; font-size: 12px;">{{ JSON.stringify(testResult.data, null, 2) }}</pre>
+        </div>
+      </div>
     </div>
 
     <!-- Sección 2: Crear Factura con API REST -->
@@ -204,7 +223,11 @@ export default {
       facturaCreada: false,
       transaccionIdEnResponse: false,
       pdfUrlEnResponse: false,
-      tiempoRespuesta: 0
+      tiempoRespuesta: 0,
+
+      // Test manual de endpoints
+      testRuta: '/api/autorizacion/autorizar?ruta=/NXV/reportes/ventas/estadisticas&verbo=GET',
+      testResult: null
     };
   },
   computed: {
@@ -367,6 +390,48 @@ export default {
       navigator.clipboard.writeText(text)
         .then(() => this.showToast('Copiado al portapapeles', 'success'))
         .catch(() => this.showToast('Error copiando', 'error'));
+    },
+
+    async testEndpointManual() {
+      this.isLoading = true;
+      this.testResult = null;
+
+      try {
+        const response = await fetch('/api/proxy/xubio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            bearerToken: this.bearerToken.trim(),
+            ruta: this.testRuta,
+            method: 'GET'
+          })
+        });
+
+        const data = await response.json();
+
+        this.testResult = {
+          success: response.ok,
+          status: response.status,
+          data
+        };
+
+        if (response.ok) {
+          this.showToast('Endpoint respondió correctamente', 'success');
+        } else {
+          this.showToast(`Error ${response.status}`, 'error');
+        }
+      } catch (error) {
+        this.testResult = {
+          success: false,
+          status: 'ERROR',
+          data: { error: error.message }
+        };
+        this.showToast('Error en la prueba', 'error');
+      } finally {
+        this.isLoading = false;
+      }
     }
   }
 };
