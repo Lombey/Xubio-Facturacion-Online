@@ -124,13 +124,13 @@
             <!-- FIN CONTROLES -->
 
             <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"
-      <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"
-           style="margin-top: 10px; padding: 15px; background: #1e1e1e; border-radius: 8px; overflow-x: auto;">
-        <pre style="color: #d4d4d4; margin: 0; font-size: 12px; white-space: pre-wrap;">{{ JSON.stringify(puntoVentaSeleccionadoParaFactura, null, 2) }}</pre>
-      </div>
-      <div v-else-if="mostrarDatosCrudosPV && !puntoVentaSeleccionadoParaFactura"
-           style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
-        ⚠️ No hay punto de venta seleccionado. Selecciona uno primero.
+                 style="margin-top: 10px; padding: 15px; background: #1e1e1e; border-radius: 8px; overflow-x: auto;">
+              <pre style="color: #d4d4d4; margin: 0; font-size: 12px; white-space: pre-wrap;">{{ JSON.stringify(puntoVentaSeleccionadoParaFactura, null, 2) }}</pre>
+            </div>
+            <div v-else-if="mostrarDatosCrudosPV && !puntoVentaSeleccionadoParaFactura"
+                 style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 4px; color: #721c24;">
+              ⚠️ No hay punto de venta seleccionado. Selecciona uno primero.
+            </div>
       </div>
 
       <!-- Estado actual de validación -->
@@ -204,7 +204,6 @@
         </div>
         <button @click="limpiarLogDiagnostico" class="test-btn" style="margin-top: 5px;">🗑️ Limpiar log</button>
       </div>
-    </div>
 
     <!-- Toggle para mostrar/ocultar diagnóstico -->
     <div style="text-align: center; margin: 10px 0;">
@@ -213,6 +212,7 @@
               style="background: #6c757d; color: white;">
         {{ mostrarDiagnosticoPV ? '🔽 Ocultar' : '🔧 Mostrar' }} Diagnóstico de Punto de Venta
       </button>
+    </div>
     </div>
 
     <!-- Sección 3: Flujo Completo - Factura -->
