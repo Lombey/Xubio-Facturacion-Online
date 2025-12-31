@@ -352,7 +352,9 @@ export default {
     emitLoginSuccess() {
       this.$emit('login-success', {
         token: this.accessToken,
-        expiration: this.tokenExpiration
+        expiration: this.tokenExpiration,
+        clientId: this.clientId,
+        secretId: this.secretId
       });
     }
   }

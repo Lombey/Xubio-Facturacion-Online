@@ -13,8 +13,8 @@
  * - Handlers de eventos de componentes Tab
  */
 
-// Importar SDK
-import { XubioClient } from '../sdk/xubioClient.js';
+// Importar servicio de API
+import { createXubioApiClient } from './services/xubioApi.js';
 
 // Importar componentes de pestañas
 import TabAuth from './components/TabAuth.vue';
@@ -39,7 +39,9 @@ export const appOptions = {
       // Autenticación (solo para mantener token y SDK)
       accessToken: null,
       tokenExpiration: null,
-      xubioSdk: null // Instancia del SDK (se inicializa en handleLogin)
+      clientId: null,
+      secretId: null,
+      xubioSdk: null // Instancia del API client (se inicializa en handleLogin)
     };
   },
 
@@ -78,6 +80,59 @@ export const appOptions = {
     },
 
     /**
+     * Verifica si el token actual es válido
+     * @returns {boolean} true si el token es válido
+     */
+    isTokenValid() {
+      return this.accessToken &&
+             this.tokenExpiration &&
+             Date.now() < this.tokenExpiration - 60000;
+    },
+
+    /**
+     * Obtiene el token actual (sin renovación automática)
+     * @returns {string|null} Token de acceso actual
+     */
+    getAccessToken() {
+      return this.accessToken;
+    },
+
+    /**
+     * Renueva el token de acceso
+     * @returns {Promise<string>} Token renovado
+     */
+    async renewToken() {
+      if (!this.clientId || !this.secretId) {
+        throw new Error('Credenciales no disponibles para renovar token');
+      }
+
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: this.clientId,
+            secretId: this.secretId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Error renovando token');
+        }
+
+        const data = await response.json();
+        this.accessToken = data.access_token || data.token;
+        const expiresIn = parseInt(data.expires_in || 3600, 10);
+        this.tokenExpiration = Date.now() + (expiresIn * 1000);
+
+        return this.accessToken;
+      } catch (error) {
+        console.error('❌ Error renovando token:', error);
+        throw error;
+      }
+    },
+
+    /**
      * Maneja la visualización del PDF global
      * @param {string} url - URL del PDF a mostrar
      */
@@ -96,13 +151,24 @@ export const appOptions = {
 
     /**
      * Maneja el login exitoso desde TabAuth
-     * @param {Object} data - { token, expiration }
+     * @param {Object} data - { token, expiration, clientId, secretId }
      */
     handleLogin(data) {
+      // Guardar credenciales y token
       this.accessToken = data.token;
       this.tokenExpiration = data.expiration;
-      this.xubioSdk = new XubioClient(data.token);
-      this.currentTab = 'factura'; // Cambiar a pestaña de facturación
+      this.clientId = data.clientId;
+      this.secretId = data.secretId;
+
+      // Crear API client con las funciones necesarias
+      this.xubioSdk = createXubioApiClient(
+        () => this.renewToken(),
+        () => this.isTokenValid(),
+        () => this.getAccessToken()
+      );
+
+      // Cambiar a pestaña de facturación
+      this.currentTab = 'factura';
       this.showToast('Login exitoso. Redirigiendo a Facturas...', 'success');
     }
   }
