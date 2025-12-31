@@ -360,14 +360,12 @@ export const appOptions = {
      * @returns {boolean}
      */
     puntoVentaValido() {
-      // Si hay un punto de venta seleccionado manualmente, validarlo
+      // MODO PRUEBA: Validación relajada solicitada por usuario
       if (this.puntoVentaSeleccionadoParaFactura) {
         const pv = this.puntoVentaSeleccionadoParaFactura;
         const puntoVentaId = pv.puntoVentaId || pv.ID || pv.id || pv.puntoVenta_id;
-        // Debe estar activo Y ser editable Y ser sugerido
-        const esActivo = pv.activo === undefined || pv.activo === 1 || pv.activo === '1' || pv.activo === true;
-        const esValidoXubio = pv.editable && pv.sugerido;
-        return !!puntoVentaId && esActivo && esValidoXubio;
+        // Solo validamos que tenga ID. Ignoramos activo/editable/sugerido para pruebas.
+        return !!puntoVentaId;
       }
 
       // Si no hay selección manual, validar el automático
@@ -1713,7 +1711,23 @@ Para aplicar este fix permanentemente, necesitamos actualizar:
             fecha: fechaISO,
             fechaVto: fechaISO,
             condicionDePago: 1, // 1=Cuenta Corriente
+            
+            // --- Opciones de Prueba de Punto de Venta ---
+            // Opción 1 (Estándar): Envía lo que selecciona la UI
             puntoVenta: this.obtenerPuntoVentaPorDefecto(),
+            
+            // Opción 2 (Forzada): Descomentar para enviar flags hardcodeados
+            /*
+            puntoVenta: {
+               ID: this.obtenerPuntoVentaPorDefecto().ID || this.obtenerPuntoVentaPorDefecto().id,
+               editable: true,
+               sugerido: true,
+               modoNumeracion: 'editablesugerido',
+               activo: 1
+            },
+            */
+            // ---------------------------------------------
+
             vendedor: this.obtenerVendedorPorDefecto(),
             transaccionProductoItems: [{
               cantidad: 1,

@@ -150,6 +150,7 @@ export function normalizarPuntoVenta(puntoVentaRaw) {
     // Si la API no envía el flag booleano, nos basamos en el modo de numeración
     editable: puntoVentaRaw.editable !== undefined ? puntoVentaRaw.editable : esEditableSugerido,
     sugerido: puntoVentaRaw.sugerido !== undefined ? puntoVentaRaw.sugerido : esEditableSugerido,
+    editableSugerido: puntoVentaRaw.editableSugerido !== undefined ? puntoVentaRaw.editableSugerido : esEditableSugerido,
     modoNumeracion: puntoVentaRaw.modoNumeracion === "1" ? "Automático (1)" : (puntoVentaRaw.modoNumeracion || 'N/A'),
     metadata: {
       original: puntoVentaRaw
