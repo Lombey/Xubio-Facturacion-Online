@@ -1,7 +1,159 @@
 <template>
   <div class="tab-factura">
-    <h2>🧾 Facturación</h2>
-    <p>Componente TabFactura - En construcción</p>
+    <h2>🧾 Crear Factura</h2>
+
+    <!--Mensaje: SDK necesario -->
+    <div v-if="!sdk" class="info error">
+      ❌ SDK no disponible. Por favor, inicia sesión primero.
+    </div>
+
+    <!-- Sección: Productos -->
+    <div class="section" v-if="sdk">
+      <h3>📦 1. Productos</h3>
+      <div class="info">
+        💡 Productos cargados: {{ productosList.length }}. Selecciona los que quieras incluir.
+      </div>
+
+      <button @click="cargarProductos" :disabled="isLoading" class="btn-primary">
+        🔄 Cargar Productos
+      </button>
+
+      <div v-if="productosListResult.visible" :class="['result', productosListResult.type]">
+        {{ productosListResult.message }}
+      </div>
+
+      <!-- Card de Productos Seleccionados -->
+      <div v-if="productosSeleccionados.length > 0" class="card">
+        <h4>📦 Productos Seleccionados ({{ productosSeleccionados.length }})</h4>
+        <ul>
+          <li v-for="(item, idx) in productosSeleccionados" :key="idx">
+            {{ item.nombre }} - Cant: {{ item.cantidad }} - ${{ formatearPrecio(item.precio * item.cantidad) }}
+            <button @click="removerProducto(idx)" class="btn-small">✕</button>
+          </li>
+        </ul>
+        <div class="total">
+          <strong>Total: ${{ formatearPrecio(totalProductos) }}</strong>
+        </div>
+      </div>
+
+      <!-- Formulario simple para agregar producto -->
+      <div class="form-inline">
+        <input
+          v-model="nuevoProducto.nombre"
+          placeholder="Nombre del producto"
+          class="input">
+        <input
+          v-model.number="nuevoProducto.cantidad"
+          type="number"
+          min="1"
+          placeholder="Cantidad"
+          class="input-small">
+        <input
+          v-model.number="nuevoProducto.precio"
+          type="number"
+          step="0.01"
+          placeholder="Precio"
+          class="input-small">
+        <button @click="agregarProductoManual" class="btn-secondary">➕ Agregar</button>
+      </div>
+    </div>
+
+    <!-- Sección: Cliente -->
+    <div class="section" v-if="sdk">
+      <h3>👥 2. Cliente</h3>
+      <div class="info">
+        💡 Clientes cargados: {{ clientesList.length }}
+      </div>
+
+      <button @click="cargarClientes" :disabled="isLoading" class="btn-primary">
+        🔄 Cargar Clientes
+      </button>
+
+      <div v-if="clientesListResult.visible" :class="['result', clientesListResult.type]">
+        {{ clientesListResult.message }}
+      </div>
+
+      <!-- Cliente Seleccionado -->
+      <div v-if="clienteSeleccionado" class="card-cliente">
+        <h4>Cliente Seleccionado:</h4>
+        <p><strong>{{ clienteSeleccionado.nombre || clienteSeleccionado.razonSocial }}</strong></p>
+        <p>ID: {{ obtenerClienteId(clienteSeleccionado) }}</p>
+        <button @click="limpiarCliente" class="btn-small">✕ Cambiar</button>
+      </div>
+
+      <!-- Selector simple -->
+      <select v-if="!clienteSeleccionado && clientesList.length > 0"
+              v-model="clienteIdTemp"
+              @change="seleccionarClientePorId"
+              class="select">
+        <option value="">-- Seleccionar cliente --</option>
+        <option v-for="cliente in clientesList"
+                :key="obtenerClienteId(cliente)"
+                :value="obtenerClienteId(cliente)">
+          {{ cliente.nombre || cliente.razonSocial }} (ID: {{ obtenerClienteId(cliente) }})
+        </option>
+      </select>
+    </div>
+
+    <!-- Sección: Configuración Factura -->
+    <div class="section" v-if="sdk && clienteSeleccionado && productosSeleccionados.length > 0">
+      <h3>⚙️ 3. Configuración</h3>
+
+      <div class="form-group">
+        <label>Moneda:</label>
+        <select v-model="facturaMoneda" class="select">
+          <option value="ARS">ARS - Pesos Argentinos</option>
+          <option value="USD">USD - Dólar Estadounidense</option>
+        </select>
+      </div>
+
+      <div class="form-group" v-if="facturaMoneda !== 'ARS'">
+        <label>Cotización:</label>
+        <input v-model.number="facturaCotizacion" type="number" step="0.01" class="input">
+      </div>
+
+      <div class="form-group">
+        <label>Condición de Pago:</label>
+        <select v-model="facturaCondicionPago" class="select">
+          <option :value="1">Cuenta Corriente</option>
+          <option :value="2">Contado</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Fecha de Vencimiento:</label>
+        <input v-model="facturaFechaVto" type="date" class="input">
+      </div>
+
+      <div class="form-group">
+        <label>Descripción (opcional):</label>
+        <input v-model="facturaDescripcion"
+               placeholder="Ej: Servicios de consultoría"
+               class="input">
+      </div>
+    </div>
+
+    <!-- Botón Crear Factura -->
+    <div class="section" v-if="puedeCrearFactura">
+      <button @click="crearFactura"
+              :disabled="isLoading"
+              class="btn-create">
+        🚀 Crear Factura
+      </button>
+
+      <div v-if="facturaResult.visible" :class="['result', facturaResult.type]">
+        {{ facturaResult.message }}
+      </div>
+    </div>
+
+    <!-- Mensaje de ayuda -->
+    <div v-if="sdk && !puedeCrearFactura" class="info warning">
+      ⚠️ Para crear una factura necesitas:
+      <ul>
+        <li v-if="!clienteSeleccionado">✓ Seleccionar un cliente</li>
+        <li v-if="productosSeleccionados.length === 0">✓ Agregar al menos un producto</li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -18,8 +170,208 @@ export default {
       default: () => (msg) => console.log(msg)
     }
   },
+  emits: ['show-pdf'],
+  data() {
+    return {
+      isLoading: false,
+
+      // Productos
+      productosList: [],
+      productosSeleccionados: [],
+      productosListResult: { message: '', type: '', visible: false },
+      nuevoProducto: { nombre: '', cantidad: 1, precio: 0 },
+
+      // Clientes
+      clientesList: [],
+      clienteSeleccionado: null,
+      clienteIdTemp: '',
+      clientesListResult: { message: '', type: '', visible: false },
+
+      // Factura
+      facturaMoneda: 'ARS',
+      facturaCotizacion: 1,
+      facturaCondicionPago: 2,
+      facturaFechaVto: '',
+      facturaDescripcion: '',
+      facturaResult: { message: '', type: '', visible: false }
+    };
+  },
+  computed: {
+    totalProductos() {
+      return this.productosSeleccionados.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+    },
+    puedeCrearFactura() {
+      return this.clienteSeleccionado &&
+             this.productosSeleccionados.length > 0 &&
+             !this.isLoading;
+    }
+  },
   mounted() {
     console.log('✅ TabFactura montado - SDK disponible:', !!this.sdk);
+    if (this.sdk) {
+      this.inicializar();
+    }
+  },
+  methods: {
+    async inicializar() {
+      // Auto-cargar datos
+      await Promise.all([
+        this.cargarProductos(),
+        this.cargarClientes()
+      ]);
+    },
+
+    async cargarProductos() {
+      this.isLoading = true;
+      this.mostrarResultado('productosList', 'Cargando productos...', 'info');
+
+      try {
+        const sdk = this.sdk();
+        if (!sdk) throw new Error('SDK no disponible');
+
+        // TODO: Usar SDK para cargar productos reales
+        // Por ahora, simulación
+        this.productosList = [
+          { id: 1, nombre: 'Producto Demo 1', precio: 100 },
+          { id: 2, nombre: 'Producto Demo 2', precio: 200 }
+        ];
+
+        this.mostrarResultado('productosList', `✅ ${this.productosList.length} productos cargados`, 'success');
+        this.showToast('Productos cargados', 'success');
+      } catch (error) {
+        console.error('Error cargando productos:', error);
+        this.mostrarResultado('productosList', `❌ Error: ${error.message}`, 'error');
+        this.showToast(`Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async cargarClientes() {
+      this.isLoading = true;
+      this.mostrarResultado('clientesList', 'Cargando clientes...', 'info');
+
+      try {
+        const sdk = this.sdk();
+        if (!sdk) throw new Error('SDK no disponible');
+
+        // TODO: Usar SDK para cargar clientes reales
+        // Por ahora, simulación
+        this.clientesList = [
+          { ID: 1, nombre: 'Cliente Demo 1' },
+          { ID: 2, nombre: 'Cliente Demo 2' }
+        ];
+
+        this.mostrarResultado('clientesList', `✅ ${this.clientesList.length} clientes cargados`, 'success');
+        this.showToast('Clientes cargados', 'success');
+      } catch (error) {
+        console.error('Error cargando clientes:', error);
+        this.mostrarResultado('clientesList', `❌ Error: ${error.message}`, 'error');
+        this.showToast(`Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    agregarProductoManual() {
+      if (!this.nuevoProducto.nombre || this.nuevoProducto.precio <= 0) {
+        this.showToast('Completa nombre y precio válido', 'error');
+        return;
+      }
+
+      this.productosSeleccionados.push({
+        id: Date.now(),
+        ...this.nuevoProducto
+      });
+
+      this.showToast(`Producto agregado: ${this.nuevoProducto.nombre}`, 'success');
+
+      // Reset
+      this.nuevoProducto = { nombre: '', cantidad: 1, precio: 0 };
+    },
+
+    removerProducto(index) {
+      const producto = this.productosSeleccionados[index];
+      this.productosSeleccionados.splice(index, 1);
+      this.showToast(`Producto eliminado: ${producto.nombre}`, 'success');
+    },
+
+    seleccionarClientePorId() {
+      const cliente = this.clientesList.find(c =>
+        this.obtenerClienteId(c) === parseInt(this.clienteIdTemp)
+      );
+      if (cliente) {
+        this.clienteSeleccionado = cliente;
+        this.showToast(`Cliente seleccionado: ${cliente.nombre || cliente.razonSocial}`, 'success');
+      }
+    },
+
+    limpiarCliente() {
+      this.clienteSeleccionado = null;
+      this.clienteIdTemp = '';
+      this.showToast('Cliente deseleccionado', 'info');
+    },
+
+    async crearFactura() {
+      this.isLoading = true;
+      this.mostrarResultado('factura', 'Creando factura...', 'info');
+
+      try {
+        const sdk = this.sdk();
+        if (!sdk) throw new Error('SDK no disponible');
+
+        const payload = {
+          clienteId: this.obtenerClienteId(this.clienteSeleccionado),
+          items: this.productosSeleccionados.map(p => ({
+            productoid: p.id,
+            cantidad: p.cantidad,
+            precio: p.precio,
+            descripcion: p.nombre
+          })),
+          moneda: this.facturaMoneda,
+          cotizacion: this.facturaCotizacion,
+          condicionPago: this.facturaCondicionPago,
+          fechaVto: this.facturaFechaVto,
+          descripcion: this.facturaDescripcion
+        };
+
+        console.log('📤 Payload factura:', payload);
+
+        // TODO: Usar SDK real para crear factura
+        // const resultado = await sdk.crearFactura(payload);
+
+        // Simulación
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        this.mostrarResultado('factura', '✅ Factura creada exitosamente (DEMO)', 'success');
+        this.showToast('Factura creada exitosamente', 'success');
+
+        // Emitir evento para mostrar PDF (cuando esté implementado)
+        // this.$emit('show-pdf', resultado.pdfUrl);
+
+      } catch (error) {
+        console.error('Error creando factura:', error);
+        this.mostrarResultado('factura', `❌ Error: ${error.message}`, 'error');
+        this.showToast(`Error: ${error.message}`, 'error');
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    obtenerClienteId(cliente) {
+      return cliente.ID || cliente.id || cliente.cliente_id;
+    },
+
+    mostrarResultado(key, message, type) {
+      const resultKey = `${key}Result`;
+      if (this[resultKey]) {
+        this[resultKey] = { message, type, visible: true };
+      }
+    },
+
+    formatearPrecio(precio) {
+      return precio ? precio.toFixed(2) : '0.00';
+    }
   }
 }
 </script>
@@ -27,5 +379,191 @@ export default {
 <style scoped>
 .tab-factura {
   padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.section h3 {
+  margin-top: 0;
+  color: #2196F3;
+}
+
+.info {
+  background: #e3f2fd;
+  padding: 12px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  border-left: 4px solid #2196F3;
+  font-size: 14px;
+}
+
+.info.error {
+  background: #f8d7da;
+  border-color: #dc3545;
+  color: #721c24;
+}
+
+.info.warning {
+  background: #fff3cd;
+  border-color: #ffc107;
+  color: #856404;
+}
+
+.btn-primary, .btn-secondary, .btn-create {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+.btn-primary {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1976d2;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btn-create {
+  background: #4CAF50;
+  color: white;
+  font-size: 16px;
+  padding: 15px 30px;
+}
+
+.btn-create:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.btn-small {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.btn-small:hover {
+  background: #c82333;
+}
+
+button:disabled {
+  background: #cccccc !important;
+  cursor: not-allowed;
+}
+
+.card, .card-cliente {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 15px;
+  border: 1px solid #dee2e6;
+}
+
+.card h4, .card-cliente h4 {
+  margin-top: 0;
+  color: #495057;
+}
+
+.card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.card ul li {
+  padding: 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.card .total {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid #28a745;
+  text-align: right;
+  font-size: 18px;
+  color: #28a745;
+}
+
+.form-inline {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #495057;
+}
+
+.input, .select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.input-small {
+  width: 100px;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+}
+
+.result {
+  padding: 12px;
+  border-radius: 5px;
+  margin-top: 10px;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.result.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.result.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.result.info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
 }
 </style>
