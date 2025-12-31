@@ -2,7 +2,7 @@
 
 **Última actualización**: 2025-12-31
 **Branch**: `refactor/tabs-divide-venceras`
-**Estado**: ✅ Fase 3 Full COMPLETADA
+**Estado**: ✅ Fase 4 COMPLETADA
 
 ---
 
@@ -15,8 +15,8 @@
 | Fase 2 | ✅ Completada | `88fe1cb` | ~3509 (migración interna) |
 | Fase 3 MVP | ✅ Completada | `23d1a33` | ~3509 (implementación paralela) |
 | Fase 3 Full | ✅ Completada | `297f11e` | ~3509 (SDK conectado) |
-| Fase 4 | 🔄 Siguiente | - | Estimado: -700 líneas |
-| Fase 5 | ⏸️ Pendiente | - | Estimado: -100 líneas |
+| Fase 4 | ✅ Completada | `fcacc9f` | ~3509 (cobranzas funcionales) |
+| Fase 5 | 🔄 Siguiente | - | Estimado: -2000 líneas |
 | Fase 6 | ⏸️ Pendiente | - | Objetivo: < 500 líneas |
 
 **Objetivo Final**: app.js con < 500 líneas (actualmente ~3509)
@@ -401,10 +401,111 @@ se optó por crear una **versión MVP simplificada** de TabFactura que:
 **mounted() mejorado**:
 - Carga paralela de productos, clientes y puntos de venta
 
-### Próximos Pasos (Fase 4):
-- Migrar TabCobranza siguiendo mismo patrón
-- Conectar SDK para cobranzas
+### Próximos Pasos (Fase 5):
+- Migrar y eliminar código legacy de app.js
 - Reducir líneas de app.js eliminando código migrado
+
+---
+
+## ✅ Fase 4: TabCobranza (Completada)
+
+**Commit**: `fcacc9f` - feat: [Fase 4] TabCobranza completo con SDK real
+
+**Objetivo**: Implementar funcionalidad completa de cobranzas end-to-end
+
+### Logros Fase 4:
+
+**✅ Clientes - Carga Real**:
+- Reutiliza mismo endpoint que TabFactura: `/clienteBean`
+- Normalización idéntica a TabFactura
+- Auto-carga en `mounted()`
+
+**✅ Facturas Pendientes - Endpoint Específico**:
+- Llamada a `/comprobantesAsociados` con filtros:
+  - `clienteId`: ID del cliente seleccionado
+  - `tipoComprobante: 1` (solo facturas)
+- Filtrado client-side: `saldo > 0`
+- Carga automática al seleccionar cliente
+
+**✅ Crear Cobranza - Payload Completo**:
+- Validaciones pre-creación:
+  - Cliente seleccionado requerido
+  - Factura seleccionada requerida
+  - Importe > 0 requerido
+- Obtiene datos completos de factura: `GET /comprobanteVentaBean/{id}`
+- Construcción de payload según spec de `/cobranzaBean`:
+  ```javascript
+  {
+    circuitoContable: comprobante.circuitoContable,
+    cliente: { cliente_id: parseInt(clienteId) },
+    fecha,
+    monedaCtaCte: comprobante.moneda,
+    cotizacion: comprobante.cotizacion,
+    utilizaMonedaExtranjera,
+    transaccionInstrumentoDeCobro: [{
+      cuentaTipo: 1, // Caja
+      cuenta: { ID: 1, id: 1 },
+      importe: parseFloat(cobranzaImporte),
+      descripcion
+    }],
+    detalleCobranzas: [{
+      idComprobante: parseInt(facturaId),
+      importe: parseFloat(cobranzaImporte)
+    }]
+  }
+  ```
+- Llamada real: `sdk.crearCobranza(payload)`
+- Manejo de respuesta: extracción de `numeroComprobante`, `transaccionId`
+
+**✅ Obtener PDF**:
+- Llamada automática a `sdk.obtenerPDF(transaccionId, '1')`
+- Emisión de evento: `this.$emit('show-pdf', pdfUrl)`
+- Manejo silencioso de errores (PDF es opcional)
+
+**✅ UX Mejorada**:
+- Auto-carga de clientes en mounted
+- Auto-carga de facturas al seleccionar cliente
+- Pre-relleno de importe con saldo pendiente
+- Limpieza de formulario después de crear cobranza
+- Validaciones en tiempo real
+
+**✅ Manejo de Errores**:
+- Try-catch en todas las operaciones async
+- Mensajes descriptivos al usuario vía `mostrarResultado()`
+- Notificaciones vía `showToast()`
+- Console.log detallados para debugging
+
+### Validación:
+- ✅ Compila sin errores (npm run build)
+- ✅ Lint pasa (solo 4 warnings pre-existentes)
+- ✅ Flujo end-to-end: Cliente → Facturas → Crear Cobranza → PDF
+- ✅ Integración completa con SDK de Xubio
+- ✅ TabCobranza totalmente funcional e independiente (637 líneas)
+
+### Cambios en TabCobranza.vue:
+
+**Archivo completo reescrito**: 608 insertions(+), 2 deletions(-)
+
+**Métodos implementados**:
+1. `cargarClientes()`: Carga real desde SDK
+2. `cargarFacturasPendientes()`: Obtiene facturas con saldo
+3. `seleccionarClientePorId()`: Auto-carga facturas
+4. `seleccionarFacturaPorId()`: Pre-rellena importe
+5. `crearCobranza()`: Payload completo + SDK
+6. `obtenerPDF()`: Generación de PDF
+
+**Data completo**:
+- Clientes: `clientesList`, `clienteSeleccionado`, `clienteIdTemp`
+- Facturas: `facturasPendientes`, `facturaSeleccionada`, `facturaIdTemp`
+- Cobranza: `cobranzaImporte`, `formaPago`, `descripcion`
+- Results: `clientesListResult`, `facturasListResult`, `cobranzaResult`
+
+**Computed**:
+- `puedeCrearCobranza()`: Validación de requisitos
+
+### Próximos Pasos (Fase 5):
+- Eliminar código legacy de facturación y cobranzas en app.js y App.vue
+- Reducir app.js de ~3509 líneas a < 1000 líneas
 
 ---
 
@@ -478,7 +579,7 @@ test-imprimir-pdf/
 │   │   ├── PuntoVentaSelector.vue
 │   │   ├── TabAuth.vue ✅ COMPLETO (458 líneas) - Login funcional
 │   │   ├── TabFactura.vue ✅ COMPLETO (620 líneas) - Facturación end-to-end
-│   │   ├── TabCobranza.vue 🔄 SCAFFOLD (42 líneas)
+│   │   ├── TabCobranza.vue ✅ COMPLETO (637 líneas) - Cobranzas end-to-end
 │   │   └── PdfViewer.vue ✅ COMPLETO (87 líneas)
 │   ├── composables/
 │   │   ├── useAuth.js
