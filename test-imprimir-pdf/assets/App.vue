@@ -534,8 +534,8 @@
                                   </div>
                                 </div>
                                 <!-- FIN LABORATORIO -->
-                    
-                                <div v-if="mostrarDatosCrudosPV && puntoVentaSeleccionadoParaFactura"      </div>
+      </div>
+      
       <!-- Mensaje informativo cuando los botones están deshabilitados -->
       <div v-if="!puedeCrearFactura && !isLoading" style="margin-top: 10px; padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404; font-size: 13px;">
         <div style="font-weight: bold; margin-bottom: 5px;">⚠️ No se puede crear la factura. Verifica:</div>
