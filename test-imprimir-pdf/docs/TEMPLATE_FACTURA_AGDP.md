@@ -44,8 +44,6 @@ Incluye mesa de ayuda
 <PuntoVentaID type="C" id="212819" value="corvusweb srl"/>
 <TalonarioID type="C" id="11290129" value="selector no implementado"/>
 <M_LetraComprobante value="A"/>
-<ProvinciaID type="C" id="1" value="Buenos Aires"/>
-<LocalidadID type="C" id="147" value="Saladillo"/>
 ```
 
 **Valores fijos:**
@@ -53,8 +51,6 @@ Incluye mesa de ayuda
 - Punto Venta ID: `212819`
 - Talonario ID: `11290129`
 - Letra: `A`
-- Provincia: `1` (Buenos Aires)
-- Localidad: `147` (Saladillo)
 
 ---
 
@@ -114,11 +110,16 @@ CUIT 30-71241712-5
 
 ## 🔄 DATOS VARIABLES (Cambiar en cada factura)
 
-### **1. Cliente (OrganizacionID)**
+### **1. Cliente (OrganizacionID + Ubicación)**
 ```xml
 <OrganizacionID type="C" id="8157173" value="2MCAMPO"/>
+<ProvinciaID type="C" id="1" value="Buenos Aires"/>
+<LocalidadID type="C" id="147" value="Saladillo"/>
 ```
-⚠️ **VARIABLE:** Obtener de Google Sheets o selector
+⚠️ **VARIABLE:** Obtener de Google Sheets o base de datos de clientes
+
+**Importante:** Provincia y Localidad son del **domicilio fiscal del cliente**, no de la empresa.
+Esto afecta el cálculo de percepciones de IIBB y otros impuestos provinciales.
 
 ### **2. Tipo de Cambio (Cotización)**
 ```xml
@@ -149,7 +150,8 @@ CUIT 30-71241712-5
 ### **Función JavaScript sugerida:**
 
 ```javascript
-function crearFacturaAGDP(clienteId, clienteNombre, cantidad = 1, cotizacionUSD = 1455) {
+function crearFacturaAGDP(cliente, cantidad = 1, cotizacionUSD = 1455) {
+  // cliente = { id, nombre, provinciaId, provinciaNombre, localidadId, localidadNombre }
   const fecha = new Date().toISOString().split('T')[0] + ' 00:00';
 
   // Producto fijo: CONECTIVIDAD ANUAL POR TOLVA
@@ -194,7 +196,7 @@ function crearFacturaAGDP(clienteId, clienteNombre, cantidad = 1, cotizacionUSD 
       <data>
         <pk value="0"/>
         <EmpresaID type="C" id="234054" value="corvusweb srl"/>
-        <OrganizacionID type="C" id="${clienteId}" value="${clienteNombre}"/>
+        <OrganizacionID type="C" id="${cliente.id}" value="${cliente.nombre}"/>
         <PuntoVentaID type="C" id="212819" value="corvusweb srl"/>
         <M_LetraComprobante value="A"/>
         <TalonarioID type="C" id="11290129" value="selector no implementado"/>
@@ -205,8 +207,8 @@ function crearFacturaAGDP(clienteId, clienteNombre, cantidad = 1, cotizacionUSD 
         <MonedaID type="C" id="-3" value="Dólares"/>
         <Cotizacion value="${cotizacionUSD}" type="DEC"/>
         <FechaCotizacion type="date" value="${fecha}"/>
-        <ProvinciaID type="C" id="1" value="Buenos Aires"/>
-        <LocalidadID type="C" id="147" value="Saladillo"/>
+        <ProvinciaID type="C" id="${cliente.provinciaId}" value="${cliente.provinciaNombre}"/>
+        <LocalidadID type="C" id="${cliente.localidadId}" value="${cliente.localidadNombre}"/>
         <ListaPrecioID type="C" id="15386" value="AGDP (Dólares)"/>
         <ObservacionPredeterminadaID type="C" id="2590" value="DATOS SUPERVIELLE"/>
         <Descripcion type="cdata"><![CDATA[CC ARS 261-6044134-3 // CBU 0270261410060441340032 //
@@ -247,10 +249,19 @@ CUIT 30-71241712-5]]></Descripcion>
 // Obtener cotización del día desde API BCRA
 const cotizacion = obtenerCotizacionBCRA();  // Ej: 1455
 
-// Crear factura para cliente 2MCAMPO
+// Datos del cliente (desde Google Sheets)
+const cliente = {
+  id: 8157173,
+  nombre: '2MCAMPO',
+  provinciaId: 1,
+  provinciaNombre: 'Buenos Aires',
+  localidadId: 147,
+  localidadNombre: 'Saladillo'
+};
+
+// Crear factura
 const xmlFactura = crearFacturaAGDP(
-  8157173,      // ID del cliente
-  '2MCAMPO',    // Nombre del cliente
+  cliente,      // Objeto con datos del cliente
   1,            // Cantidad (default: 1)
   cotizacion    // Cotización USD (default: 1455)
 );
@@ -279,21 +290,26 @@ const response = UrlFetchApp.fetch('https://xubio.com/NXV/DF_submit', {
 - ✅ IVA: `21%`
 - ✅ Moneda: `-3` (Dólares)
 - ✅ Lista Precios: `15386`
-- ✅ Provincia: `1` (Buenos Aires)
-- ✅ Localidad: `147` (Saladillo)
 - ✅ Descripción bancaria (CDATA)
 - ✅ Observación: `2590` (DATOS SUPERVIELLE)
 
 ### **Datos Variables (obtener dinámicamente):**
-- ⚠️ Cliente ID + Nombre (desde Google Sheets)
-- ⚠️ Cotización USD (API BCRA)
-- ⚠️ Fecha actual (Date.now())
-- ⚠️ Cantidad (opcional, default: 1)
+- ⚠️ **Cliente:** ID + Nombre + Provincia + Localidad (desde Google Sheets)
+- ⚠️ **Cotización USD** (API BCRA)
+- ⚠️ **Fecha actual** (Date.now())
+- ⚠️ **Cantidad** (opcional, default: 1)
 
 ### **Integraciones necesarias:**
 1. **API BCRA** → Cotización diaria USD oficial
-2. **Google Sheets** → Base de datos de clientes
+2. **Google Sheets** → Base de datos de clientes (ID, Nombre, Provincia, Localidad)
 3. **Xubio Cookies** → Autenticación (manual o programática)
+
+### **Estructura de Google Sheets sugerida:**
+
+| Cliente ID | Nombre | Provincia ID | Provincia | Localidad ID | Localidad |
+|-----------|--------|--------------|-----------|--------------|-----------|
+| 8157173 | 2MCAMPO | 1 | Buenos Aires | 147 | Saladillo |
+| ... | ... | ... | ... | ... | ... |
 
 ---
 
@@ -307,7 +323,12 @@ const response = UrlFetchApp.fetch('https://xubio.com/NXV/DF_submit', {
 ### **Sobre los Clientes:**
 - El cliente `8157173` (2MCAMPO) es solo un ejemplo
 - Cada factura tendrá un cliente diferente
-- **Mantener base de datos** en Google Sheets con: ID, Nombre, CUIT
+- **Mantener base de datos** en Google Sheets con:
+  - Cliente ID
+  - Nombre
+  - Provincia ID + Nombre (domicilio fiscal)
+  - Localidad ID + Nombre (domicilio fiscal)
+  - CUIT (opcional para validaciones)
 
 ### **Sobre las Cantidades:**
 - Generalmente será `1` (una licencia anual por tolva)
