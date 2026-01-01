@@ -25,7 +25,7 @@
   "dependencies": {
     "vue": "^3.4.21",
     "playwright-core": "^1.40.0",
-    "playwright-aws-lambda": "^0.10.0"
+    "@sparticuz/chromium": "^131.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -415,7 +415,6 @@ function construirPayloadXML(params) {
 
   // Fecha actual
   const ahora = new Date();
-  const fechaISO = Utilities.formatDate(ahora, 'GMT-3', "yyyy-MM-dd");
   const fechaDisplay = Utilities.formatDate(ahora, 'GMT-3', "yyyy-MM-dd HH:mm");
 
   // Calcular totales
@@ -806,6 +805,7 @@ function obtenerCotizacionBCRA() {
  * Test con XML Legacy + OAuth
  * Ejecutar esta función para validar endpoint /NXV/DF_submit con OAuth
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function testCrearFacturaXML() {
   Logger.log('🧪 Iniciando test de creación de factura con XML Legacy + OAuth...');
 
@@ -859,6 +859,7 @@ function testCrearFacturaXML() {
  * Test con cliente hardcodeado (JSON REST - versión anterior)
  * Ejecutar esta función para validar que todo funciona
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function testCrearFactura() {
   Logger.log('🧪 Iniciando test de creación de factura...');
 
@@ -915,6 +916,7 @@ function testCrearFactura() {
  *   "cantidad": 1
  * }
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function doPost(e) {
   try {
     const params = JSON.parse(e.postData.contents);
@@ -946,7 +948,8 @@ function doPost(e) {
 /**
  * Endpoint GET para verificar que el Web App está funcionando
  */
-function doGet(e) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function doGet(_e) {
   return ContentService.createTextOutput(JSON.stringify({
     status: 'ok',
     message: 'Xubio Facturación API funcionando',

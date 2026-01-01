@@ -71,7 +71,6 @@ export function buildXMLPayload(params) {
 
   // Fecha actual (Argentina timezone UTC-3)
   const ahora = new Date();
-  const fechaISO = formatDate(ahora, 'date');
   const fechaDisplay = formatDate(ahora, 'datetime');
 
   // Calcular totales
