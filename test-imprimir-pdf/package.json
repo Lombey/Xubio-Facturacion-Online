@@ -16,6 +16,10 @@
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage"
   },
+  "dependencies": {
+    "playwright-core": "^1.40.0",
+    "playwright-aws-lambda": "^0.10.0"
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.51.0",
     "@typescript-eslint/parser": "^8.51.0",

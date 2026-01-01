@@ -1,6 +1,6 @@
 # Xubio Facturación - Apps Script
 
-Sistema de facturación automática para integrar con AppSheet.
+Sistema de facturación automática para integrar con AppSheet usando OAuth.
 
 ---
 
@@ -19,27 +19,22 @@ Sistema de facturación automática para integrar con AppSheet.
 3. Pegalo en el editor
 4. Guardá (Ctrl+S)
 
-### **Paso 3: Configurar cookies de Xubio**
+### **Paso 3: Configurar credenciales OAuth de Xubio**
 
-1. Abrí https://xubio.com en tu navegador
-2. Iniciá sesión normalmente
-3. Abrí DevTools (F12) → **Console**
-4. Ejecutá:
+**IMPORTANTE:** Este script usa OAuth en lugar de cookies de sesión, lo que lo hace más estable y seguro.
+
+Las credenciales ya están configuradas en el código:
+- `XUBIO_CLIENT_ID`: Cliente ID de tu cuenta Xubio
+- `XUBIO_CLIENT_SECRET`: Secret de autenticación
+
+**Si necesitás cambiar las credenciales:**
+1. En el Apps Script, buscá las líneas:
    ```javascript
-   copy(document.cookie)
+   const XUBIO_CLIENT_ID = '...';
+   const XUBIO_CLIENT_SECRET = '...';
    ```
-5. En el Apps Script, buscá la sección `XUBIO_COOKIES`
-6. Pegá las cookies entre las comillas
-7. Guardá
-
-**Ejemplo:**
-```javascript
-const XUBIO_COOKIES = `
-SessionId=MARTIN.LOMBARDI@GMAIL.COM1767215834397786563446#TNT_142596;
-AWSALB=V1ilkZGiw1MJBI70veQ+IVVF1/A1d8fKIx7fPNgEMDeKNg4W3KDkwpMdMniy3JiGcV5ycdXyWidtOfltF15CiPzG+w8uWvdTswyvxlBNxje5OYWLQjX83nuCKE6R27GMmmoWhbT/YYDD6hwIP3nAkFr8gUll2NqxugVBCPdRX5OIJ+Ktyml9dVVdPKF4wA==;
-AWSALBCORS=V1ilkZGiw1MJBI70veQ+IVVF1/A1d8fKIx7fPNgEMDeKNg4W3KDkwpMdMniy3JiGcV5ycdXyWidtOfltF15CiPzG+w8uWvdTswyvxlBNxje5OYWLQjX83nuCKE6R27GMmmoWhbT/YYDD6hwIP3nAkFr8gUll2NqxugVBCPdRX5OIJ+Ktyml9dVVdPKF4wA==
-`.trim();
-```
+2. Reemplazá con tus credenciales de Xubio
+3. Guardá (Ctrl+S)
 
 ---
 
@@ -55,9 +50,19 @@ AWSALBCORS=V1ilkZGiw1MJBI70veQ+IVVF1/A1d8fKIx7fPNgEMDeKNg4W3KDkwpMdMniy3JiGcV5yc
 **Si funciona verás:**
 ```
 🧪 Iniciando test de creación de factura...
-📤 Enviando factura a Xubio...
+🔑 Obteniendo nuevo token OAuth de Xubio...
+✅ Token OAuth obtenido y cacheado
 💱 Cotización USD: $1455
+📤 Enviando factura a Xubio REST API...
+🔍 DEBUG - Payload:
+{
+  "circuitoContable": { "ID": 1 },
+  "comprobante": 1,
+  "tipo": 1,
+  ...
+}
 📥 Response Code: 200
+📥 Response: { "transaccionId": "67750488", ... }
 ✅ Factura creada exitosamente
 
 ✅ ¡TEST EXITOSO!
@@ -69,9 +74,9 @@ Cotización: $1455
 ```
 
 **Si falla:**
-- ❌ Error 401: Cookies expiradas → Renovar cookies
-- ❌ Error 500: Problema con XML → Revisar logs
-- ❌ No se encuentra TransaccionID: Revisar response XML
+- ❌ Error 401: Credenciales OAuth inválidas → Verificar CLIENT_ID y CLIENT_SECRET
+- ❌ Error 400/500: Problema con payload JSON → Revisar logs del payload
+- ❌ No se encuentra TransaccionID: Revisar response JSON en logs
 
 ---
 
@@ -127,11 +132,14 @@ En tu Sheet de clientes, agregá estas columnas si no las tenés:
 ### **Datos FIJOS (ya configurados):**
 - ✅ Empresa: corvusweb srl (ID: 234054)
 - ✅ Punto Venta: 212819
+- ✅ Talonario: 11290129 (modo Editable-Sugerido)
 - ✅ Producto: CONECTIVIDAD ANUAL POR TOLVA (ID: 2751338)
 - ✅ Precio: USD 490
 - ✅ IVA: 21%
 - ✅ Moneda: Dólares
 - ✅ Descripción bancaria
+- ✅ Endpoint: `/API/1.1/comprobanteVentaBean` (REST API con JSON)
+- ✅ Condición de pago: Contado (ID: 2)
 
 ### **Datos VARIABLES (desde AppSheet/Sheets):**
 - Cliente ID, Nombre
@@ -142,22 +150,27 @@ En tu Sheet de clientes, agregá estas columnas si no las tenés:
 
 ---
 
-## 🔄 Renovar Cookies
+## 🔐 Autenticación OAuth (Automática)
 
-Las cookies de sesión expiran. Cuando el script empiece a dar error 401:
+**Ventajas del nuevo sistema OAuth:**
+- ✅ **Tokens cacheados**: El token se guarda por 1 hora, evitando requests innecesarios
+- ✅ **Auto-renovación**: Si el token expira, se renueva automáticamente
+- ✅ **Sin intervención manual**: No necesitás renovar cookies del navegador
+- ✅ **Más estable**: No depende de la sesión del navegador
 
-1. Volvé a iniciar sesión en xubio.com
-2. Obtené nuevas cookies con `copy(document.cookie)`
-3. Actualizá `XUBIO_COOKIES` en el Apps Script
-4. Guardá
+**¿Cómo funciona?**
+1. Primera llamada: Script solicita token OAuth usando CLIENT_ID + CLIENT_SECRET
+2. Token se cachea en PropertiesService (válido por 1 hora)
+3. Próximas llamadas: Se reutiliza el token cacheado
+4. Si token expira (error 401): Se invalida cache y obtiene token nuevo automáticamente
 
-**Frecuencia recomendada:** Renovar cada vez que cierres el navegador o cada 24hs.
+**No necesitás hacer nada**, el script maneja todo automáticamente.
 
 ---
 
 ## 📝 Próximos Pasos
 
-1. ✅ Test simple funciona
+1. ✅ Test simple funciona con OAuth
 2. ⏳ Obtener IDs de Provincia/Localidad de tus clientes
 3. ⏳ Agregar columnas a tu planilla de clientes
 4. ⏳ Configurar webhook en AppSheet
@@ -170,14 +183,48 @@ Las cookies de sesión expiran. Cuando el script empiece a dar error 401:
 **Error: "ReferenceError: CONFIG_EMPRESA is not defined"**
 → Copiaste mal el código. Copiá TODO el archivo completo.
 
-**Error: "Unauthorized (401)"**
-→ Cookies expiradas. Renovar.
+**Error: "Error de autenticación OAuth: 401"**
+→ Credenciales OAuth inválidas. Verificar `XUBIO_CLIENT_ID` y `XUBIO_CLIENT_SECRET`.
 
 **Error: "No se encontró TransaccionID"**
-→ La factura no se creó en Xubio. Revisar XML en logs.
+→ La factura no se creó en Xubio. Revisar payload JSON en logs.
+
+**Error: "Error HTTP 400: Bad Request"**
+→ Payload incorrecto. Posibles causas:
+  - cliente.id, provinciaId, localidadId inválidos
+  - Campos required faltantes (revisar swagger schema)
+  - Valores fuera de rango (ej: condicionDePago debe ser 1 o 2)
+
+**Error: "Error HTTP 401: Este recurso sólo admite..."**
+→ Problema con punto de venta o talonario. Verificar:
+  - Campo `talonario.ID` debe estar presente
+  - Punto de venta debe ser "Editable-Sugerido"
+
+**Error: "Error HTTP 500: Internal Server Error"**
+→ Error en servidor de Xubio. Revisar logs completos del request/response.
 
 **No aparece nada en el Log**
 → Ejecutá `View` → `Logs` o presiona Ctrl+Enter
+
+---
+
+## 🔍 Debug y Logs
+
+El script incluye logging detallado para facilitar debugging:
+
+```javascript
+Logger.log('🔑 Obteniendo nuevo token OAuth de Xubio...');
+Logger.log('📤 Enviando factura a Xubio REST API...');
+Logger.log('🔍 DEBUG - Payload:');
+Logger.log(JSON.stringify(payload, null, 2));
+Logger.log('📥 Response Code: ' + responseCode);
+Logger.log('📥 Response: ' + responseText);
+```
+
+**Para ver logs detallados:**
+1. En Apps Script, ejecutá la función
+2. Presiona Ctrl+Enter o andá a `View` → `Logs`
+3. Vas a ver el payload JSON completo y la respuesta de Xubio
 
 ---
 
@@ -185,8 +232,37 @@ Las cookies de sesión expiran. Cuando el script empiece a dar error 401:
 
 Si tenés problemas:
 1. Revisá el **Log** completo (Ctrl+Enter)
-2. Verificá que las cookies estén actualizadas
+2. Verificá que las credenciales OAuth estén correctas
 3. Probá primero `testCrearFactura()` antes de integrar con AppSheet
+4. Revisá que los IDs de cliente, provincia y localidad sean válidos en Xubio
+
+---
+
+## 🆕 Changelog
+
+### Versión 2.1.0-swagger (31/12/2025)
+- ✅ Endpoint cambiado a `/API/1.1/comprobanteVentaBean` (más robusto)
+- ✅ Payload completo validado contra swagger.json (ComprobanteVentaBean schema)
+- ✅ Agregados TODOS los campos required del schema:
+  - `cantComprobantesCancelados`, `cantComprobantesEmitidos`
+  - `cbuinformada`, `cotizacionListaDePrecio`
+  - `externalId`, `facturaNoExportacion`, `mailEstado`
+  - `nombre`, `numeroDocumento`, `porcentajeComision`
+  - `transaccionCobranzaItems`, `transaccionPercepcionItems`
+- ✅ Corrección: `observacion` → `descripcion` (campo correcto)
+- ✅ Corrección: `condicionDePago: 7` → `condicionDePago: 2` (Contado, valor válido)
+- ✅ Agregado campo `talonario` para punto de venta Editable-Sugerido
+
+### Versión 2.0.0-oauth (31/12/2025)
+- ✅ Migración completa a OAuth (elimina dependencia de cookies de sesión)
+- ✅ Usa endpoint REST API con JSON (en lugar de XML Legacy)
+- ✅ Token OAuth cacheado con auto-renovación
+- ✅ Manejo automático de errores 401 con retry
+- ✅ Logs detallados del request/response JSON
+- ✅ Payload simplificado y validado contra documentación oficial
+
+### Versión 1.0.0 (31/12/2025)
+- ❌ Versión legacy con cookies y XML (descartada)
 
 ---
 

@@ -1,0 +1,222 @@
+<!-- TEMPLATE GOLD - XML Legacy que FUNCIONA en producción -->
+<!-- Este es el payload exacto que Xubio usa en el navegador al crear facturas -->
+<!-- Endpoint: POST https://xubio.com/NXV/DF_submit -->
+<!-- Content-Type: application/x-www-form-urlencoded;charset=UTF-8 -->
+<!-- Requiere cookies de sesión del navegador -->
+
+<df>
+  <config>
+    <javaClass value="app.nexiviaAR.ui.transaccion.form.FacturaVentaNXVARForm"/>
+    <lightMode value="0"/>
+    <userDataValues>
+      <userDataValue name="auditID"><![CDATA[0]]></userDataValue>
+      <userDataValue name="isTransaction"><![CDATA[true]]></userDataValue>
+      <userDataValue name="v_PuntoVenta_Electronico"><![CDATA[true]]></userDataValue>
+      <userDataValue name="standardXml"><![CDATA[claseVO=FacturaVentaARNXVVO|docID=220|adhocXmlFile=facturaVentaARNXV]]></userDataValue>
+      <userDataValue name="TransaccionCategoriaID"><![CDATA[-8]]></userDataValue>
+      <userDataValue name="titulo"><![CDATA[Factura de Venta N° A-00004-00001679]]></userDataValue>
+      <userDataValue name="v_Talonario_Modo"><![CDATA[1]]></userDataValue>
+      <userDataValue name="v_Factura_Aplicada"><![CDATA[false]]></userDataValue>
+      <userDataValue name="auditClass"><![CDATA[app.nexivia.transacciones.compraVenta.ventas.facturaVenta.model.FacturaVentaNXVVO]]></userDataValue>
+      <userDataValue name="v_ListaPrecio_MonedaID"><![CDATA[-3]]></userDataValue>
+      <userDataValue name="v_Categoria_Fiscal"><![CDATA[1]]></userDataValue>
+      <userDataValue name="v_Transaccion_Conciliada"><![CDATA[false]]></userDataValue>
+      <userDataValue name="TransaccionSubTipoID"><![CDATA[220]]></userDataValue>
+      <userDataValue name="vo"><![CDATA[FacturaVentaARNXVVO]]></userDataValue>
+      <userDataValue name="action"><![CDATA[save]]></userDataValue>
+    </userDataValues>
+  </config>
+  <dataset>
+    <data>
+      <pk value="67750559"/>
+
+      <!-- EMPRESA -->
+      <EmpresaID type="C" id="234054" value="corvusweb srl"/>
+
+      <!-- CLIENTE -->
+      <OrganizacionID type="C" id="8157173" value="2MCAMPO"/>
+
+      <!-- PUNTO DE VENTA Y TALONARIO -->
+      <PuntoVentaID type="C" id="212819" value="corvusweb srl"/>
+      <TalonarioID type="C" id="11290129" value="Facturas de Venta A"/>
+
+      <!-- TIPO DE COMPROBANTE -->
+      <Tipo type="CB" id="1" value="Factura"/>
+      <NumeroDocumento value="A-00004-00001679"/>
+      <M_LetraComprobante value="A"/>
+
+      <!-- FECHAS -->
+      <Fecha type="date" value="2025-12-31 00:00"/>
+      <FechaVencimiento type="date" value="2025-12-31 00:00"/>
+      <FechaEmision type="date" value="2025-12-31 00:00"/>
+      <FechaCotizacion type="date" value="2025-12-31 00:00"/>
+
+      <!-- CONDICIÓN DE PAGO -->
+      <CondicionDePago type="CB" id="7" value="Otra"/>
+
+      <!-- COMPROBANTES -->
+      <CantComprobantesEmitidos value=""/>
+      <CantComprobantesCancelados value=""/>
+
+      <!-- UBICACIÓN CLIENTE -->
+      <ProvinciaID type="C" id="1" value="Buenos Aires"/>
+      <LocalidadID type="C" id="147" value="Saladillo"/>
+
+      <!-- MONEDA Y COTIZACIÓN -->
+      <MonedaID type="C" id="-3" value="Dólares"/>
+      <Cotizacion value="1455" type="DEC"/>
+      <CotizacionLista value="1" type="DEC"/>
+
+      <!-- LISTA DE PRECIO Y DEPÓSITO -->
+      <ListaPrecioID type="C" id="15386" value="AGDP"/>
+      <DepositoID type="C" id="-2" value="Depósito Universal"/>
+
+      <!-- VENDEDOR Y COMISIÓN -->
+      <VendedorID type="C" id="0" value=""/>
+      <PorcentajeComision value="0" type="DEC"/>
+
+      <!-- DESCUENTO GENÉRICO -->
+      <PorcentajeDescuentoGenerico value="0" type="DEC"/>
+
+      <!-- CIRCUITO CONTABLE -->
+      <CircuitoContableID type="C" id="-2" value="default"/>
+
+      <!-- OBSERVACIONES -->
+      <ObservacionPredeterminadaID type="C" id="0" value=""/>
+      <CBUInformada type="CB" id="0" value="Sin Leyenda"/>
+
+      <!-- NÚMERO INTERNO (puede ser cualquier número) -->
+      <NumeroInterno value="123456789" type="LNG"/>
+
+      <!-- DESCRIPCIÓN BANCARIA -->
+      <Descripcion type="cdata"><![CDATA[CC ARS 261-6044134-3 // CBU 0270261410060441340032 //
+ALIAS corvus.super// Razón Social CORVUSWEB SRL
+CUIT 30-71241712-5]]></Descripcion>
+
+      <!-- ITEMS DE PRODUCTOS -->
+      <TransaccionCVItems type="D" count="1">
+        <row>
+          <pk value="83237794"/>
+          <TransaccionID type="cdata"><![CDATA[67750559]]></TransaccionID>
+          <TransaccionCVItemID type="cdata"><![CDATA[83237794]]></TransaccionCVItemID>
+
+          <!-- PRODUCTO -->
+          <ProductoID type="C" id="2751338" value="CONECTIVIDAD ANUAL POR TOLVA"/>
+          <CentroDeCostoID type="C" id="" value=""/>
+          <Descripcion value="Incluye Licencia para uso de un equipo por un año  - Incluye Licencia usuario y acceso a la plataforma web de AGDP - Incluye servicio soporte post venta REMOTO - Incluye mesa de ayuda"/>
+
+          <!-- CANTIDADES Y PRECIOS -->
+          <Cantidad value="1.0000"/>
+          <Precio value="490.0000"/>
+          <PrecioConIvaIncluido value="0.0000"/>
+          <PorcentajeDescuento value="0.000000"/>
+
+          <!-- IMPORTES -->
+          <Importe value="490.0000"/>
+          <ImporteConIvaIncluido value="0.0000"/>
+          <ImporteImpuesto value="102.9000"/>
+          <ImporteExento value="0.0000"/>
+          <ImporteTotal value="592.9000"/>
+
+          <!-- TIPO Y TASA IVA -->
+          <Tipo value="1"/>
+          <porcentajetasaimpositiva value="21.00"/>
+
+          <!-- DEPÓSITO -->
+          <depositoid type="C" id="-2" value="Depósito Universal"/>
+        </row>
+      </TransaccionCVItems>
+
+      <!-- ITEMS VACÍOS (requeridos pero sin datos) -->
+      <TransaccionCVItemsDeducciones type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+          <Tipo value="4" type="LNG"/>
+          <Importe value="0" type="DEC"/>
+        </row>
+      </TransaccionCVItemsDeducciones>
+
+      <TransaccionTesoreriaRetencionItemsLPG type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+        </row>
+      </TransaccionTesoreriaRetencionItemsLPG>
+
+      <ComprobanteRemitosItems type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+        </row>
+      </ComprobanteRemitosItems>
+
+      <TransaccionCVItemsPercepciones type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+          <Tipo value="2" type="LNG"/>
+        </row>
+      </TransaccionCVItemsPercepciones>
+
+      <TransaccionTesoreriaIngresoItems type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+        </row>
+      </TransaccionTesoreriaIngresoItems>
+
+      <!-- ASIENTO CONTABLE -->
+      <TransaccionAsientoItems type="D" count="3">
+        <!-- Deudores por Venta -->
+        <row>
+          <pk value="243766935"/>
+          <CuentaID type="C" id="-3" value="Deudores por Venta"/>
+          <M_ImporteMonPrincipalDebe value="862669.5000"/>
+          <M_ImporteMonPrincipalHaber value="0"/>
+          <organizacionid type="C" id="8157173" value="2MCAMPO"/>
+          <debehaber value="1"/>
+          <importemontransaccion value="592.9000"/>
+          <importemonprincipal value="862669.5000"/>
+          <monedaidtransaccion type="C" id="-3" value="Dólares"/>
+          <cotizacionmontransaccion value="1455.000000"/>
+        </row>
+
+        <!-- IVA Débito Fiscal -->
+        <row>
+          <pk value="243766933"/>
+          <CuentaID type="C" id="-8" value="IVA Débito Fiscal"/>
+          <M_ImporteMonPrincipalDebe value="0"/>
+          <M_ImporteMonPrincipalHaber value="149719.5000"/>
+          <debehaber value="-1"/>
+          <importemontransaccion value="102.9000"/>
+          <importemonprincipal value="149719.5000"/>
+          <monedaidtransaccion type="C" id="-3" value="Dólares"/>
+          <cotizacionmontransaccion value="1455.000000"/>
+        </row>
+
+        <!-- Venta de Servicios -->
+        <row>
+          <pk value="243766934"/>
+          <CuentaID type="C" id="-15" value="Venta de Servicios"/>
+          <M_ImporteMonPrincipalDebe value="0"/>
+          <M_ImporteMonPrincipalHaber value="712950.0000"/>
+          <descripcion value="Incluye Licencia para uso de un equipo por un año  - Incluye Licencia usuario y acceso a la plataforma web de AGDP - Incluye servicio soporte post venta REMOTO - Incluye mesa de ayuda"/>
+          <productoid type="C" id="2751338" value="CONECTIVIDAD ANUAL POR TOLVA"/>
+          <debehaber value="-1"/>
+          <importemontransaccion value="490.0000"/>
+          <importemonprincipal value="712950.0000"/>
+          <monedaidtransaccion type="C" id="-3" value="Dólares"/>
+          <cotizacionmontransaccion value="1455.000000"/>
+        </row>
+      </TransaccionAsientoItems>
+
+      <!-- TOTALES -->
+      <M_ImporteGravado value="490" type="DEC"/>
+      <M_ImporteImpuestos value="102.9" type="DEC"/>
+      <M_ImporteTotal value="592.9" type="DEC"/>
+
+      <!-- OTROS CAMPOS -->
+      <TienePeriodoServicio value="0"/>
+      <FacturaNoExportacion value="0"/>
+      <anulacion value="0"/>
+      <externalid value=""/>
+      <nombre value="Factura de Venta N° A-00004-00001679"/>
+    </data>
+  </dataset>
+</df>
