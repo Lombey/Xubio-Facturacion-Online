@@ -7,23 +7,20 @@
 
 ## 📋 CHECKLIST DE DEPLOYMENT
 
-### ✅ Fase 1: Commit y Deploy (5 minutos)
+### ✅ Fase 1: Commit y Deploy (COMPLETADA por Claude)
 
-- [ ] **1.1. Instalar dependencias localmente**
-  ```bash
-  cd test-imprimir-pdf
-  npm install
-  ```
-  **Resultado esperado**: Instala `playwright-core` y `playwright-aws-lambda`
+- [x] **1.1. Código creado**
+  - `api/crear-factura.js`, `api/test-login.js`
+  - `api/utils/browserLogin.js`, `api/utils/buildXMLPayload.js`
+  - `vercel.json`, `package.json` actualizado
+  - Documentación completa
 
-- [ ] **1.2. Commit y push**
-  ```bash
-  git add .
-  git commit -m "feat: Endpoint Vercel para facturación automática con Playwright"
-  git push origin main
-  ```
+- [x] **1.2. Commit y push**
+  - Commit: `505cb17`
+  - Message: "feat: Endpoint Vercel para facturación con Playwright..."
+  - Pusheado a `origin/main`
 
-- [ ] **1.3. Verificar auto-deploy en Vercel**
+- [ ] **1.3. Verificar auto-deploy en Vercel** (VOS tenés que hacer esto)
   - Ir a https://vercel.com/dashboard
   - Ver que el proyecto se está deployando (ícono amarillo girando)
   - Esperar a que termine (ícono verde ✅)
