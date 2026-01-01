@@ -5,8 +5,8 @@
  * Xubio redirige a Visma Connect para autenticación OAuth
  */
 
-import { chromium } from 'playwright-core';
-import chromiumPkg from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium';
+import { chromium as playwrightChromium } from 'playwright-core';
 
 /**
  * Realiza login a Xubio usando Playwright y retorna cookies de sesión
@@ -24,14 +24,11 @@ export async function loginToXubio(credentials) {
   let browser = null;
 
   try {
-    // Obtener ejecutable de Chromium optimizado para serverless
-    const executablePath = await chromiumPkg.executablePath();
-
     // Lanzar browser headless optimizado para Vercel/AWS Lambda
-    browser = await chromium.launch({
-      args: chromiumPkg.args,
-      executablePath,
-      headless: chromiumPkg.headless
+    browser = await playwrightChromium.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless
     });
 
     const context = await browser.newContext({
