@@ -3,6 +3,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "test-imprimir-pdf/dist",
   "installCommand": "npm install",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/assets/:path*",
