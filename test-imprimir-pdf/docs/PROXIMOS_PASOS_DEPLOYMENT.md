@@ -1,7 +1,33 @@
-# 🚀 PRÓXIMOS PASOS - DEPLOYMENT ENDPOINT VERCEL
+# 🚀 PRÓXIMOS PASOS - DEPLOYMENT ENDPOINT
 
 **Estado actual**: ✅ Código completo y listo para deployment
-**Pendiente**: Deployment en Vercel + Configuración de credenciales + Testing
+**Pendiente**: Elegir plataforma + Deployment + Configuración de credenciales + Testing
+
+---
+
+## ⚠️ IMPORTANTE: Limitaciones de Free Tier
+
+El endpoint usa **Playwright** que tarda ~10-15 segundos en ejecutar el login completo.
+
+### Vercel Free Tier
+- ❌ **Timeout: 10 segundos** → Playwright hace timeout
+- ❌ **Memory: 1024 MB** → Justo para Playwright
+- ✅ Deploy automático desde GitHub
+- ✅ Setup muy simple
+
+### Railway.app (RECOMENDADA)
+- ✅ **Sin límites de timeout** → Playwright funciona sin problemas
+- ✅ **$5 USD gratis/mes** (crédito, no recursos limitados)
+- ✅ Deploy automático desde GitHub
+- ✅ Setup similar a Vercel
+- **Estimado**: $5/mes alcanza para uso moderado
+
+---
+
+## 🎯 ELIGE TU PLATAFORMA
+
+### Opción A: Railway.app (Recomendada para Free Tier)
+### Opción B: Vercel (Requiere Hobby Plan $20/mes)
 
 ---
 
@@ -155,6 +181,207 @@ curl -X POST https://TU-PROYECTO.vercel.app/api/crear-factura \
 - Ir a https://xubio.com
 - Ver que la factura se creó con el TransaccionID retornado
 - Abrir PDF desde `pdfUrl` de la response
+
+---
+
+## 🚂 OPCIÓN A: DEPLOYMENT EN RAILWAY.APP (RECOMENDADA)
+
+### ✅ Ventajas sobre Vercel Free Tier
+- Sin límites de timeout (Playwright funciona perfectamente)
+- $5 USD gratis/mes (suficiente para uso moderado)
+- Deploy automático desde GitHub
+- Variables de entorno igual que Vercel
+
+---
+
+### Fase 1: Setup Inicial (5 minutos)
+
+#### 1.1. Crear cuenta en Railway
+- [ ] Ir a https://railway.app
+- [ ] Click en **"Start a New Project"**
+- [ ] Login con GitHub
+
+#### 1.2. Crear proyecto desde GitHub
+- [ ] Click en **"Deploy from GitHub repo"**
+- [ ] Seleccionar tu repositorio
+- [ ] Railway detecta automáticamente Node.js
+- [ ] Click en **"Deploy Now"**
+
+#### 1.3. Configurar root directory (si es necesario)
+Si el proyecto está en subdirectorio:
+- [ ] Click en el servicio deployado
+- [ ] Tab **"Settings"**
+- [ ] Sección **"Build"**
+- [ ] **Root Directory**: Dejar vacío (usar root del repo)
+- [ ] **Start Command**: `node api/crear-factura.js` (Railway detecta automáticamente)
+
+---
+
+### Fase 2: Configurar Variables de Entorno (3 minutos)
+
+- [ ] Click en tu servicio deployado
+- [ ] Tab **"Variables"**
+- [ ] Click en **"+ New Variable"**
+
+**Agregar primera variable:**
+- [ ] Variable: `XUBIO_USERNAME`
+- [ ] Value: `martin.lombardi@gmail.com`
+- [ ] Click **"Add"**
+
+**Agregar segunda variable:**
+- [ ] Variable: `XUBIO_PASSWORD`
+- [ ] Value: `Corvus"22`
+- [ ] Click **"Add"**
+
+**Railway redeploya automáticamente** después de agregar variables.
+
+---
+
+### Fase 3: Obtener URL del Endpoint
+
+- [ ] Click en tu servicio
+- [ ] Tab **"Settings"**
+- [ ] Sección **"Networking"**
+- [ ] Click en **"Generate Domain"**
+- [ ] Copiar URL generada (ejemplo: `tu-proyecto-production.up.railway.app`)
+
+**Tu endpoint estará disponible en:**
+```
+https://tu-proyecto-production.up.railway.app/api/test-login
+https://tu-proyecto-production.up.railway.app/api/crear-factura
+```
+
+---
+
+### Fase 4: Testing (5 minutos)
+
+#### Test 1: Login
+```bash
+curl -X POST https://tu-proyecto-production.up.railway.app/api/test-login
+```
+
+**✅ Response esperado:**
+```json
+{
+  "success": true,
+  "message": "Login exitoso",
+  "data": {
+    "cookiesCount": 5,
+    "cookiesValid": true,
+    "cookieHeader": "...",
+    "cookies": [...]
+  }
+}
+```
+
+#### Test 2: Crear Factura
+```bash
+curl -X POST https://tu-proyecto-production.up.railway.app/api/crear-factura \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clienteId": 8157173,
+    "clienteNombre": "2MCAMPO",
+    "provinciaId": 1,
+    "provinciaNombre": "Buenos Aires",
+    "localidadId": 147,
+    "localidadNombre": "Saladillo",
+    "cantidad": 1
+  }'
+```
+
+---
+
+### Monitoreo de Uso (importante para free tier)
+
+- [ ] Tab **"Metrics"** → Ver CPU/RAM usage
+- [ ] Tab **"Deployments"** → Ver logs en tiempo real
+- [ ] Tab **"Usage"** → Ver crédito restante del mes
+
+**Estimado de consumo:**
+- Login + Factura: ~$0.01 por request
+- $5/mes ≈ 500 requests/mes
+- Si usás más, Railway te avisa antes de cobrar
+
+---
+
+### Ver Logs
+
+**Opción A - Dashboard:**
+1. Click en tu servicio
+2. Tab **"Deployments"**
+3. Click en deployment activo
+4. Ver logs en tiempo real
+
+**Opción B - CLI:**
+```bash
+npm i -g @railway/cli
+railway login
+railway logs
+```
+
+---
+
+## 🔧 OPCIÓN B: DEPLOYMENT EN VERCEL (Plan Pago)
+
+**⚠️ IMPORTANTE**: Vercel Free Tier **NO funciona** con Playwright (timeout de 10s).
+Necesitás **Hobby Plan ($20/mes)** para tener 60s de timeout.
+
+Si tenés Hobby Plan, seguir estas instrucciones:
+
+---
+
+### Fase 1: Actualizar vercel.json
+
+El repo ya tiene `vercel.json` configurado para free tier (10s timeout).
+Si tenés Hobby Plan, actualizalo:
+
+```json
+{
+  "functions": {
+    "api/**/*.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  }
+}
+```
+
+---
+
+### Fase 2: Deploy en Vercel
+
+- [ ] Ir a https://vercel.com/dashboard
+- [ ] Click en **"Add New"** → **"Project"**
+- [ ] Importar repo de GitHub
+- [ ] Framework: **Other**
+- [ ] Root Directory: **/** (root del repo)
+- [ ] Click **"Deploy"**
+
+---
+
+### Fase 3: Configurar Variables de Entorno
+
+- [ ] Vercel Dashboard → Tu proyecto → **Settings** → **Environment Variables**
+
+**Agregar variables:**
+- [ ] Name: `XUBIO_USERNAME`, Value: `martin.lombardi@gmail.com`
+- [ ] Environments: ✅ Production | ✅ Preview | ✅ Development
+- [ ] Name: `XUBIO_PASSWORD`, Value: `Corvus"22`
+- [ ] Environments: ✅ Production | ✅ Preview | ✅ Development
+
+**Redeploy obligatorio:**
+- [ ] Tab **"Deployments"**
+- [ ] Click en deployment más reciente
+- [ ] Menú **"..."** → **"Redeploy"**
+
+---
+
+### Fase 4: Testing
+
+Igual que Railway, pero usando tu URL de Vercel:
+```bash
+curl -X POST https://tu-proyecto.vercel.app/api/test-login
+```
 
 ---
 
@@ -400,16 +627,27 @@ vercel logs --follow
 
 ## ✅ VALIDACIÓN FINAL
 
-### Checklist de Éxito
+### Checklist de Éxito (Railway o Vercel)
 
-- [ ] Deploy en Vercel completo (ícono verde)
+- [ ] Deploy completo en la plataforma elegida (Railway o Vercel)
 - [ ] Variables `XUBIO_USERNAME` y `XUBIO_PASSWORD` configuradas
-- [ ] Redeploy hecho después de configurar variables
+- [ ] Redeploy/Build completado exitosamente
 - [ ] Test `/api/test-login` retorna `{"success": true}`
 - [ ] Test `/api/crear-factura` retorna TransaccionID válido
 - [ ] Factura visible en Xubio web
 - [ ] PDF accesible desde `pdfUrl` de la response
 - [ ] Apps Script puede llamar al endpoint exitosamente
+
+### Comparación de Plataformas
+
+| Feature | Railway.app (Free) | Vercel (Free) | Vercel (Hobby $20/mes) |
+|---------|-------------------|---------------|----------------------|
+| **Timeout** | ✅ Sin límites | ❌ 10s (insuficiente) | ✅ 60s |
+| **Memory** | ✅ Suficiente | ⚠️ 1024MB (justo) | ✅ 3008MB |
+| **Costo** | $5 crédito/mes | Gratis | $20/mes |
+| **Playwright** | ✅ Funciona | ❌ Hace timeout | ✅ Funciona |
+| **Setup** | ✅ Simple | ✅ Simple | ✅ Simple |
+| **Recomendado** | ✅ SÍ | ❌ NO | ✅ SÍ |
 
 ---
 
@@ -444,6 +682,7 @@ Logs detallados en Vercel permiten debugging. Errores comunes documentados en Tr
 
 ---
 
-**Última actualización**: 2025-12-31 21:00 UTC-3
-**Estado**: ✅ Listo para deployment y testing
-**Próximo checkpoint**: Validar que test-login funciona
+**Última actualización**: 2025-12-31 22:30 UTC-3
+**Estado**: ✅ Listo para deployment en Railway.app o Vercel
+**Próximo checkpoint**: Elegir plataforma y deployar
+**Plataforma recomendada**: Railway.app (free tier funciona perfectamente)
