@@ -29,7 +29,14 @@ export async function loginToXubio(credentials) {
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
     
     browser = await chromium.launch({
-      args: isProduction ? chromiumBinary.args : [],
+      args: isProduction ? [
+        ...chromiumBinary.args,
+        '--disable-dev-shm-usage',      // Reduce uso de /dev/shm
+        '--disable-gpu',                 // Sin GPU en serverless
+        '--single-process',              // Un solo proceso (ahorra RAM)
+        '--no-zygote',                   // Sin proceso zygote
+        '--disable-setuid-sandbox'       // Sin sandbox (serverless seguro)
+      ] : [],
       executablePath: isProduction ? await chromiumBinary.executablePath() : undefined,
       headless: true
     });

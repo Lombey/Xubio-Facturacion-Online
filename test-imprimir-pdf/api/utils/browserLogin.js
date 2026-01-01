@@ -26,7 +26,14 @@ export async function loginToXubio(credentials) {
   try {
     // Lanzar browser headless optimizado para Vercel/AWS Lambda
     browser = await playwrightChromium.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args,
+        '--disable-dev-shm-usage',      // Reduce uso de /dev/shm
+        '--disable-gpu',                 // Sin GPU en serverless
+        '--single-process',              // Un solo proceso (ahorra RAM)
+        '--no-zygote',                   // Sin proceso zygote
+        '--disable-setuid-sandbox'       // Sin sandbox (serverless seguro)
+      ],
       executablePath: await chromium.executablePath(),
       headless: chromium.headless
     });
