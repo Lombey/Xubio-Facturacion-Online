@@ -1,162 +1,62 @@
-const XUBIO_BASE_URL = 'https://xubio.com/API/1.1';
-
 /**
- * @typedef {Object} VercelRequest
- * @property {string} method
- * @property {any} body
- * @property {Record<string, string>} headers
- * @property {Record<string, string>} query
- * @property {string} url
+ * Proxy Inteligente - Vercel
+ * 
+ * Redirige peticiones a Xubio inyectando automáticamente el Token oficial.
  */
 
-/**
- * @typedef {Object} VercelResponse
- * @property {(status: number) => VercelResponse} status
- * @property {(data: any) => void} json
- * @property {(data: Buffer) => void} send
- * @property {(header: string, value: string) => void} setHeader
- * @property {() => void} end
- */
+import { getOfficialToken } from './utils/tokenManager.js';
 
-/**
- * @param {VercelRequest} req
- * @param {VercelResponse} res
- */
 export default async function handler(req, res) {
-  // Manejar preflight CORS
-  if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-    return res.status(200).end();
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // Obtener el path desde query string
-    /** @type {string} */
-    let path = (req.query && typeof req.query.path === 'string') ? req.query.path : '';
+    const token = await getOfficialToken();
     
-    // Si no viene en query, intentar desde la URL
-    if (!path && req.url) {
-      // Extraer el path de la URL, removiendo /api/proxy y los query params
-      const urlPath = req.url.split('?')[0]; // Remover query params de la URL
-      path = urlPath.replace('/api/proxy', '').replace(/^\//, '');
-    }
-    
-    // Si aún no hay path, usar la raíz
-    if (!path) {
-      path = '/';
-    }
-    
-    // Asegurar que el path empiece con /
-    if (!path.startsWith('/')) {
-      path = '/' + path;
-    }
-    
-    // Construir URL completa de Xubio
-    let url = `${XUBIO_BASE_URL}${path}`;
-    
-    // Pasar los query params a la URL de Xubio (excluyendo 'path' que es solo para el proxy)
-    if (req.query && typeof req.query === 'object') {
-      const queryParams = new URLSearchParams();
-      for (const [key, value] of Object.entries(req.query)) {
-        if (key !== 'path' && value !== undefined && value !== null) {
-          queryParams.append(key, String(value));
-        }
-      }
-      const queryString = queryParams.toString();
-      if (queryString) {
-        // Solo agregar ? si no hay ya query params en la URL
-        url += (url.includes('?') ? '&' : '?') + queryString;
-      }
-    }
-    
-    console.log(`[PROXY] ${req.method} ${url} (path: ${path})`);
+    // Obtener el path de la query o de la URL
+    let path = req.query.path || req.url.replace('/api/proxy', '').split('?')[0];
+    if (!path.startsWith('/')) path = '/' + path;
 
-    // Preparar headers
-    /** @type {Record<string, string>} */
-    const headers = {
-      'Accept': 'application/json'
-    };
-
-    // Copiar headers importantes del cliente (Authorization, etc.)
-    const authHeader = req.headers && typeof req.headers.authorization === 'string' ? req.headers.authorization : null;
-    if (authHeader) {
-      headers['Authorization'] = authHeader;
+    // Construir URL final (excluyendo 'path' de los params)
+    const queryParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query)) {
+      if (key !== 'path') queryParams.append(key, value);
     }
-    const contentTypeHeader = req.headers && typeof req.headers['content-type'] === 'string' ? req.headers['content-type'] : null;
-    if (contentTypeHeader) {
-      headers['Content-Type'] = contentTypeHeader;
-    }
+    
+    const url = `https://xubio.com/API/1.1${path}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    
+    console.log(`📡 [PROXY] ${req.method} ${url}`);
 
-    // Preparar opciones del fetch
-    /** @type {RequestInit & { redirect?: RequestRedirect }} */
     const fetchOptions = {
       method: req.method,
-      headers: headers,
-      redirect: /** @type {RequestRedirect} */ ('manual')
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
     };
 
-    // Agregar body si existe (POST, PUT, etc.)
-    if (req.body && (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH')) {
-      // Si es form-urlencoded, enviar como string
-      if (headers['Content-Type'] === 'application/x-www-form-urlencoded') {
-        if (typeof req.body === 'string') {
-          fetchOptions.body = req.body;
-        } else if (typeof req.body === 'object' && req.body !== null) {
-          fetchOptions.body = new URLSearchParams(/** @type {Record<string, string>} */ (req.body)).toString();
-        }
-      } else {
-        // JSON u otro formato
-        fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      }
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     }
 
-    const bodyLength = fetchOptions.body ? (typeof fetchOptions.body === 'string' ? fetchOptions.body.length : 0) : 0;
-    console.log(`[PROXY] Fetching with method: ${req.method}, body length: ${bodyLength}`);
-
-    // Hacer la petición a Xubio
     const response = await fetch(url, fetchOptions);
-    
-    // Leer la respuesta
     const contentType = response.headers.get('Content-Type') || 'application/json';
-    let data;
     
+    let data;
     if (contentType.includes('application/json')) {
-      const text = await response.text();
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch (e) {
-        data = text;
-      }
+      data = await response.json().catch(() => ({}));
     } else {
-      data = await response.arrayBuffer();
+      data = await response.text();
     }
 
-    console.log(`[PROXY] Response status: ${response.status}, content-type: ${contentType}`);
-
-    // Establecer headers CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-    res.setHeader('Content-Type', contentType);
-
-    // Enviar respuesta
-    if (data instanceof ArrayBuffer) {
-      res.status(response.status).send(Buffer.from(data));
-    } else {
-      res.status(response.status).json(data);
-    }
+    res.status(response.status).json(data);
 
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PROXY] Error:', errorMessage);
-    
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(500).json({
-      error: errorMessage,
-      type: 'proxy_error'
-    });
+    console.error('❌ Proxy Error:', error.message);
+    res.status(500).json({ error: error.message });
   }
 }
-
