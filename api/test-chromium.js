@@ -44,9 +44,13 @@ export default async function handler(req, res) {
 
     console.log('✅ [TEST-CHROMIUM] Browser lanzado exitosamente');
 
+    // Obtener versión ANTES de cerrar
+    const version = await browser.version();
+    console.log('📦 [TEST-CHROMIUM] Versión:', version);
+
     // Crear página simple
     const page = await browser.newPage();
-    await page.goto('https://www.google.com', { waitUntil: 'networkidle0', timeout: 10000 });
+    await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const title = await page.title();
     console.log('📄 [TEST-CHROMIUM] Título de página:', title);
@@ -60,7 +64,7 @@ export default async function handler(req, res) {
       message: 'Chromium-min funciona correctamente',
       data: {
         pageTitle: title,
-        chromiumVersion: await browser.version(),
+        chromiumVersion: version,
         isProduction,
         timestamp: new Date().toISOString()
       }
