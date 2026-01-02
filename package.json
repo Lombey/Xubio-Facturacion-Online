@@ -20,9 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@sparticuz/chromium-min": "^143.0.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "@sparticuz/chromium-min": "^143.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

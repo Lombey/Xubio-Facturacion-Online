@@ -1,19 +1,15 @@
 /**
- * Browser Login Utility - Puppeteer Extra + Stealth Plugin
+ * Browser Login Utility - Puppeteer + chromium-min con delays humanizados
  *
- * Maneja el login a Xubio usando Puppeteer con stealth plugin para evitar detección de bot
+ * Maneja el login a Xubio usando Puppeteer con delays para evitar detección de bot
  * Xubio redirige a Visma Connect para autenticación OAuth
  *
  * Usa chromium-min que descarga el binario desde GitHub CDN en runtime
  * para evitar problemas de dependencias del sistema (libnss3.so, etc.)
  */
 
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium-min';
-
-// Aplicar stealth plugin para evitar detección de bot
-puppeteer.use(StealthPlugin());
 
 /**
  * Realiza login a Xubio usando Puppeteer y retorna cookies de sesión
