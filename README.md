@@ -1,72 +1,137 @@
-# Xubio API Laboratory (Proof of Concept)
+# Xubio Facturación Online
 
-> 🔗 **Demo en vivo**: [https://xubio-facturacion-online.vercel.app/](https://xubio-facturacion-online.vercel.app/)
+> 🔗 **API en vivo**: [https://xubio-facturacion-online.vercel.app/](https://xubio-facturacion-online.vercel.app/)
 
-> ⚠️ **NOTA IMPORTANTE**: Este NO es un producto final. Es un entorno experimental para validar payloads antes de implementar en producción (AppSheet/Google Apps Script).
+Sistema automatizado de facturación para Xubio usando **arquitectura híbrida Vercel + Fly.io**.
 
-Este repositorio es un **Laboratorio de Pruebas** diseñado para realizar ingeniería inversa y pinpointing exacto de los endpoints de la API de Xubio.
-
-**Objetivo Principal**: Descubrir y validar la estructura exacta de datos (JSON) necesaria para realizar Facturas y Cobranzas en Xubio, con el fin de replicar esta lógica en un sistema externo (**AppSheet / Google Apps Script**).
+**Objetivo Principal**: Crear facturas en Xubio de forma programática desde **AppSheet / Google Apps Script** sin intervención manual.
 
 ---
 
-## 🧪 Propósito del Proyecto
+## 🏗️ Arquitectura Híbrida
 
-1. **Pinpointing de API**: Identificar qué campos son obligatorios, opcionales y cuáles causan errores silenciosos en la API de Xubio.
-2. **Entregable de Referencia**: Crear una librería JavaScript pura (`/sdk`) que sirva como "Verdad Absoluta" sobre cómo hablar con Xubio.
-3. **Validación Visual**: Utilizar la interfaz en Vue.js simplemente como un "control remoto" rápido para ejecutar pruebas y ver resultados (PDFs, JSONs de respuesta) en tiempo real.
+### Vercel (API Principal)
+- Endpoints serverless para crear facturas
+- Cache de cookies de sesión (in-memory)
+- Límite: 2048 MB RAM, 60s timeout
 
----
+### Fly.io (Login Service)
+- Puppeteer + Stealth para login automático
+- Evita detección de bot por Visma Connect
+- Free tier: 256 MB RAM, auto-sleep
+- Solo se llama cuando cookies expiran
 
-## 🔬 Anatomía del Experimento
+### Flujo Completo
 
-El valor real del proyecto reside en la carpeta `/sdk/`, la cual está diseñada para ser agnóstica a la interfaz:
-
-- **`sdk/xubioClient.js`**: Cliente base para autenticación y peticiones.
-- **`sdk/facturaService.js`**: Lógica de construcción de payloads para facturación.
-- **`sdk/cobranzaService.js`**: Lógica de construcción de payloads para cobranzas (En desarrollo).
-
----
-
-## 🚀 Cómo usar este Laboratorio
-
-1. **Credenciales**: Ingresa tu `Client ID` y `Secret ID` en la UI (obtenidos de Xubio).
-2. **Obtener Token**: Valida que la conexión es exitosa.
-3. **Pruebas de Facturación**: 
-   - Selecciona cliente y productos.
-   - Observa el JSON generado antes de enviar.
-   - Envía y verifica si Xubio acepta el payload.
-4. **Inspección**: Si algo falla, revisa el log de diagnóstico integrado para ver qué campo está causando el rechazo.
+```
+AppSheet → Vercel (/api/crear-factura) → Check cache
+                ↓                              ↓
+         Si cache válido              Si expiró: Fly.io (/login)
+                ↓                              ↓
+         Construir XML              Puppeteer + Stealth → Cookies
+                ↓                              ↓
+         POST a Xubio  ←────────────── Cache cookies
+                ↓
+         Factura creada ✅
+```
 
 ---
 
 ## 📁 Estructura del Repositorio
 
 ```
-├── sdk/                    # CEREBRO: Lógica portable para AppSheet/Node.js
-├── api/                    # Endpoints Serverless (Vercel Functions)
-├── apps-script/            # Google Apps Script para integración con AppSheet
-├── docs/                   # Análisis detallado de campos y flujos
-└── archive/                # Proyectos legacy archivados
+├── api/                    # Vercel Serverless Functions
+│   ├── crear-factura.js    # Endpoint principal
+│   ├── test-login.js       # Test de login
+│   └── utils/
+│       ├── flyLogin.js     # Cliente Fly.io
+│       ├── cookieCache.js  # Cache de cookies
+│       └── buildXMLPayload.js # Constructor XML
+│
+├── fly-login/              # Fly.io Login Service
+│   ├── server.js           # Express + Puppeteer + Stealth
+│   ├── Dockerfile          # Container config
+│   └── package.json
+│
+├── apps-script/            # Google Apps Script wrappers
+├── sdk/                    # Lógica portable (legacy OAuth)
+├── docs/                   # Documentación técnica
+└── archive/                # Proyectos archivados
 ```
 
 ---
 
-## ❌ Qué NO es este Proyecto
+## 🚀 Deployment
 
-- ❌ **No es una aplicación de producción**: Es un entorno controlado para experimentos.
-- ❌ **No es un cliente completo de Xubio**: Solo implementa lo necesario para facturación y cobranzas.
-- ❌ **No reemplaza la UI oficial de Xubio**: La interfaz Vue es solo un panel de control temporal para pruebas.
-- ❌ **No está optimizado para usuarios finales**: El foco está en validar payloads, no en UX.
+### Vercel (Ya deployado)
+```bash
+# Auto-deploy desde GitHub main branch
+# URL: https://xubio-facturacion-online.vercel.app/
+```
+
+### Fly.io (Primera vez)
+Ver guía completa: **[DEPLOY_FLY.md](DEPLOY_FLY.md)**
+
+```bash
+# 1. Instalar CLI
+curl -L https://fly.io/install.sh | sh
+
+# 2. Login
+fly auth login
+
+# 3. Crear app
+fly apps create xubio-login --region gru
+
+# 4. Deploy
+fly deploy --config fly.toml
+
+# 5. Verificar
+fly status
+curl https://xubio-login.fly.dev/health
+```
 
 ---
 
-## 🔮 Destino Final: AppSheet
-Una vez validada una funcionalidad en este laboratorio, el código del `sdk/` está preparado para ser copiado y adaptado a un entorno de **Google Apps Script** que servirá de puente para automatizaciones en AppSheet.
+## 🧪 Testing
+
+### Test Login (Vercel → Fly.io)
+```bash
+curl -X POST https://xubio-facturacion-online.vercel.app/api/test-login
+```
+
+**Respuesta esperada:**
+```json
+{
+  "success": true,
+  "message": "Login exitoso",
+  "data": {
+    "cookiesCount": 15,
+    "cookiesValid": true
+  }
+}
+```
+
+### Test Crear Factura
+```bash
+curl -X POST https://xubio-facturacion-online.vercel.app/api/crear-factura \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clienteId": 123,
+    "clienteNombre": "Cliente Test",
+    "provinciaId": 1,
+    "provinciaNombre": "Buenos Aires",
+    "localidadId": 1,
+    "localidadNombre": "CABA",
+    "cantidad": 1
+  }'
+```
 
 ---
 
 ## 🛠️ Tecnologías
-- **Frontend**: Vue.js 3 (Standalone).
-- **Backend**: Vercel Functions (Proxy).
-- **Logic**: JavaScript ES6 puro (SDK).
+
+- **Vercel**: Serverless functions, auto-deploy desde GitHub
+- **Fly.io**: Docker containers, Puppeteer + Stealth
+- **Puppeteer**: Browser automation para login
+- **Express**: API server en Fly.io
+- **Google Apps Script**: Bridge para AppSheet

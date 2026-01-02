@@ -1,14 +1,15 @@
 /**
  * Test Login Endpoint - Vercel Serverless
  *
- * Endpoint de prueba para validar login con Playwright
- * Retorna cookies de sesión obtenidas
+ * Endpoint de prueba para validar login usando Fly.io service
+ * Retorna cookies de sesión obtenidas (con cache)
  *
  * URL: https://tu-app.vercel.app/api/test-login
  * Método: POST
  */
 
-import { loginToXubio, cookiesToString, validateCookies } from './utils/browserLogin.js';
+import { getSessionCookies, validateCookies } from './utils/flyLogin.js';
+import { cookiesToString } from './utils/cookieCache.js';
 
 export default async function handler(req, res) {
   // Solo permitir POST
@@ -33,11 +34,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Ejecutar login con Playwright
-    console.log('🔐 [TEST-LOGIN] Ejecutando login con Playwright...');
-    const cookies = await loginToXubio({ username, password });
+    // Obtener cookies (usa cache si están disponibles, si no llama a Fly.io)
+    console.log('🔐 [TEST-LOGIN] Obteniendo cookies de sesión...');
+    const cookies = await getSessionCookies({ username, password });
 
-    console.log(`✅ [TEST-LOGIN] Login exitoso - ${cookies.length} cookies obtenidas`);
+    console.log(`✅ [TEST-LOGIN] Cookies obtenidas - ${cookies.length} cookies`);
 
     // Validar cookies
     console.log('🍪 [TEST-LOGIN] Validando cookies...');

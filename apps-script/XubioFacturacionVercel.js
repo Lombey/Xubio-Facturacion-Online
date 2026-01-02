@@ -119,6 +119,7 @@ function crearFacturaVercel(params) {
  * Prueba de login (solo para testing)
  * Verifica que las credenciales estén configuradas en Vercel
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function testLogin() {
   Logger.log('🧪 Iniciando test de login...');
 
@@ -169,6 +170,7 @@ function testLogin() {
  * Test simple de creación de factura
  * IMPORTANTE: Cambiar los IDs por datos reales de tu Xubio
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function testCrearFactura() {
   Logger.log('🧪 Iniciando test de creación de factura...');
   Logger.log('=====================================\n');
@@ -211,6 +213,7 @@ function testCrearFactura() {
  * @param {Object} e - Event object de Apps Script
  * @returns {Object} JSON response
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function doPost(e) {
   try {
     // Parsear payload de AppSheet
@@ -249,6 +252,7 @@ function doPost(e) {
 /**
  * Handler para GET requests (health check)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function doGet() {
   return ContentService.createTextOutput(JSON.stringify({
     status: 'ok',

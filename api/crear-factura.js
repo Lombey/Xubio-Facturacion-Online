@@ -2,14 +2,15 @@
  * Crear Factura Endpoint - Vercel Serverless
  *
  * Endpoint principal para crear facturas en Xubio
- * Flujo: Login con Playwright → Obtener cookies → Construir XML → POST a Xubio
+ * Flujo: Obtener cookies (cache o Fly.io) → Construir XML → POST a Xubio
  *
  * URL: https://tu-app.vercel.app/api/crear-factura
  * Método: POST
  * Payload: { clienteId, clienteNombre, provinciaId, provinciaNombre, localidadId, localidadNombre, cantidad }
  */
 
-import { loginToXubio, cookiesToString } from './utils/browserLogin.js';
+import { getSessionCookies } from './utils/flyLogin.js';
+import { cookiesToString } from './utils/cookieCache.js';
 import { buildXMLPayload } from './utils/buildXMLPayload.js';
 
 /**
@@ -168,9 +169,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3. Login con Playwright y obtener cookies
-    console.log('🔐 [FACTURA] Paso 1: Login con Playwright...');
-    const cookies = await loginToXubio({ username, password });
+    // 3. Obtener cookies de sesión (usa cache o Fly.io si es necesario)
+    console.log('🔐 [FACTURA] Paso 1: Obtener cookies de sesión...');
+    const cookies = await getSessionCookies({ username, password });
     const cookieHeader = cookiesToString(cookies);
 
     // 4. Obtener cotización USD
