@@ -1,24 +1,23 @@
 # Gemini Project Memory: Sheets con xubio
 
-## Project Overview
-Infraestructura de API para integrar Google Sheets con Xubio.
-- **Root Path:** `C:\dev\Sheets con xubio`
-- **Plataforma:** Vercel (Node.js Serverless).
-- **Status:** Refactorización a API Oficial (Bearer Token).
+## Estado Actual (2 de Enero 2026)
+El sistema ha sido refactorizado para eliminar dependencias externas inestables.
 
-## ⚠️ Dead Ends
-- **Fly.io / Puppeteer:** Descartado el 2 de enero de 2026. Visma Connect bloquea IPs de datacenters (EZE, SCL, GRU, DFW, IAD) mostrando errores de sistema falsos. No es viable mantener sesión vía simulación de navegador en infraestructura cloud para este caso.
+### 🚀 Arquitectura Final
+- **Backend**: Vercel Serverless (Node.js).
+- **Autenticación**: Oficial OAuth2 (Bearer Token) usando ClientID y SecretID.
+- **Facturación**: Endpoint `/api/crear-factura` que usa la REST API oficial (`comprobanteVentaBean`).
+- **Sincronización**: El payload JSON ha sido sincronizado con el "Golden Template" XML que funcionaba en el navegador (Condición de Pago 7, Puntos de Venta automáticos, etc.).
 
-## Active Strategy
-1.  **Autenticación**: Uso de `api/auth.js` con ClientID y SecretID oficiales.
-2.  **Facturación**: Migración de `api/crear-factura.js` para usar el Token de la API oficial.
-3.  **Híbrido**: Evaluar si el método XML Legacy funciona con Bearer Token, o si se debe pulir el JSON de la REST API.
+### 🛑 Lecciones Aprendidas (Dead Ends)
+- **Fly.io / Puppeteer**: DESCARTADO. Visma Connect bloquea IPs de datacenters. La simulación de navegador para login es inviable en infraestructura cloud para este caso.
+- **XML Legacy via Token**: DESCARTADO. El endpoint `/NXV/DF_submit` no acepta Bearer Tokens, solo cookies de sesión web.
 
-## Environment & Secrets
-- **Vercel Secrets**: `XUBIO_CLIENT_ID`, `XUBIO_SECRET_ID`, `XUBIO_USERNAME`, `XUBIO_PASSWORD`.
-- **SDK**: Localizado en `sdk/`, diseñado para ser modular.
+### 🛠️ Herramientas Disponibles
+- `api/discovery.js`: Para buscar IDs reales de productos, clientes y puntos de venta desde Apps Script.
+- `api/proxy.js`: Para realizar cualquier petición a la API de Xubio sin problemas de CORS.
+- `apps-script/XubioVercel.js`: Script definitivo para Google Sheets.
 
-## Key Files
-- `api/auth.js`: Punto de entrada para tokens.
-- `api/crear-factura.js`: Endpoint principal de negocio.
-- `sdk/xubioClient.js`: Cliente base para peticiones autenticadas.
+## Variables de Entorno Críticas (Vercel)
+- `XUBIO_CLIENT_ID`
+- `XUBIO_SECRET_ID`
