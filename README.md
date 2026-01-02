@@ -27,6 +27,16 @@ Se deben configurar las siguientes variables de entorno en el dashboard de Verce
 - `XUBIO_USERNAME`: Email de acceso a Xubio.
 - `XUBIO_PASSWORD`: Contraseña de acceso a Xubio.
 
+## 🚀 Estrategia de Desarrollo Actual: "Ingeniería Inversa del Éxito"
+
+Para resolver el error genérico `FunctionalException` de Xubio y asegurar una integración estable, estamos siguiendo este procedimiento:
+
+1.  **Análisis de Factura Existente**: Consultar vía API una factura creada manualmente en la UI de Xubio que haya sido exitosa. Esto nos proporciona el "JSON de Oro" (el molde perfecto) con todos los campos obligatorios ocultos.
+2.  **Enriquecimiento Automático**: El endpoint de Vercel consultará el perfil del cliente (`/clienteBean/{id}`) antes de facturar para obtener automáticamente su ubicación (provincia/localidad), CUIT y condición fiscal. Esto reduce la carga de datos en Google Sheets y evita errores de discrepancia.
+3.  **Construcción Dinámica**: El payload final se construye imitando el molde exitoso pero inyectando los datos dinámicos del Sheets (Producto, Cantidad, Precio).
+
+---
+
 ## 📁 Estructura del Proyecto
 
 - `api/`: Funciones serverless de Vercel (Auth, Proxy, Crear Factura).
