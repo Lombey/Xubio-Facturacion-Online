@@ -6,14 +6,14 @@ FROM ghcr.io/puppeteer/puppeteer:21.11.0
 # Configurar directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json
-COPY package*.json ./
+# Copiar package.json y package-lock.json desde fly-login/
+COPY fly-login/package*.json ./
 
-# Instalar dependencias
-RUN npm ci --only=production
+# Instalar dependencias (ignorar scripts prepare/postinstall)
+RUN npm ci --only=production --ignore-scripts
 
-# Copiar código fuente
-COPY . .
+# Copiar código fuente desde fly-login/
+COPY fly-login/ .
 
 # Exponer puerto
 EXPOSE 8080

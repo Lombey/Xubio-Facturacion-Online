@@ -19,6 +19,45 @@ puppeteer.use(StealthPlugin());
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Cache de cookies y keep-alive
+let cookieCache = null;
+let sessionKeepAlive = null;
+
+/**
+ * Mantener sesión viva con requests periódicos a Xubio
+ */
+function startSessionKeepAlive(cookies) {
+  // Limpiar intervalo anterior si existe
+  if (sessionKeepAlive) {
+    clearInterval(sessionKeepAlive);
+  }
+
+  console.log('🔄 Iniciando keep-alive de sesión (cada 30 min)...');
+
+  sessionKeepAlive = setInterval(async () => {
+    console.log('🔄 Renovando sesión de Xubio...');
+
+    try {
+      // GET simple a Xubio para mantener sesión viva
+      const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      const response = await fetch('https://xubio.com/NXV/home', {
+        headers: { Cookie: cookieString }
+      });
+
+      if (response.ok) {
+        console.log('✅ Sesión renovada exitosamente');
+      } else {
+        console.log('❌ Sesión expirada, limpiando cache');
+        cookieCache = null;
+        clearInterval(sessionKeepAlive);
+        sessionKeepAlive = null;
+      }
+    } catch (error) {
+      console.error('⚠️ Error renovando sesión:', error.message);
+    }
+  }, 30 * 60 * 1000); // Cada 30 minutos
+}
+
 // Middleware
 app.use(express.json());
 
@@ -40,12 +79,25 @@ app.get('/health', (req, res) => {
  * Response: { cookies: Array<Cookie> }
  */
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+  // Chequear cache primero
+  if (cookieCache) {
+    console.log('✅ Usando cookies del cache (sesión activa)');
+    return res.json({
+      success: true,
+      cookies: cookieCache,
+      cached: true,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Usar credenciales del body o de variables de entorno (más seguro)
+  const username = req.body.username || process.env.XUBIO_USERNAME;
+  const password = req.body.password || process.env.XUBIO_PASSWORD;
 
   if (!username || !password) {
     return res.status(400).json({
       error: 'Missing credentials',
-      message: 'username and password are required'
+      message: 'username and password are required (via body or env vars)'
     });
   }
 
@@ -76,7 +128,7 @@ app.post('/login', async (req, res) => {
     console.log('📍 Navegando a xubio.com/NXV/vismaConnect/login...');
     await page.goto('https://xubio.com/NXV/vismaConnect/login', {
       waitUntil: 'networkidle2',
-      timeout: 30000
+      timeout: 60000
     });
 
     // 2. PASO 1: Esperar campo de email
@@ -113,7 +165,7 @@ app.post('/login', async (req, res) => {
     console.log('⏳ Esperando redirección a xubio.com...');
     await page.waitForFunction(
       () => window.location.href.includes('xubio.com') && !window.location.href.includes('visma'),
-      { timeout: 30000 }
+      { timeout: 60000 }
     );
 
     // 8. Verificar que llegamos a Xubio
@@ -147,10 +199,17 @@ app.post('/login', async (req, res) => {
 
     await browser.close();
 
+    // Guardar cookies en cache
+    cookieCache = compatibleCookies;
+
+    // Activar keep-alive para mantener sesión viva
+    startSessionKeepAlive(compatibleCookies);
+
     // Retornar cookies
     res.json({
       success: true,
       cookies: compatibleCookies,
+      cached: false,
       timestamp: new Date().toISOString()
     });
 

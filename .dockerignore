@@ -1,5 +1,0 @@
-# Ignorar todo EXCEPTO fly-login/
-*
-!fly-login/
-fly-login/node_modules/
-fly-login/.env
