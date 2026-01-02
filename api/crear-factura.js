@@ -1,32 +1,24 @@
 /**
- * Crear Factura Endpoint (Vercel) - Híbrido XML + Token Oficial
+ * Crear Factura Endpoint (Vercel) - API REST OFICIAL (JSON)
  * 
- * Versión final optimizada con datos del Golden Template.
+ * Traduce la lógica del "Golden Template" XML al formato JSON oficial.
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
-import { buildXMLPayload } from './utils/buildXMLPayload.js';
 
-/**
- * Obtiene cotización USD (fallback a valor fijo si falla)
- */
 async function obtenerCotizacion() {
   try {
-    // API del BCRA via estadisticasbcra.com
     const res = await fetch('https://api.estadisticasbcra.com/usd_of', { 
       headers: { 'Authorization': 'BEARER ' }
     });
-    if (!res.ok) throw new Error('BCRA API error');
     const data = await res.json();
     return parseFloat(data[data.length - 1].v);
   } catch (e) {
-    console.warn('⚠️ [FACTURA] No se pudo obtener cotización BCRA, usando 1455');
     return 1455; 
   }
 }
 
 export default async function handler(req, res) {
-  // Manejar CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -34,104 +26,91 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  console.log('📝 [FACTURA] Iniciando creación de factura (XML + Token)...');
-
   try {
-    const { 
-      clienteId, 
-      clienteNombre, 
-      provinciaId, 
-      provinciaNombre, 
-      localidadId, 
-      localidadNombre, 
-      cantidad = 1 
-    } = req.body;
+    const { clienteId, cantidad = 1 } = req.body;
+    if (!clienteId) return res.status(400).json({ error: 'Falta clienteId' });
 
-    if (!clienteId || !clienteNombre) {
-      return res.status(400).json({ error: 'Faltan datos del cliente (clienteId, clienteNombre)' });
-    }
-
-    // 1. Obtener Token Oficial (OAuth2)
     const token = await getOfficialToken();
-
-    // 2. Obtener Cotización real
     const cotizacionUSD = await obtenerCotizacion();
 
-    // 3. Construir XML Legacy (Template GOLD)
-    const xmlPayload = buildXMLPayload({
-      cliente: {
-        id: parseInt(clienteId),
-        nombre: clienteNombre,
-        provinciaId: parseInt(provinciaId || 1),
-        provinciaNombre: provinciaNombre || 'Buenos Aires',
-        localidadId: parseInt(localidadId || 147),
-        localidadNombre: localidadNombre || 'Saladilla'
-      },
-      cantidad: parseFloat(cantidad),
-      cotizacionUSD
-    });
+    // VALORES DEL GOLDEN TEMPLATE (Traducidos a JSON)
+    const PRECIO_UNITARIO = 490;
+    const subtotal = PRECIO_UNITARIO * parseFloat(cantidad);
+    const iva = parseFloat((subtotal * 0.21).toFixed(2));
+    const total = subtotal + iva;
 
-    // 4. Enviar a Xubio usando el Token como autorización
-    console.log('📤 [FACTURA] Enviando XML a /NXV/DF_submit...');
+    // PAYLOAD JSON OFICIAL (Validado contra Swagger de Xubio)
+    const payload = {
+      circuitoContable: { ID: -2 }, // default
+      comprobante: 1, // Factura
+      tipo: 1, // Factura A
+      cliente: { cliente_id: parseInt(clienteId) },
+      fecha: new Date().toISOString().split('T')[0],
+      fechaVto: new Date().toISOString().split('T')[0],
+      condicionDePago: 2, // Contado (Valor estándar en API REST)
+      puntoVenta: { ID: 212819 }, // corvusweb srl
+      talonario: { ID: 11290129 }, // Facturas de Venta A
+      vendedor: { ID: 0 },
+      deposito: { ID: -2 }, // Depósito Universal
+      
+      // Items de Producto
+      transaccionProductoItems: [{
+        cantidad: parseFloat(cantidad),
+        precio: PRECIO_UNITARIO,
+        descripcion: "CONECTIVIDAD ANUAL POR TOLVA - Incluye Licencia para uso de un equipo por un año",
+        producto: { ID: 2751338 },
+        iva: iva,
+        importe: subtotal,
+        total: total,
+        centroDeCosto: { ID: 1 } // IMPORTANTE: Valor requerido en API REST
+      }],
+
+      // Moneda
+      moneda: { ID: -3 }, // Dólares
+      cotizacion: cotizacionUSD,
+      cotizacionListaDePrecio: 1,
+      utilizaMonedaExtranjera: 1,
+
+      // Campos obligatorios para evitar errores de validación
+      cantComprobantesCancelados: 0,
+      cantComprobantesEmitidos: 0,
+      cbuinformada: 0,
+      facturaNoExportacion: false,
+      porcentajeComision: 0,
+      transaccionCobranzaItems: [],
+      transaccionPercepcionItems: []
+    };
+
+    console.log('📤 Enviando a API REST Oficial...');
     
-    const bodyEncoded = 'body=' + encodeURIComponent(xmlPayload);
-    const response = await fetch('https://xubio.com/NXV/DF_submit', {
+    const response = await fetch('https://xubio.com/API/1.1/comprobanteVentaBean', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'Accept': '*/*',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
-      body: bodyEncoded
+      body: JSON.stringify(payload)
     });
 
-    const responseText = await response.text();
-    console.log(`📥 [FACTURA] Response Status: ${response.status}`);
-
-    // Si Xubio redirige (302), significa que el Token no es suficiente para este endpoint "web"
-    if (response.status === 302 || responseText.includes('login') || response.status === 401) {
-      throw new Error('El endpoint XML requiere sesión web (cookies). El Token de API no tiene permisos aquí.');
-    }
+    const responseData = await response.json();
+    console.log(`📥 Status: ${response.status}`);
 
     if (!response.ok) {
-      throw new Error(`Error de red en Xubio: ${response.status} - ${responseText.substring(0, 200)}`);
+      throw new Error(responseData.message || responseData.error || `Error Xubio ${response.status}`);
     }
-
-    // 5. Validar errores lógicos en el XML de respuesta
-    if (responseText.includes('<error>')) {
-      const errorMatch = responseText.match(/<error>(.*?)<\/error>/);
-      const msg = errorMatch ? errorMatch[1] : 'Error desconocido en respuesta XML';
-      throw new Error(`Xubio Error: ${msg}`);
-    }
-
-    // 6. Extraer ID de transacción
-    const transaccionIdMatch = responseText.match(/<transaccionid[^>]*value="([^"]+)"/);
-    const transaccionId = transaccionIdMatch ? transaccionIdMatch[1] : null;
-
-    if (!transaccionId || transaccionId === '0') {
-      console.log('🔍 Response completa para debug:', responseText);
-      throw new Error('No se recibió un ID de transacción válido. Es posible que la factura no se haya guardado.');
-    }
-
-    console.log(`✅ [FACTURA] Creada con éxito. ID: ${transaccionId}`);
 
     return res.status(200).json({
       success: true,
       data: {
-        transaccionId,
-        pdfUrl: `https://xubio.com/NXV/transaccion/ver/${transaccionId}`,
-        cotizacion: cotizacionUSD,
-        metodo: 'Official-Token-XML'
+        transaccionId: responseData.transaccionId || responseData.ID,
+        numeroDocumento: responseData.numeroDocumento,
+        pdfUrl: `https://xubio.com/NXV/transaccion/ver/${responseData.transaccionId || responseData.ID}`
       }
     });
 
   } catch (error) {
-    console.error('❌ [FACTURA] Error fatal:', error.message);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message,
-      isAuthError: error.message.includes('sesión web') || error.message.includes('Token')
-    });
+    console.error('❌ Error API REST:', error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
