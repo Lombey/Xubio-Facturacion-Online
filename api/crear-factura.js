@@ -1,7 +1,5 @@
 /**
- * Crear Factura Endpoint (Vercel) - GOLDEN JSON
- * 
- * Basado en el Discovery exitoso de Lista de Precio 15386.
+ * Crear Factura Endpoint (Vercel) - Versión Sincronizada con Golden Template
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
@@ -33,44 +31,41 @@ export default async function handler(req, res) {
     const token = await getOfficialToken();
     const cotizacionUSD = await obtenerCotizacion();
 
-    // Valores calculados
+    // DATOS EXTRAÍDOS DEL GOLDEN TEMPLATE (Resueltos en archive)
     const PRECIO_UNITARIO = 490;
     const subtotal = PRECIO_UNITARIO * parseFloat(cantidad);
     const iva = parseFloat((subtotal * 0.21).toFixed(2));
     const total = subtotal + iva;
 
-    // PAYLOAD CLONADO DEL GOLDEN TEMPLATE
     const payload = {
-      circuitoContable: { ID: -2 }, 
+      circuitoContable: { ID: -2, id: -2 }, // default
       comprobante: 1, 
       tipo: 1, 
       cliente: { cliente_id: parseInt(clienteId) },
       fecha: new Date().toISOString().split('T')[0],
       fechaVto: new Date().toISOString().split('T')[0],
-      condicionDePago: 7, // "Otra" (Igual que el XML)
-      puntoVenta: { ID: 212819 }, 
-      talonario: { ID: 11290129 }, // Incluimos el talonario del XML
-      listaDePrecio: { ID: 15386 }, // Confirmado por Discovery
+      condicionDePago: 7, // "Otra" según Golden Template
+      puntoVenta: { ID: 212819, id: 212819 }, // corvusweb srl
       vendedor: { ID: 0 },
-      deposito: { ID: -2 }, 
+      deposito: { ID: -2, id: -2 }, 
+      listaDePrecio: { ID: 15386, id: 15386 },
       
       transaccionProductoItems: [{
         cantidad: parseFloat(cantidad),
         precio: PRECIO_UNITARIO,
         descripcion: "CONECTIVIDAD ANUAL POR TOLVA",
-        producto: { ID: 2751338 },
+        producto: { ID: 2751338, id: 2751338 },
         iva: iva,
         importe: subtotal,
-        total: total,
-        centroDeCosto: null // Lo dejamos null como en el XML
+        total: total
       }],
 
-      moneda: { ID: -3 }, 
+      moneda: { ID: -3, id: -3 }, // Dólares
       cotizacion: cotizacionUSD,
       cotizacionListaDePrecio: 1,
       utilizaMonedaExtranjera: 1,
 
-      // Campos técnicos obligatorios
+      // Campos obligatorios para modo automático
       cantComprobantesCancelados: 0,
       cantComprobantesEmitidos: 0,
       cbuinformada: 0,
@@ -80,8 +75,6 @@ export default async function handler(req, res) {
       transaccionPercepcionItems: []
     };
 
-    console.log('📤 Enviando JSON alineado con Golden Template...');
-    
     const response = await fetch('https://xubio.com/API/1.1/comprobanteVentaBean', {
       method: 'POST',
       headers: {
@@ -93,10 +86,9 @@ export default async function handler(req, res) {
     });
 
     const responseData = await response.json();
-    
+
     if (!response.ok) {
-      console.error('❌ Error Detallado:', JSON.stringify(responseData));
-      throw new Error(responseData.message || responseData.error || `Error Xubio ${response.status}`);
+      throw new Error(responseData.message || responseData.error || `Error ${response.status}`);
     }
 
     return res.status(200).json({
@@ -109,7 +101,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ Error en Proceso:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
