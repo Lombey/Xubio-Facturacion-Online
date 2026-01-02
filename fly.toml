@@ -5,7 +5,7 @@ app = "xubio-login"
 primary_region = "gru" # São Paulo (más cercano a Argentina)
 
 [build]
-  dockerfile = "fly-login/Dockerfile"
+  dockerfile = "Dockerfile.fly"
 
 [env]
   PORT = "8080"
