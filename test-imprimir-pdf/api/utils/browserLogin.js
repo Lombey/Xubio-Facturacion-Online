@@ -32,7 +32,7 @@ export async function loginToXubio(credentials) {
     browser = await playwrightChromium.launch({
       args: chromiumPkg.args,
       executablePath: await chromiumPkg.executablePath(),
-      headless: chromiumPkg.headless || true
+      headless: true
     });
 
     const context = await browser.newContext({

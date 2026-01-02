@@ -35,7 +35,7 @@ export async function loginToXubio(credentials) {
     browser = await chromium.launch({
       args: isProduction ? chromiumPkg.args : [],
       executablePath: isProduction ? await chromiumPkg.executablePath() : undefined,
-      headless: chromiumPkg.headless || true
+      headless: true
     });
 
     const context = await browser.newContext({
