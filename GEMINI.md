@@ -1,32 +1,24 @@
 # Gemini Project Memory: Sheets con xubio
 
 ## Project Overview
-This project appears to be a web application integrating with Xubio (likely for invoicing/billing), using Vue.js for the frontend.
+Infraestructura de API para integrar Google Sheets con Xubio.
 - **Root Path:** `C:\dev\Sheets con xubio`
-- **Frontend App:** Located in `test-imprimir-pdf/` (Vue.js + Vite).
-- **API/Backend:** `api/` folder suggests serverless functions or a light backend proxy.
+- **Plataforma:** Vercel (Node.js Serverless).
+- **Status:** Refactorización a API Oficial (Bearer Token).
 
-## Environment
-- **OS:** Windows (win32)
-- **Shell:** PowerShell / cmd (Windows commands preferred as per `.cursor/rules/entorno.mdc`)
+## ⚠️ Dead Ends
+- **Fly.io / Puppeteer:** Descartado el 2 de enero de 2026. Visma Connect bloquea IPs de datacenters (EZE, SCL, GRU, DFW, IAD) mostrando errores de sistema falsos. No es viable mantener sesión vía simulación de navegador en infraestructura cloud para este caso.
 
-## Documentation Structure
-Adhering to `.cursor/rules/documentos.mdc`, documentation is centralied in `test-imprimir-pdf/docs/`:
-- `ADRS/`: Architectural Decision Records.
-- `Consulta APIs/`: External API docs (Xubio).
-- `Guias/`: Guides.
-- `analisis/`: Analysis of flows and fields.
-- `planes/`: Plans and tasks.
+## Active Strategy
+1.  **Autenticación**: Uso de `api/auth.js` con ClientID y SecretID oficiales.
+2.  **Facturación**: Migración de `api/crear-factura.js` para usar el Token de la API oficial.
+3.  **Híbrido**: Evaluar si el método XML Legacy funciona con Bearer Token, o si se debe pulir el JSON de la REST API.
 
-## Active Context & Plans
-- **Refactoring:** `test-imprimir-pdf/planes/refactor-app-js.md` and `docs/ADRS/ADR-005-refactorizacion-app-js-y-sistema-logging.md` indicate active work on refactoring `app.js` and logging.
-- **Facturación:** `docs/analisis/tasks_facturacion.md` tracks billing-related tasks.
+## Environment & Secrets
+- **Vercel Secrets**: `XUBIO_CLIENT_ID`, `XUBIO_SECRET_ID`, `XUBIO_USERNAME`, `XUBIO_PASSWORD`.
+- **SDK**: Localizado en `sdk/`, diseñado para ser modular.
 
-## Key Technologies
-- **Frontend:** Vue.js, Vite.
-- **Testing:** Vitest (`vitest.config.js`).
-- **Linting:** ESLint (`eslint.config.cjs`).
-
-## Notes
-- Use `mcp-tasks` for managing technical backlog if needed.
-- Refer to `docs/` for deep context on architecture and flows.
+## Key Files
+- `api/auth.js`: Punto de entrada para tokens.
+- `api/crear-factura.js`: Endpoint principal de negocio.
+- `sdk/xubioClient.js`: Cliente base para peticiones autenticadas.

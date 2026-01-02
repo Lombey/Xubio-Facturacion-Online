@@ -1,185 +1,42 @@
 /**
- * Crear Factura Endpoint - Vercel Serverless
- *
- * Endpoint principal para crear facturas en Xubio
- * Flujo: Obtener cookies (cache o Fly.io) → Construir XML → POST a Xubio
- *
- * URL: https://tu-app.vercel.app/api/crear-factura
- * Método: POST
- * Payload: { clienteId, clienteNombre, provinciaId, provinciaNombre, localidadId, localidadNombre, cantidad }
+ * Crear Factura Endpoint (Vercel) - Híbrido XML + Token Oficial
+ * 
+ * Intenta enviar el XML Legacy usando el Bearer Token oficial.
  */
 
-import { getSessionCookies } from './utils/flyLogin.js';
-import { cookiesToString } from './utils/cookieCache.js';
+import { getOfficialToken } from './utils/tokenManager.js';
 import { buildXMLPayload } from './utils/buildXMLPayload.js';
 
 /**
- * Obtiene cotización USD desde API del BCRA
- * @returns {Promise<number>} Cotización USD oficial
+ * Obtiene cotización USD (fallback a valor fijo si falla)
  */
-async function obtenerCotizacionBCRA() {
+async function obtenerCotizacion() {
   try {
-    console.log('💱 [FACTURA] Consultando cotización BCRA...');
-
-    const response = await fetch('https://api.estadisticasbcra.com/usd_of', {
-      headers: {
-        'Authorization': 'BEARER ' // API pública sin token requerido
-      }
+    const res = await fetch('https://api.estadisticasbcra.com/usd_of', { 
+      headers: { 'Authorization': 'BEARER ' }
     });
-
-    const data = await response.json();
-    const ultimaCotizacion = data[data.length - 1].v;
-
-    console.log(`💱 [FACTURA] Cotización USD: $${ultimaCotizacion}`);
-
-    return parseFloat(ultimaCotizacion);
-
-  } catch (error) {
-    console.warn('⚠️ [FACTURA] Error al obtener cotización BCRA:', error.message);
-    console.warn('⚠️ [FACTURA] Usando cotización por defecto: 1455');
-    return 1455; // Fallback
+    const data = await res.json();
+    return parseFloat(data[data.length - 1].v);
+  } catch (e) {
+    return 1455; 
   }
 }
 
-/**
- * Envía factura XML a Xubio usando cookies de sesión
- *
- * @param {string} xmlPayload - Payload XML de la factura
- * @param {string} cookieHeader - Header Cookie con sesión
- * @returns {Promise<string>} Response de Xubio
- */
-async function enviarFacturaXubio(xmlPayload, cookieHeader) {
-  const url = 'https://xubio.com/NXV/DF_submit';
-
-  // El body debe ser URL-encoded como "body=<df>...</df>"
-  const bodyEncoded = 'body=' + encodeURIComponent(xmlPayload);
-
-  console.log('📤 [FACTURA] Enviando a /NXV/DF_submit...');
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      'Cookie': cookieHeader,
-      'Accept': '*/*',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    },
-    body: bodyEncoded
-  });
-
-  const responseText = await response.text();
-
-  console.log('📥 [FACTURA] Response Code:', response.status);
-  console.log('📥 [FACTURA] Response (primeros 500 chars):', responseText.substring(0, 500));
-
-  if (!response.ok) {
-    throw new Error(`Error HTTP ${response.status}: ${responseText}`);
-  }
-
-  // Verificar si hay errores en la respuesta XML
-  if (responseText.includes('<error>')) {
-    const errorMatch = responseText.match(/<error>(.*?)<\/error>/);
-    const errorMsg = errorMatch ? errorMatch[1] : 'Error desconocido en respuesta XML';
-    throw new Error(`Error de Xubio: ${errorMsg}`);
-  }
-
-  return responseText;
-}
-
-/**
- * Parsea la respuesta XML de Xubio para extraer datos de la factura
- *
- * @param {string} xmlResponse - Response XML de Xubio
- * @returns {Object} Datos parseados de la factura
- */
-function parsearRespuestaXubio(xmlResponse) {
-  try {
-    // Extraer TransaccionID del XML
-    // Formato típico: <transaccionid value="123456"/>
-    const transaccionIdMatch = xmlResponse.match(/<transaccionid[^>]*value="([^"]+)"/);
-    const transaccionId = transaccionIdMatch ? transaccionIdMatch[1] : null;
-
-    // Extraer NumeroDocumento
-    const numeroDocMatch = xmlResponse.match(/<NumeroDocumento[^>]*value="([^"]+)"/);
-    const numeroDocumento = numeroDocMatch ? numeroDocMatch[1] : 'Desconocido';
-
-    // Extraer Total
-    const totalMatch = xmlResponse.match(/<M_ImporteTotal[^>]*value="([^"]+)"/);
-    const total = totalMatch ? parseFloat(totalMatch[1]) : 0;
-
-    if (!transaccionId || transaccionId === '0') {
-      console.warn('⚠️ [FACTURA] No se encontró TransaccionID válido en respuesta');
-      console.warn('Response XML:', xmlResponse.substring(0, 1000));
-    }
-
-    return {
-      transaccionId: transaccionId,
-      numeroDocumento: numeroDocumento,
-      total: total,
-      pdfUrl: transaccionId ? `https://xubio.com/NXV/transaccion/ver/${transaccionId}` : null
-    };
-
-  } catch (error) {
-    console.error('❌ [FACTURA] Error al parsear respuesta XML:', error.message);
-    throw new Error('Error al procesar respuesta de Xubio: ' + error.message);
-  }
-}
-
-/**
- * Handler principal del endpoint
- */
 export default async function handler(req, res) {
-  // Solo permitir POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({
-      error: 'Method not allowed',
-      message: 'Solo se permite método POST'
-    });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  console.log('📋 [FACTURA] Iniciando creación de factura...');
+  console.log('📝 [FACTURA] Iniciando proceso híbrido (XML + Token)...');
 
   try {
-    // 1. Validar input
-    const {
-      clienteId,
-      clienteNombre,
-      provinciaId,
-      provinciaNombre,
-      localidadId,
-      localidadNombre,
-      cantidad = 1
-    } = req.body;
+    const { clienteId, clienteNombre, provinciaId, provinciaNombre, localidadId, localidadNombre, cantidad = 1 } = req.body;
 
-    if (!clienteId || !clienteNombre || !provinciaId || !provinciaNombre || !localidadId || !localidadNombre) {
-      return res.status(400).json({
-        error: 'Missing parameters',
-        message: 'Faltan parámetros requeridos: clienteId, clienteNombre, provinciaId, provinciaNombre, localidadId, localidadNombre'
-      });
-    }
+    // 1. Obtener Token Oficial
+    const token = await getOfficialToken();
 
-    // 2. Obtener credenciales
-    const username = process.env.XUBIO_USERNAME;
-    const password = process.env.XUBIO_PASSWORD;
+    // 2. Obtener Cotización
+    const cotizacionUSD = await obtenerCotizacion();
 
-    if (!username || !password) {
-      return res.status(500).json({
-        error: 'Missing credentials',
-        message: 'Variables de entorno XUBIO_USERNAME y XUBIO_PASSWORD no configuradas'
-      });
-    }
-
-    // 3. Obtener cookies de sesión (usa cache o Fly.io si es necesario)
-    console.log('🔐 [FACTURA] Paso 1: Obtener cookies de sesión...');
-    const cookies = await getSessionCookies({ username, password });
-    const cookieHeader = cookiesToString(cookies);
-
-    // 4. Obtener cotización USD
-    console.log('💱 [FACTURA] Paso 2: Obtener cotización USD...');
-    const cotizacionUSD = await obtenerCotizacionBCRA();
-
-    // 5. Construir XML
-    console.log('🏗️ [FACTURA] Paso 3: Construir payload XML...');
+    // 3. Construir XML Legacy
     const xmlPayload = buildXMLPayload({
       cliente: {
         id: parseInt(clienteId),
@@ -193,40 +50,62 @@ export default async function handler(req, res) {
       cotizacionUSD
     });
 
-    // 6. Enviar a Xubio
-    console.log('📤 [FACTURA] Paso 4: Enviar a Xubio...');
-    const responseXML = await enviarFacturaXubio(xmlPayload, cookieHeader);
+    // 4. Intentar envío a endpoint Legacy usando Bearer Token
+    console.log('📤 [FACTURA] Enviando XML a /NXV/DF_submit con Bearer Token...');
+    
+    const bodyEncoded = 'body=' + encodeURIComponent(xmlPayload);
+    const response = await fetch('https://xubio.com/NXV/DF_submit', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        'Accept': '*/*'
+      },
+      body: bodyEncoded
+    });
 
-    // 7. Parsear respuesta
-    console.log('📊 [FACTURA] Paso 5: Parsear respuesta...');
-    const resultado = parsearRespuestaXubio(responseXML);
+    const responseText = await response.text();
+    console.log(`📥 [FACTURA] Status: ${response.status}`);
 
-    console.log('✅ [FACTURA] Factura creada exitosamente');
-    console.log('TransaccionID:', resultado.transaccionId);
-    console.log('Número:', resultado.numeroDocumento);
+    // DIAGNÓSTICO: Si no es 200, ¿por qué?
+    if (!response.ok) {
+      console.error('❌ [FACTURA] Error del servidor:', responseText.substring(0, 500));
+      
+      // Si recibimos un 302 o un 401/403, es que el endpoint legacy NO acepta Bearer Token
+      if ([302, 401, 403].includes(response.status)) {
+        throw new Error('EL endpoint Legacy no acepta el Token oficial. Debemos usar la API REST JSON corregida.');
+      }
+      
+      throw new Error(`Xubio devolvió error ${response.status}`);
+    }
 
-    // 8. Retornar resultado
+    // 5. Verificar si hay errores XML dentro de la respuesta exitosa (típico de Xubio)
+    if (responseText.includes('<error>')) {
+      const errorMatch = responseText.match(/<error>(.*?)<\/error>/);
+      throw new Error(`Error de Xubio (XML): ${errorMatch ? errorMatch[1] : 'Desconocido'}`);
+    }
+
+    // 6. Parsear éxito
+    const transaccionIdMatch = responseText.match(/<transaccionid[^>]*value="([^"]+)"/);
+    const transaccionId = transaccionIdMatch ? transaccionIdMatch[1] : null;
+
+    console.log('✅ [FACTURA] Creada con ID:', transaccionId);
+
     return res.status(200).json({
       success: true,
-      message: 'Factura creada exitosamente',
       data: {
-        transaccionId: resultado.transaccionId,
-        numeroDocumento: resultado.numeroDocumento,
-        total: resultado.total,
-        pdfUrl: resultado.pdfUrl,
-        cotizacion: cotizacionUSD,
-        cantidad: cantidad
+        transaccionId,
+        pdfUrl: `https://xubio.com/NXV/transaccion/ver/${transaccionId}`,
+        metodo: 'XML-Hybrid'
       }
     });
 
   } catch (error) {
-    console.error('❌ [FACTURA] Error al crear factura:', error.message);
-    console.error(error.stack);
-
-    return res.status(500).json({
-      success: false,
+    console.error('❌ [FACTURA] Error:', error.message);
+    return res.status(500).json({ 
+      success: false, 
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      hint: error.message.includes('Token') ? 'Estamos probando si el endpoint acepta el token.' : undefined
     });
   }
 }
