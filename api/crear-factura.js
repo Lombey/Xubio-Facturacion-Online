@@ -1,7 +1,7 @@
 /**
- * Crear Factura Endpoint (Vercel) - MODO AUTOMÁTICO
+ * Crear Factura Endpoint (Vercel) - GOLDEN JSON
  * 
- * Basado en el Discovery real: Punto de Venta 212819 (Automático)
+ * Basado en el Discovery exitoso de Lista de Precio 15386.
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
@@ -33,13 +33,13 @@ export default async function handler(req, res) {
     const token = await getOfficialToken();
     const cotizacionUSD = await obtenerCotizacion();
 
-    // Lógica de Precios
+    // Valores calculados
     const PRECIO_UNITARIO = 490;
     const subtotal = PRECIO_UNITARIO * parseFloat(cantidad);
     const iva = parseFloat((subtotal * 0.21).toFixed(2));
     const total = subtotal + iva;
 
-    // PAYLOAD MINIMALISTA (Para Punto de Venta Automático)
+    // PAYLOAD CLONADO DEL GOLDEN TEMPLATE
     const payload = {
       circuitoContable: { ID: -2 }, 
       comprobante: 1, 
@@ -47,8 +47,10 @@ export default async function handler(req, res) {
       cliente: { cliente_id: parseInt(clienteId) },
       fecha: new Date().toISOString().split('T')[0],
       fechaVto: new Date().toISOString().split('T')[0],
-      condicionDePago: 2, // Contado
-      puntoVenta: { ID: 212819 }, // corvusweb srl
+      condicionDePago: 7, // "Otra" (Igual que el XML)
+      puntoVenta: { ID: 212819 }, 
+      talonario: { ID: 11290129 }, // Incluimos el talonario del XML
+      listaDePrecio: { ID: 15386 }, // Confirmado por Discovery
       vendedor: { ID: 0 },
       deposito: { ID: -2 }, 
       
@@ -59,16 +61,16 @@ export default async function handler(req, res) {
         producto: { ID: 2751338 },
         iva: iva,
         importe: subtotal,
-        total: total
-        // centroDeCosto: eliminado por ser opcional y probable causa de error
+        total: total,
+        centroDeCosto: null // Lo dejamos null como en el XML
       }],
 
-      moneda: { ID: -3 }, // Dólares
+      moneda: { ID: -3 }, 
       cotizacion: cotizacionUSD,
       cotizacionListaDePrecio: 1,
       utilizaMonedaExtranjera: 1,
 
-      // Campos requeridos inicializados en cero/vacío
+      // Campos técnicos obligatorios
       cantComprobantesCancelados: 0,
       cantComprobantesEmitidos: 0,
       cbuinformada: 0,
@@ -78,7 +80,7 @@ export default async function handler(req, res) {
       transaccionPercepcionItems: []
     };
 
-    console.log('📤 Enviando JSON minimalista a Xubio...');
+    console.log('📤 Enviando JSON alineado con Golden Template...');
     
     const response = await fetch('https://xubio.com/API/1.1/comprobanteVentaBean', {
       method: 'POST',
@@ -93,8 +95,8 @@ export default async function handler(req, res) {
     const responseData = await response.json();
     
     if (!response.ok) {
-      console.error('❌ Error de Xubio:', responseData);
-      throw new Error(responseData.message || responseData.error || `Error ${response.status}`);
+      console.error('❌ Error Detallado:', JSON.stringify(responseData));
+      throw new Error(responseData.message || responseData.error || `Error Xubio ${response.status}`);
     }
 
     return res.status(200).json({
@@ -102,13 +104,12 @@ export default async function handler(req, res) {
       data: {
         transaccionId: responseData.transaccionId || responseData.ID,
         numeroDocumento: responseData.numeroDocumento,
-        total: responseData.total || total,
         pdfUrl: `https://xubio.com/NXV/transaccion/ver/${responseData.transaccionId || responseData.ID}`
       }
     });
 
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('❌ Error en Proceso:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
