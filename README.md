@@ -20,7 +20,7 @@ Este repositorio es un **Laboratorio de Pruebas** diseñado para realizar ingeni
 
 ## 🔬 Anatomía del Experimento
 
-El valor real del proyecto reside en la carpeta `test-imprimir-pdf/sdk/`, la cual está diseñada para ser agnóstica a la interfaz:
+El valor real del proyecto reside en la carpeta `/sdk/`, la cual está diseñada para ser agnóstica a la interfaz:
 
 - **`sdk/xubioClient.js`**: Cliente base para autenticación y peticiones.
 - **`sdk/facturaService.js`**: Lógica de construcción de payloads para facturación.
@@ -43,10 +43,11 @@ El valor real del proyecto reside en la carpeta `test-imprimir-pdf/sdk/`, la cua
 ## 📁 Estructura del Repositorio
 
 ```
-├── sdk/                # CEREBRO: Lógica portable para AppSheet/Node.js
-├── api/                # Proxy Serverless para evitar CORS (Vercel)
-├── test-imprimir-pdf/  # UI de Laboratorio (Vue.js + Vite)
-└── docs/               # Análisis detallado de campos y flujos
+├── sdk/                    # CEREBRO: Lógica portable para AppSheet/Node.js
+├── api/                    # Endpoints Serverless (Vercel Functions)
+├── apps-script/            # Google Apps Script para integración con AppSheet
+├── docs/                   # Análisis detallado de campos y flujos
+└── archive/                # Proyectos legacy archivados
 ```
 
 ---

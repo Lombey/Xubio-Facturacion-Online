@@ -71,10 +71,10 @@ module.exports = [
   // Ignorar node_modules, dist y archivos generados
   {
     ignores: [
-      'node_modules/**', 
-      'dist/**', 
+      'node_modules/**',
+      'dist/**',
       '**/dist/**',
-      'test-imprimir-pdf/dist/**',
+      'archive/**',
       '.vercel/**',
       '*.min.js',
       '*.bundle.js'

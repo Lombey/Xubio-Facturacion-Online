@@ -19,14 +19,14 @@
   },
   "include": [
     "api/**/*",
-    "test-imprimir-pdf/**/*",
-    "test-imprimir-pdf/assets/vue-global.d.ts"
+    "sdk/**/*",
+    "apps-script/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/dist/**",
-    "test-imprimir-pdf/dist/**"
+    "archive/**"
   ]
 }
 

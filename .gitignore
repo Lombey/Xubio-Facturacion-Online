@@ -20,7 +20,6 @@ node_modules/
 
 # Builds generados (Vercel hace su propio build)
 dist/
-test-imprimir-pdf/dist/
 
 # Cache
 .vite/
@@ -31,7 +30,6 @@ test-imprimir-pdf/dist/
 coverage/
 
 # Documentación cerrada/archivada
-test-imprimir-pdf/docs/cerrados/
 docs/cerrados/
 cerrados/
 
