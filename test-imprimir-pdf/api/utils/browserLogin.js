@@ -5,7 +5,7 @@
  * Xubio redirige a Visma Connect para autenticación OAuth
  */
 
-import chromium from '@sparticuz/chromium';
+import chromiumPkg from '@sparticuz/chromium';
 import { chromium as playwrightChromium } from 'playwright-core';
 
 /**
@@ -24,18 +24,15 @@ export async function loginToXubio(credentials) {
   let browser = null;
 
   try {
+    // Configurar @sparticuz/chromium para Vercel
+    // CRÍTICO: Deshabilitar modo gráfico en Vercel
+    chromiumPkg.setGraphicsMode = false;
+
     // Lanzar browser headless optimizado para Vercel/AWS Lambda
     browser = await playwrightChromium.launch({
-      args: [
-        ...chromium.args,
-        '--disable-dev-shm-usage',      // Reduce uso de /dev/shm
-        '--disable-gpu',                 // Sin GPU en serverless
-        '--single-process',              // Un solo proceso (ahorra RAM)
-        '--no-zygote',                   // Sin proceso zygote
-        '--disable-setuid-sandbox'       // Sin sandbox (serverless seguro)
-      ],
-      executablePath: await chromium.executablePath(),
-      headless: chromium.headless
+      args: chromiumPkg.args,
+      executablePath: await chromiumPkg.executablePath(),
+      headless: chromiumPkg.headless || true
     });
 
     const context = await browser.newContext({

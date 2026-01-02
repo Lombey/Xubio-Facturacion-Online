@@ -6,7 +6,7 @@
  */
 
 import { chromium } from 'playwright-core';
-import chromiumBinary from '@sparticuz/chromium';
+import chromiumPkg from '@sparticuz/chromium';
 
 /**
  * Realiza login a Xubio usando Playwright y retorna cookies de sesión
@@ -24,21 +24,18 @@ export async function loginToXubio(credentials) {
   let browser = null;
 
   try {
-    // Lanzar browser headless optimizado para Vercel (serverless)
-    // @sparticuz/chromium proporciona un binario Chromium optimizado para entornos serverless
+    // Configurar @sparticuz/chromium para Vercel
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
-    
+
+    if (isProduction) {
+      // CRÍTICO: Deshabilitar modo gráfico en Vercel
+      chromiumPkg.setGraphicsMode = false;
+    }
+
     browser = await chromium.launch({
-      args: isProduction ? [
-        ...chromiumBinary.args,
-        '--disable-dev-shm-usage',      // Reduce uso de /dev/shm
-        '--disable-gpu',                 // Sin GPU en serverless
-        '--single-process',              // Un solo proceso (ahorra RAM)
-        '--no-zygote',                   // Sin proceso zygote
-        '--disable-setuid-sandbox'       // Sin sandbox (serverless seguro)
-      ] : [],
-      executablePath: isProduction ? await chromiumBinary.executablePath() : undefined,
-      headless: true
+      args: isProduction ? chromiumPkg.args : [],
+      executablePath: isProduction ? await chromiumPkg.executablePath() : undefined,
+      headless: chromiumPkg.headless || true
     });
 
     const context = await browser.newContext({
