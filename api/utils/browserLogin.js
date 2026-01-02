@@ -1,12 +1,15 @@
 /**
- * Browser Login Utility - Puppeteer + @sparticuz/chromium
+ * Browser Login Utility - Puppeteer + @sparticuz/chromium-min
  *
  * Maneja el login a Xubio usando Puppeteer para obtener cookies de sesión
  * Xubio redirige a Visma Connect para autenticación OAuth
+ *
+ * Usa chromium-min que descarga el binario desde GitHub CDN en runtime
+ * para evitar problemas de dependencias del sistema (libnss3.so, etc.)
  */
 
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
 
 /**
  * Realiza login a Xubio usando Puppeteer y retorna cookies de sesión
@@ -27,17 +30,20 @@ export async function loginToXubio(credentials) {
     // Configurar para Vercel serverless
     const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
 
-    // Configuración optimizada para Vercel
+    // Configuración optimizada para Vercel con chromium-min
     const launchOptions = isProduction ? {
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(
+        // URL del binario desde GitHub CDN - v143.0.0 (x64 para Vercel)
+        'https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.x64.tar'
+      ),
       headless: chromium.headless,
     } : {
       headless: true
     };
 
-    console.log('🚀 Lanzando browser...');
+    console.log('🚀 Lanzando browser con chromium-min (CDN download)...');
     browser = await puppeteer.launch(launchOptions);
 
     const page = await browser.newPage();
