@@ -1,7 +1,7 @@
 /**
- * Crear Factura Endpoint (Vercel) - API REST OFICIAL (JSON)
+ * Crear Factura Endpoint (Vercel) - MODO AUTOMÁTICO
  * 
- * Traduce la lógica del "Golden Template" XML al formato JSON oficial.
+ * Basado en el Discovery real: Punto de Venta 212819 (Automático)
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
@@ -33,45 +33,42 @@ export default async function handler(req, res) {
     const token = await getOfficialToken();
     const cotizacionUSD = await obtenerCotizacion();
 
-    // VALORES DEL GOLDEN TEMPLATE (Traducidos a JSON)
+    // Lógica de Precios
     const PRECIO_UNITARIO = 490;
     const subtotal = PRECIO_UNITARIO * parseFloat(cantidad);
     const iva = parseFloat((subtotal * 0.21).toFixed(2));
     const total = subtotal + iva;
 
-    // PAYLOAD JSON OFICIAL (Validado contra Swagger de Xubio)
+    // PAYLOAD MINIMALISTA (Para Punto de Venta Automático)
     const payload = {
-      circuitoContable: { ID: -2 }, // default
-      comprobante: 1, // Factura
-      tipo: 1, // Factura A
+      circuitoContable: { ID: -2 }, 
+      comprobante: 1, 
+      tipo: 1, 
       cliente: { cliente_id: parseInt(clienteId) },
       fecha: new Date().toISOString().split('T')[0],
       fechaVto: new Date().toISOString().split('T')[0],
-      condicionDePago: 2, // Contado (Valor estándar en API REST)
+      condicionDePago: 2, // Contado
       puntoVenta: { ID: 212819 }, // corvusweb srl
-      talonario: { ID: 11290129 }, // Facturas de Venta A
       vendedor: { ID: 0 },
-      deposito: { ID: -2 }, // Depósito Universal
+      deposito: { ID: -2 }, 
       
-      // Items de Producto
       transaccionProductoItems: [{
         cantidad: parseFloat(cantidad),
         precio: PRECIO_UNITARIO,
-        descripcion: "CONECTIVIDAD ANUAL POR TOLVA - Incluye Licencia para uso de un equipo por un año",
+        descripcion: "CONECTIVIDAD ANUAL POR TOLVA",
         producto: { ID: 2751338 },
         iva: iva,
         importe: subtotal,
-        total: total,
-        centroDeCosto: { ID: 1 } // IMPORTANTE: Valor requerido en API REST
+        total: total
+        // centroDeCosto: eliminado por ser opcional y probable causa de error
       }],
 
-      // Moneda
       moneda: { ID: -3 }, // Dólares
       cotizacion: cotizacionUSD,
       cotizacionListaDePrecio: 1,
       utilizaMonedaExtranjera: 1,
 
-      // Campos obligatorios para evitar errores de validación
+      // Campos requeridos inicializados en cero/vacío
       cantComprobantesCancelados: 0,
       cantComprobantesEmitidos: 0,
       cbuinformada: 0,
@@ -81,7 +78,7 @@ export default async function handler(req, res) {
       transaccionPercepcionItems: []
     };
 
-    console.log('📤 Enviando a API REST Oficial...');
+    console.log('📤 Enviando JSON minimalista a Xubio...');
     
     const response = await fetch('https://xubio.com/API/1.1/comprobanteVentaBean', {
       method: 'POST',
@@ -94,10 +91,10 @@ export default async function handler(req, res) {
     });
 
     const responseData = await response.json();
-    console.log(`📥 Status: ${response.status}`);
-
+    
     if (!response.ok) {
-      throw new Error(responseData.message || responseData.error || `Error Xubio ${response.status}`);
+      console.error('❌ Error de Xubio:', responseData);
+      throw new Error(responseData.message || responseData.error || `Error ${response.status}`);
     }
 
     return res.status(200).json({
@@ -105,12 +102,13 @@ export default async function handler(req, res) {
       data: {
         transaccionId: responseData.transaccionId || responseData.ID,
         numeroDocumento: responseData.numeroDocumento,
+        total: responseData.total || total,
         pdfUrl: `https://xubio.com/NXV/transaccion/ver/${responseData.transaccionId || responseData.ID}`
       }
     });
 
   } catch (error) {
-    console.error('❌ Error API REST:', error.message);
+    console.error('❌ Error:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
