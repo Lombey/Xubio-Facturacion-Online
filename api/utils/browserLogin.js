@@ -58,17 +58,31 @@ export async function loginToXubio(credentials) {
       timeout: 30000
     });
 
-    // 2. Esperar formulario de login de Visma Connect
-    console.log('⏳ Esperando formulario de login...');
+    // 2. PASO 1: Esperar campo de email
+    console.log('⏳ Esperando campo de email...');
     await page.waitForSelector('input#Username', { timeout: 15000 });
 
-    // 3. Completar formulario
-    console.log('✍️ Completando credenciales...');
+    // 3. Completar email
+    console.log('✍️ Ingresando email...');
     await page.type('input#Username', username);
+
+    // 4. Click "Continuar" y esperar navegación al paso 2
+    console.log('🚀 Click en "Continuar"...');
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
+      page.click('#LoginButton')
+    ]);
+
+    // 5. PASO 2: Esperar campo de password
+    console.log('⏳ Esperando campo de password...');
+    await page.waitForSelector('input#Password', { timeout: 15000 });
+
+    // 6. Completar password
+    console.log('✍️ Ingresando password...');
     await page.type('input#Password', password);
 
-    // 4. Submit form y esperar navegación
-    console.log('🚀 Enviando formulario...');
+    // 7. Click "Iniciar sesión" y esperar navegación final
+    console.log('🚀 Click en "Iniciar sesión"...');
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
       page.click('#LoginButton')
