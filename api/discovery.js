@@ -1,25 +1,21 @@
 /**
- * Discovery Endpoint - Vercel
- * 
- * Permite consultar recursos de Xubio para obtener IDs reales.
- * Uso: /api/discovery?resource=puntoVentaBean
+ * Discovery Endpoint - Vercel (Robust Version)
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  
-  const { resource = 'puntoVentaBean', ...params } = req.query;
+  const { resource, ...params } = req.query;
+
+  if (!resource) return res.status(400).json({ error: 'Falta parámetro resource' });
 
   try {
     const token = await getOfficialToken();
-    
-    // Construir URL de consulta
     const queryParams = new URLSearchParams(params).toString();
     const url = `https://xubio.com/API/1.1/${resource}${queryParams ? '?' + queryParams : ''}`;
     
-    console.log(`🔍 [DISCOVERY] Consultando ${resource}...`);
+    console.log(`🔍 [DISCOVERY] Llamando a: ${url}`);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -29,17 +25,26 @@ export default async function handler(req, res) {
       }
     });
 
-    const data = await response.json();
-
-    return res.status(200).json({
-      success: true,
-      resource,
-      count: Array.isArray(data) ? data.length : 1,
-      data: data
-    });
+    const text = await response.text();
+    
+    try {
+      const data = JSON.parse(text);
+      return res.status(response.status).json({
+        success: response.ok,
+        status: response.status,
+        data: data
+      });
+    } catch (e) {
+      // Si no es JSON, devolvemos el texto (probablemente error HTML de Xubio)
+      return res.status(response.status).json({
+        success: false,
+        status: response.status,
+        error: 'Xubio devolvió HTML (posible error 500 interno)',
+        raw: text.substring(0, 500)
+      });
+    }
 
   } catch (error) {
-    console.error('❌ Error en Discovery:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

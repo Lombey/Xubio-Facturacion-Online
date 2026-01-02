@@ -3,76 +3,38 @@
 /* global Logger, UrlFetchApp */
 
 /**
- * Xubio Discovery - Apps Script
- * 
- * Este script contiene funciones para CONSULTAR los IDs reales de tu Xubio.
- * Úsalo para mapear Puntos de Venta, Productos y Clientes.
+ * Xubio Discovery - Versión 2.0 (Proxy Fallback)
  */
 
-// CONFIGURACIÓN: URL de tu proyecto en Vercel
 const VERCEL_BASE = 'https://xubio-facturacion-online.vercel.app';
 
 /**
- * Consulta genérica al sistema de descubrimiento
+ * BUSCAR PRODUCTO POR NOMBRE (Usando el Proxy para evitar errores 500)
  */
-function consultarRecurso(resource, params = '') {
-  const url = VERCEL_BASE + '/api/discovery?resource=' + resource + params;
+function buscarProductoFiltro(nombre) {
+  const url = VERCEL_BASE + '/api/proxy?path=/productoBean&nombre=' + encodeURIComponent(nombre);
+  Logger.log('🔍 Buscando producto: ' + nombre);
   
-  Logger.log('🔍 Consultando: ' + resource + '...');
-  
-  try {
-    const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-    const data = JSON.parse(response.getContentText());
-    
-    if (data.success) {
-      Logger.log('✅ Datos obtenidos de ' + resource + ':');
-      Logger.log(JSON.stringify(data.data, null, 2));
-      return data.data;
-    } else {
-      Logger.log('❌ Error: ' + data.error);
-    }
-  } catch (e) {
-    Logger.log('❌ Error de conexión: ' + e.toString());
-  }
-}
-
-/**
- * LISTAR PUNTOS DE VENTA
- * Ejecuta esto para ver tus IDs de Punto de Venta y Talonarios
- */
-function descubrirPuntosDeVenta() {
-  consultarRecurso('puntoVentaBean');
-}
-
-/**
- * LISTAR PRODUCTOS
- * Muestra los primeros 10 productos para obtener sus IDs
- */
-function descubrirProductos() {
-  consultarRecurso('productoBean', '&maxResults=10');
-}
-
-/**
- * LISTAR LISTAS DE PRECIO
- */
-function descubrirListasPrecio() {
-  consultarRecurso('listaPrecioBean');
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  Logger.log('Resultado: ' + res.getContentText());
 }
 
 /**
  * BUSCAR CLIENTE POR NOMBRE
- * Ejemplo: buscarCliente('2MCAMPO')
  */
-function buscarClientePorNombre(nombre) {
-  consultarRecurso('organizacionBean', '&nombre=' + encodeURIComponent(nombre));
+function buscarClienteFiltro(nombre) {
+  const url = VERCEL_BASE + '/api/proxy?path=/organizacionBean&nombre=' + encodeURIComponent(nombre);
+  Logger.log('🔍 Buscando cliente: ' + nombre);
+  
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  Logger.log('Resultado: ' + res.getContentText());
 }
 
 /**
- * CONSULTA LIBRE (Proxy)
- * Úsala para cualquier endpoint de la API oficial
+ * LISTAR PUNTOS DE VENTA (Confirmar IDs)
  */
-function consultaLibreProxy(path) {
-  const url = VERCEL_BASE + '/api/proxy?path=' + path;
+function descubrirPuntosDeVenta() {
+  const url = VERCEL_BASE + '/api/discovery?resource=puntoVentaBean';
   const res = UrlFetchApp.fetch(url);
-  Logger.log(res.getContentText());
+  Logger.log('Puntos de Venta: ' + res.getContentText());
 }
