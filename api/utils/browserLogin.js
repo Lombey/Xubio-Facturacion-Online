@@ -66,16 +66,13 @@ export async function loginToXubio(credentials) {
     console.log('✍️ Ingresando email...');
     await page.type('input#Username', username);
 
-    // 4. Click "Continuar" y esperar navegación al paso 2
+    // 4. Click "Continuar"
     console.log('🚀 Click en "Continuar"...');
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
-      page.click('#LoginButton')
-    ]);
+    await page.click('#LoginButton');
 
-    // 5. PASO 2: Esperar campo de password
+    // 5. PASO 2: Esperar que aparezca campo de password (puede ser mismo URL)
     console.log('⏳ Esperando campo de password...');
-    await page.waitForSelector('input#Password', { timeout: 15000 });
+    await page.waitForSelector('input#Password', { visible: true, timeout: 20000 });
 
     // 6. Completar password
     console.log('✍️ Ingresando password...');
@@ -83,10 +80,14 @@ export async function loginToXubio(credentials) {
 
     // 7. Click "Iniciar sesión" y esperar navegación final
     console.log('🚀 Click en "Iniciar sesión"...');
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
-      page.click('#LoginButton')
-    ]);
+    await page.click('#LoginButton');
+
+    // Esperar que redirija a xubio.com (verificar URL cambia)
+    console.log('⏳ Esperando redirección a xubio.com...');
+    await page.waitForFunction(
+      () => window.location.href.includes('xubio.com') && !window.location.href.includes('visma'),
+      { timeout: 30000 }
+    );
 
     // 5. Verificar que llegamos a Xubio (no más en Visma Connect)
     const currentUrl = page.url();
