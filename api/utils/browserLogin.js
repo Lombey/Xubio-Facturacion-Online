@@ -51,16 +51,16 @@ export async function loginToXubio(credentials) {
     // Configurar User-Agent
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // 1. Navegar a Xubio (auto-redirige a Visma Connect)
-    console.log('📍 Navegando a xubio.com...');
-    await page.goto('https://xubio.com', {
-      waitUntil: 'networkidle0',
+    // 1. Navegar a endpoint de login de Xubio (auto-redirige a Visma Connect)
+    console.log('📍 Navegando a xubio.com/NXV/vismaConnect/login...');
+    await page.goto('https://xubio.com/NXV/vismaConnect/login', {
+      waitUntil: 'networkidle2',
       timeout: 30000
     });
 
     // 2. Esperar formulario de login de Visma Connect
     console.log('⏳ Esperando formulario de login...');
-    await page.waitForSelector('input#Username', { timeout: 10000 });
+    await page.waitForSelector('input#Username', { timeout: 15000 });
 
     // 3. Completar formulario
     console.log('✍️ Completando credenciales...');
@@ -70,8 +70,8 @@ export async function loginToXubio(credentials) {
     // 4. Submit form y esperar navegación
     console.log('🚀 Enviando formulario...');
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
-      page.click('input[type="submit"]')
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
+      page.click('#LoginButton')
     ]);
 
     // 5. Verificar que llegamos a Xubio (no más en Visma Connect)
