@@ -1,15 +1,19 @@
 /**
- * Browser Login Utility - Puppeteer + @sparticuz/chromium-min
+ * Browser Login Utility - Puppeteer Extra + Stealth Plugin
  *
- * Maneja el login a Xubio usando Puppeteer para obtener cookies de sesión
+ * Maneja el login a Xubio usando Puppeteer con stealth plugin para evitar detección de bot
  * Xubio redirige a Visma Connect para autenticación OAuth
  *
  * Usa chromium-min que descarga el binario desde GitHub CDN en runtime
  * para evitar problemas de dependencias del sistema (libnss3.so, etc.)
  */
 
-import puppeteer from 'puppeteer-core';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import chromium from '@sparticuz/chromium-min';
+
+// Aplicar stealth plugin para evitar detección de bot
+puppeteer.use(StealthPlugin());
 
 /**
  * Realiza login a Xubio usando Puppeteer y retorna cookies de sesión
@@ -62,9 +66,12 @@ export async function loginToXubio(credentials) {
     console.log('⏳ Esperando campo de email...');
     await page.waitForSelector('input#Username', { timeout: 15000 });
 
-    // 3. Completar email
+    // 3. Completar email (con delay entre caracteres para parecer humano)
     console.log('✍️ Ingresando email...');
-    await page.type('input#Username', username);
+    await page.type('input#Username', username, { delay: 100 }); // 100ms entre caracteres
+
+    // Pequeño delay antes de hacer click
+    await page.waitForTimeout(500);
 
     // 4. Click "Continuar"
     console.log('🚀 Click en "Continuar"...');
@@ -74,9 +81,12 @@ export async function loginToXubio(credentials) {
     console.log('⏳ Esperando campo de password...');
     await page.waitForSelector('input#Password', { visible: true, timeout: 20000 });
 
-    // 6. Completar password
+    // 6. Completar password (con delay entre caracteres)
     console.log('✍️ Ingresando password...');
-    await page.type('input#Password', password);
+    await page.type('input#Password', password, { delay: 100 }); // 100ms entre caracteres
+
+    // Pequeño delay antes de hacer click
+    await page.waitForTimeout(500);
 
     // 7. Click "Iniciar sesión" y esperar navegación final
     console.log('🚀 Click en "Iniciar sesión"...');
