@@ -67,7 +67,7 @@ export async function loginToXubio(credentials) {
     await page.type('input#Username', username, { delay: 100 }); // 100ms entre caracteres
 
     // Pequeño delay antes de hacer click
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // 4. Click "Continuar"
     console.log('🚀 Click en "Continuar"...');
@@ -82,7 +82,7 @@ export async function loginToXubio(credentials) {
     await page.type('input#Password', password, { delay: 100 }); // 100ms entre caracteres
 
     // Pequeño delay antes de hacer click
-    await page.waitForTimeout(500);
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // 7. Click "Iniciar sesión" y esperar navegación final
     console.log('🚀 Click en "Iniciar sesión"...');
