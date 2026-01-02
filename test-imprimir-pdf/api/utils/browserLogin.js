@@ -1,15 +1,15 @@
 /**
- * Browser Login Utility - Playwright
+ * Browser Login Utility - Puppeteer + @sparticuz/chromium
  *
- * Maneja el login a Xubio usando Playwright para obtener cookies de sesión
+ * Maneja el login a Xubio usando Puppeteer para obtener cookies de sesión
  * Xubio redirige a Visma Connect para autenticación OAuth
  */
 
-import chromiumPkg from '@sparticuz/chromium';
-import { chromium as playwrightChromium } from 'playwright-core';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 /**
- * Realiza login a Xubio usando Playwright y retorna cookies de sesión
+ * Realiza login a Xubio usando Puppeteer y retorna cookies de sesión
  *
  * @param {Object} credentials - Credenciales de login
  * @param {string} credentials.username - Email de usuario
@@ -19,32 +19,36 @@ import { chromium as playwrightChromium } from 'playwright-core';
 export async function loginToXubio(credentials) {
   const { username, password } = credentials;
 
-  console.log('🔐 Iniciando login a Xubio con Playwright...');
+  console.log('🔐 Iniciando login a Xubio con Puppeteer...');
 
   let browser = null;
 
   try {
-    // Configurar @sparticuz/chromium para Vercel
-    // CRÍTICO: Deshabilitar modo gráfico en Vercel
-    chromiumPkg.setGraphicsMode = false;
+    // Configurar para Vercel serverless
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
 
-    // Lanzar browser headless optimizado para Vercel/AWS Lambda
-    browser = await playwrightChromium.launch({
-      args: chromiumPkg.args,
-      executablePath: await chromiumPkg.executablePath(),
+    // Configuración optimizada para Vercel
+    const launchOptions = isProduction ? {
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    } : {
       headless: true
-    });
+    };
 
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
+    console.log('🚀 Lanzando browser...');
+    browser = await puppeteer.launch(launchOptions);
 
-    const page = await context.newPage();
+    const page = await browser.newPage();
+
+    // Configurar User-Agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
     // 1. Navegar a Xubio (auto-redirige a Visma Connect)
     console.log('📍 Navegando a xubio.com...');
     await page.goto('https://xubio.com', {
-      waitUntil: 'networkidle',
+      waitUntil: 'networkidle0',
       timeout: 30000
     });
 
@@ -54,13 +58,13 @@ export async function loginToXubio(credentials) {
 
     // 3. Completar formulario
     console.log('✍️ Completando credenciales...');
-    await page.fill('input#Username', username);
-    await page.fill('input#Password', password);
+    await page.type('input#Username', username);
+    await page.type('input#Password', password);
 
     // 4. Submit form y esperar navegación
     console.log('🚀 Enviando formulario...');
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 }),
+      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
       page.click('input[type="submit"]')
     ]);
 
@@ -72,20 +76,30 @@ export async function loginToXubio(credentials) {
       throw new Error('Login falló - No se redirigió a xubio.com. URL actual: ' + currentUrl);
     }
 
-    // 6. Extraer cookies de sesión
+    // 6. Extraer cookies de sesión (Puppeteer format)
     console.log('🍪 Extrayendo cookies de sesión...');
-    const cookies = await context.cookies();
+    const cookies = await page.cookies();
 
-    // Filtrar solo cookies de xubio.com (ignorar cookies de Visma Connect)
-    const xubioCookies = cookies.filter(c =>
-      c.domain.includes('xubio.com')
-    );
+    // Filtrar solo cookies de xubio.com
+    const xubioCookies = cookies.filter(c => c.domain.includes('xubio.com'));
 
-    console.log(`✅ Login exitoso - ${xubioCookies.length} cookies obtenidas`);
+    // Convertir de formato Puppeteer a formato compatible con Playwright
+    const compatibleCookies = xubioCookies.map(c => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+      expires: c.expires,
+      httpOnly: c.httpOnly,
+      secure: c.secure,
+      sameSite: c.sameSite || 'Lax'
+    }));
+
+    console.log(`✅ Login exitoso - ${compatibleCookies.length} cookies obtenidas`);
 
     await browser.close();
 
-    return xubioCookies;
+    return compatibleCookies;
 
   } catch (error) {
     console.error('❌ Error durante login:', error.message);
