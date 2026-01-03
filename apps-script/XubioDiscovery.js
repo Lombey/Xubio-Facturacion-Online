@@ -423,8 +423,12 @@ function doPost(e) {
     Logger.log('   Cantidad: ' + cantidad);
     Logger.log('   ID REF: ' + idRef);
 
+    // Generar un ID único por cada clic (idRef + timestamp)
+    // Esto permite volver a facturar la misma fila si se anula la anterior
+    const externalIdUnique = idRef + '-' + new Date().getTime();
+
     // Crear factura (Precio se resuelve en backend)
-    const resultado = crearFacturaCompleta(cuit, cantidad, idRef);
+    const resultado = crearFacturaCompleta(cuit, cantidad, externalIdUnique);
 
     // Actualizar Google Sheets con número de factura y LINK PDF
     actualizarFacturaEnSheet(idRef, resultado.numeroDocumento, resultado.pdfUrl);
