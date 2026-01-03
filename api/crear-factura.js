@@ -63,6 +63,7 @@ export default async function handler(req, res) {
     const { 
       clienteId, 
       cantidad = 1,
+      externalId, // <-- Extraer ID externo
       productoId = 2751338,
       puntoVentaId = 212819,
       listaDePrecioId = 15386,
@@ -155,6 +156,7 @@ export default async function handler(req, res) {
         codigo: "CORVUSWEB_SRL"
       },
       facturaNoExportacion: false,
+      externalId: externalId, // IDEMPOTENCIA: Evita duplicados si AppSheet reintenta
       cliente: { 
         ID: parseInt(clienteId), 
         id: parseInt(clienteId),
