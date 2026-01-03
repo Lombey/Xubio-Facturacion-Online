@@ -38,3 +38,281 @@ function descubrirPuntosDeVenta() {
   const res = UrlFetchApp.fetch(url);
   Logger.log('Puntos de Venta: ' + res.getContentText());
 }
+
+// ============================================================================
+// COTIZACIÓN USD (DolarAPI)
+// ============================================================================
+
+/**
+ * OBTENER COTIZACIÓN USD OFICIAL (Banco Nación)
+ * Usa DolarAPI.com para obtener el tipo de cambio vendedor en tiempo real
+ * Retorna: número con el valor vendedor (ej: 1490.50)
+ */
+function obtenerCotizacionUSD() {
+  const url = 'https://dolarapi.com/v1/dolares/oficial';
+  Logger.log('💵 Obteniendo cotización USD oficial...');
+
+  try {
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    const code = res.getResponseCode();
+
+    if (code !== 200) {
+      throw new Error('DolarAPI retornó HTTP ' + code);
+    }
+
+    const data = JSON.parse(res.getContentText());
+    const cotizacionVenta = data.venta;
+
+    if (!cotizacionVenta) {
+      throw new Error('DolarAPI no retornó valor de venta');
+    }
+
+    Logger.log('✅ Cotización USD vendedor: $' + cotizacionVenta);
+    return cotizacionVenta;
+
+  } catch (error) {
+    Logger.log('❌ Error obteniendo cotización USD: ' + error.message);
+    throw new Error('No se pudo obtener cotización USD: ' + error.message);
+  }
+}
+
+/**
+ * TEST: Obtener cotización USD actual
+ */
+function testCotizacionUSD() {
+  Logger.log('🧪 TEST: Obteniendo cotización USD actual');
+
+  try {
+    const cotizacion = obtenerCotizacionUSD();
+    Logger.log('✅ SUCCESS: Cotización obtenida');
+    Logger.log('📊 Valor vendedor Banco Nación: $' + cotizacion);
+  } catch (error) {
+    Logger.log('❌ FAILED: ' + error.message);
+  }
+}
+
+// ============================================================================
+// GESTIÓN DE CLIENTES (Pre-existentes en Xubio)
+// ============================================================================
+
+/**
+ * BUSCAR CLIENTE POR CUIT
+ * Retorna el cliente si existe, null si no existe
+ */
+function buscarClientePorCUIT(cuit) {
+  // Xubio API usa numeroIdentificacion en lugar de cuit
+  const url = VERCEL_BASE + '/api/discovery?resource=clienteBean&numeroIdentificacion=' + encodeURIComponent(cuit);
+  Logger.log('🔍 Buscando cliente por CUIT: ' + cuit);
+
+  const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const code = res.getResponseCode();
+  const data = JSON.parse(res.getContentText());
+
+  if (code !== 200 || !data.success) {
+    Logger.log('⚠️ No se encontró cliente con CUIT: ' + cuit);
+    return null;
+  }
+
+  // Xubio devuelve array de clientes
+  const clientes = data.data || [];
+  if (clientes.length === 0) {
+    Logger.log('⚠️ No se encontró cliente con CUIT: ' + cuit);
+    return null;
+  }
+
+  const cliente = clientes[0];
+  Logger.log('✅ Cliente encontrado: ' + cliente.nombre + ' (ID: ' + cliente.ID + ')');
+  return cliente;
+}
+
+/**
+ * OBTENER CLIENTE EXISTENTE
+ * Busca cliente por CUIT, lanza error si no existe
+ * IMPORTANTE: Los clientes deben pre-existir en Xubio (creados manualmente desde la UI)
+ */
+function obtenerClienteExistente(cuit) {
+  Logger.log('🔄 Buscando cliente con CUIT: ' + cuit);
+
+  const cliente = buscarClientePorCUIT(cuit);
+
+  if (!cliente) {
+    const error = '❌ Cliente con CUIT ' + cuit + ' NO existe en Xubio. Debe crearse manualmente primero desde la UI web de Xubio.';
+    Logger.log(error);
+    throw new Error(error);
+  }
+
+  Logger.log('✅ Cliente encontrado: ' + cliente.nombre + ' (ID: ' + cliente.cliente_id + ')');
+  return cliente;
+}
+
+/**
+ * TEST: Buscar cliente existente
+ * Los clientes deben pre-existir en Xubio (creados manualmente)
+ */
+function testBuscarClienteExistente() {
+  // Usar CUIT de un cliente que sabés que existe en tu Xubio
+  const cuit = '30-71614098-4'; // Cambiar por CUIT real de tu base
+
+  Logger.log('🧪 TEST: Buscando cliente pre-existente');
+
+  try {
+    const cliente = obtenerClienteExistente(cuit);
+    Logger.log('✅ SUCCESS: Cliente encontrado');
+    Logger.log('📊 Datos del cliente:');
+    Logger.log(JSON.stringify(cliente, null, 2));
+  } catch (error) {
+    Logger.log('❌ FAILED: ' + error.message);
+  }
+}
+
+/**
+ * TEST: Buscar cliente que NO existe (debe lanzar error)
+ */
+function testBuscarClienteNoExiste() {
+  const cuit = '20-99999999-9'; // CUIT que NO existe
+
+  Logger.log('🧪 TEST: Buscando cliente que NO existe (debe fallar)');
+
+  try {
+    const cliente = obtenerClienteExistente(cuit);
+    Logger.log('❌ UNEXPECTED: Cliente encontrado cuando no debería existir');
+  } catch (error) {
+    Logger.log('✅ SUCCESS: Error esperado - ' + error.message);
+  }
+}
+
+// ============================================================================
+// FACTURACIÓN COMPLETA (Integración Total)
+// ============================================================================
+
+/**
+ * CREAR FACTURA COMPLETA
+ * Función principal que integra todos los componentes:
+ * - Busca cliente por CUIT
+ * - Obtiene cotización USD actual
+ * - Crea factura con producto CONECTIVIDAD ANUAL POR TOLVA
+ * - Retorna link al PDF
+ *
+ * @param {string} cuit - CUIT del cliente (debe pre-existir en Xubio)
+ * @param {number} precioUSD - Precio unitario en USD
+ * @param {number} cantidad - Cantidad de items (default: 1)
+ * @param {string} externalId - ID externo para idempotencia (RowKey de AppSheet)
+ * @returns {Object} { transaccionId, numeroDocumento, pdfUrl }
+ */
+function crearFacturaCompleta(cuit, precioUSD, cantidad, externalId) {
+  cantidad = cantidad || 1;
+  externalId = externalId || 'TEST-' + new Date().getTime();
+
+  Logger.log('🚀 Iniciando creación de factura...');
+  Logger.log('📋 CUIT: ' + cuit);
+  Logger.log('💵 Precio USD: $' + precioUSD);
+  Logger.log('📦 Cantidad: ' + cantidad);
+  Logger.log('🆔 External ID: ' + externalId);
+
+  try {
+    // 1. Buscar cliente por CUIT
+    Logger.log('');
+    Logger.log('▶️ PASO 1/3: Buscando cliente...');
+    const cliente = obtenerClienteExistente(cuit);
+    const clienteId = cliente.cliente_id;
+
+    // 2. Construir payload para Vercel
+    Logger.log('');
+    Logger.log('▶️ PASO 2/3: Construyendo payload...');
+    const payload = {
+      clienteId: clienteId,
+      precioUnitario: precioUSD,
+      cantidad: cantidad,
+      descripcion: 'CONECTIVIDAD ANUAL POR TOLVA',
+      externalId: externalId,
+      // IDs hardcodeados (del documento XUBIO_RECURSOS_ID.md)
+      productoId: 2751338,         // CONECTIVIDAD ANUAL POR TOLVA
+      puntoVentaId: 212819,        // corvusweb srl
+      centroDeCostoId: 57329,      // kit sistema agdp
+      listaDePrecioId: 15386       // AGDP
+    };
+
+    Logger.log('📄 Payload construido correctamente');
+
+    // 3. Llamar al endpoint de Vercel
+    Logger.log('');
+    Logger.log('▶️ PASO 3/3: Creando factura en Xubio...');
+    const url = VERCEL_BASE + '/api/crear-factura';
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const res = UrlFetchApp.fetch(url, options);
+    const code = res.getResponseCode();
+    const responseText = res.getContentText();
+
+    if (code !== 200) {
+      Logger.log('❌ Error HTTP ' + code);
+      Logger.log('📦 Response (primeros 500 chars):');
+      Logger.log(responseText.substring(0, 500));
+      throw new Error('Error creando factura: HTTP ' + code);
+    }
+
+    const result = JSON.parse(responseText);
+
+    if (!result.success) {
+      Logger.log('❌ Error funcional: ' + (result.error || 'Sin mensaje'));
+      if (result.debug) {
+        Logger.log('🔍 Debug Info:');
+        const debugStr = JSON.stringify(result.debug, null, 2);
+        // Loguear en chunks de 2000 caracteres
+        for (let i = 0; i < debugStr.length; i += 2000) {
+          Logger.log(debugStr.substring(i, i + 2000));
+        }
+      }
+      throw new Error(result.error || 'Error desconocido al crear factura');
+    }
+
+    // Éxito
+    Logger.log('');
+    Logger.log('✅ ¡FACTURA CREADA EXITOSAMENTE!');
+    Logger.log('🆔 ID Transacción: ' + result.data.transaccionId);
+    Logger.log('📄 Número Documento: ' + result.data.numeroDocumento);
+    Logger.log('🔗 PDF: ' + result.data.pdfUrl);
+
+    return result.data;
+
+  } catch (error) {
+    Logger.log('');
+    Logger.log('❌ ERROR CRÍTICO: ' + error.message);
+    throw error;
+  }
+}
+
+/**
+ * TEST: Crear factura completa de prueba
+ */
+function testCrearFacturaCompleta() {
+  // Usar datos de un cliente real que existe
+  const cuit = '20-21767208-3'; // ABEL NATALIO LATTANZI (del test anterior)
+  const precioUSD = 490;         // Precio del servicio
+  const cantidad = 1;
+  const externalId = 'TEST-' + new Date().getTime();
+
+  Logger.log('🧪 TEST: Crear factura completa');
+  Logger.log('================================================');
+
+  try {
+    const resultado = crearFacturaCompleta(cuit, precioUSD, cantidad, externalId);
+
+    Logger.log('');
+    Logger.log('================================================');
+    Logger.log('✅ TEST EXITOSO');
+    Logger.log('📊 Resultado:');
+    Logger.log(JSON.stringify(resultado, null, 2));
+
+  } catch (error) {
+    Logger.log('');
+    Logger.log('================================================');
+    Logger.log('❌ TEST FALLIDO');
+    Logger.log('Error: ' + error.message);
+  }
+}

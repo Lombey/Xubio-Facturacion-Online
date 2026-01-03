@@ -6,13 +6,23 @@ import { getOfficialToken } from './utils/tokenManager.js';
 
 async function obtenerCotizacion() {
   try {
-    const res = await fetch('https://api.estadisticasbcra.com/usd_of', { 
-      headers: { 'Authorization': 'BEARER ' }
-    });
+    // DolarAPI - Dólar oficial Banco Nación (vendedor)
+    const res = await fetch('https://dolarapi.com/v1/dolares/oficial');
+    if (!res.ok) throw new Error('DolarAPI error HTTP ' + res.status);
+
     const data = await res.json();
-    return parseFloat(data[data.length - 1].v);
+    const cotizacionVenta = parseFloat(data.venta);
+
+    if (!cotizacionVenta || isNaN(cotizacionVenta)) {
+      throw new Error('DolarAPI no retornó valor de venta válido');
+    }
+
+    console.log('💵 Cotización USD (DolarAPI): $' + cotizacionVenta);
+    return cotizacionVenta;
+
   } catch (e) {
-    return 1480; // Fallback a la cotización del molde exitoso
+    console.error('⚠️ Error obteniendo cotización, usando fallback: ' + e.message);
+    return 1480; // Fallback
   }
 }
 
@@ -62,16 +72,16 @@ export default async function handler(req, res) {
       descripcion: descripcion,
       cantidad: parseFloat(cantidad),
       precio: parseFloat(precioUnitario),
-      producto: { 
-        ID: parseInt(productoId), 
-        id: parseInt(productoId) 
+      producto: {
+        ID: parseInt(productoId),
+        id: parseInt(productoId)
       },
-      deposito: { 
-        ID: -2, id: -2, 
-        nombre: "Depósito Universal", 
-        codigo: "DEPOSITO_UNIVERSAL" 
+      deposito: {
+        ID: -2, id: -2,
+        nombre: "Depósito Universal",
+        codigo: "DEPOSITO_UNIVERSAL"
       },
-      iva: iva,
+      // IMPORTANTE: NO incluir campo "iva" (validación de Xubio)
       total: total,
       precioconivaincluido: 0,
       montoExento: 0,
@@ -133,7 +143,7 @@ export default async function handler(req, res) {
 
     console.log('📤 ENVIANDO PAYLOAD A XUBIO:', JSON.stringify(payload));
 
-    const response = await fetch('https://xubio.com/API/1.1/comprobanteVentaBean', {
+    const response = await fetch('https://xubio.com/API/1.1/facturar', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
