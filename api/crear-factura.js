@@ -113,7 +113,7 @@ export default async function handler(req, res) {
 
     const item = {
       importe: neto,
-      descripcion: descripcion,
+      descripcion: descripcion, // Item description
       cantidad: parseFloat(cantidad),
       precio: precioFinal,
       producto: {
@@ -136,10 +136,14 @@ export default async function handler(req, res) {
       item.centroDeCosto = { ID: parseInt(centroDeCostoId), id: parseInt(centroDeCostoId) };
     }
 
+    const DESCRIPCION_BANCARIA = `CC ARS 261-6044134-3 // CBU 0270261410060441340032 //
+ALIAS corvus.super// Razón Social CORVUSWEB SRL
+CUIT 30-71241712-5`;
+
     // PAYLOAD ESPEJO DEL GOLDEN TEMPLATE
     const payload = {
       numeroDocumento: "",
-      descripcion: "",
+      descripcion: DESCRIPCION_BANCARIA, // <-- Descripción general de la factura
       fecha: new Date().toISOString().split('T')[0],
       importeGravado: neto,
       importeImpuestos: iva,
