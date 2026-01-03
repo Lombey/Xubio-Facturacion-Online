@@ -1,6 +1,7 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
-/* global Logger, UrlFetchApp, ContentService */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* global Logger, UrlFetchApp */
 
 /**
  * XUBIO FACTURADOR VERCEL - Versión Final

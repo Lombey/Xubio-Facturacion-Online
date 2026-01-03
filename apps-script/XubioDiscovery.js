@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* global Logger, UrlFetchApp */
 
 /**
@@ -194,18 +195,16 @@ function testBuscarClienteNoExiste() {
  * - Retorna link al PDF
  *
  * @param {string} cuit - CUIT del cliente (debe pre-existir en Xubio)
- * @param {number} precioUSD - Precio unitario en USD
  * @param {number} cantidad - Cantidad de items (default: 1)
  * @param {string} externalId - ID externo para idempotencia (RowKey de AppSheet)
  * @returns {Object} { transaccionId, numeroDocumento, pdfUrl }
  */
-function crearFacturaCompleta(cuit, precioUSD, cantidad, externalId) {
+function crearFacturaCompleta(cuit, cantidad, externalId) {
   cantidad = cantidad || 1;
   externalId = externalId || 'TEST-' + new Date().getTime();
 
   Logger.log('🚀 Iniciando creación de factura...');
   Logger.log('📋 CUIT: ' + cuit);
-  Logger.log('💵 Precio USD: $' + precioUSD);
   Logger.log('📦 Cantidad: ' + cantidad);
   Logger.log('🆔 External ID: ' + externalId);
 
@@ -221,7 +220,7 @@ function crearFacturaCompleta(cuit, precioUSD, cantidad, externalId) {
     Logger.log('▶️ PASO 2/3: Construyendo payload...');
     const payload = {
       clienteId: clienteId,
-      precioUnitario: precioUSD,
+      // Precio se obtiene automáticamente en el backend desde Xubio (Lista AGDP)
       cantidad: cantidad,
       descripcion: 'CONECTIVIDAD ANUAL POR TOLVA',
       externalId: externalId,
@@ -232,7 +231,7 @@ function crearFacturaCompleta(cuit, precioUSD, cantidad, externalId) {
       listaDePrecioId: 15386       // AGDP
     };
 
-    Logger.log('📄 Payload construido correctamente');
+    Logger.log('📄 Payload construido correctamente (Precio se resolverá en backend)');
 
     // 3. Llamar al endpoint de Vercel
     Logger.log('');
@@ -293,7 +292,6 @@ function crearFacturaCompleta(cuit, precioUSD, cantidad, externalId) {
 function testCrearFacturaCompleta() {
   // Usar datos de un cliente real que existe
   const cuit = '20-21767208-3'; // ABEL NATALIO LATTANZI (del test anterior)
-  const precioUSD = 490;         // Precio del servicio
   const cantidad = 1;
   const externalId = 'TEST-' + new Date().getTime();
 
@@ -301,7 +299,7 @@ function testCrearFacturaCompleta() {
   Logger.log('================================================');
 
   try {
-    const resultado = crearFacturaCompleta(cuit, precioUSD, cantidad, externalId);
+    const resultado = crearFacturaCompleta(cuit, cantidad, externalId);
 
     Logger.log('');
     Logger.log('================================================');
@@ -315,4 +313,155 @@ function testCrearFacturaCompleta() {
     Logger.log('❌ TEST FALLIDO');
     Logger.log('Error: ' + error.message);
   }
+}
+
+// ============================================================================
+// WEB APP - INTEGRACIÓN CON APPSHEET
+// ============================================================================
+
+/**
+ * ACTUALIZAR FACTURA EN GOOGLE SHEETS
+ * Busca por ID REF y actualiza la columna FACTURA 2026
+ *
+ * @param {string} idRef - ID único de la fila (columna 20)
+ * @param {string} numeroDocumento - Número de factura generada (ej: "A-00004-00001682")
+ */
+function actualizarFacturaEnSheet(idRef, numeroDocumento) {
+  const spreadsheetId = '1URTOFW_OIM1JG0HKarhjigd-JgQSgFPCItbvDRa3p-o';
+  const sheetName = 'CONECTIVIDADES RPG0503';
+
+  Logger.log('📝 Actualizando sheet...');
+  Logger.log('   ID REF: ' + idRef);
+  Logger.log('   Factura: ' + numeroDocumento);
+
+  try {
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+      throw new Error('No se encontró la hoja: ' + sheetName);
+    }
+
+    // Obtener todos los datos
+    const data = sheet.getDataRange().getValues();
+
+    // Buscar fila por ID REF (columna 20 = índice 19)
+    let filaEncontrada = -1;
+    for (let i = 1; i < data.length; i++) { // Empezar en 1 para skipear headers
+      if (String(data[i][19]) === String(idRef)) {
+        filaEncontrada = i + 1; // +1 porque getValues() es 0-indexed
+        break;
+      }
+    }
+
+    if (filaEncontrada === -1) {
+      throw new Error('No se encontró registro con ID REF: ' + idRef);
+    }
+
+    // Actualizar columna 13 (FACTURA 2026) = índice M
+    sheet.getRange(filaEncontrada, 13).setValue(numeroDocumento);
+
+    Logger.log('✅ Sheet actualizada - Fila: ' + filaEncontrada);
+
+  } catch (error) {
+    Logger.log('❌ Error actualizando sheet: ' + error.message);
+    throw error;
+  }
+}
+
+/**
+ * WEBHOOK ENDPOINT PARA APPSHEET
+ * Recibe request POST desde AppSheet Action y crea factura
+ *
+ * Request Body esperado:
+ * {
+ *   "cuit": "30-71614098-4",
+ *   "cantidad": 15,
+ *   "idRef": "1"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "transaccionId": 67768786,
+ *     "numeroDocumento": "A-00004-00001682",
+ *     "pdfUrl": "https://xubio.com/..."
+ *   }
+ * }
+ */
+function doPost(e) {
+  Logger.log('📥 Webhook recibido desde AppSheet');
+
+  try {
+    // Parsear request body
+    const requestData = JSON.parse(e.postData.contents);
+    Logger.log('📦 Request data: ' + JSON.stringify(requestData));
+
+    const cuit = requestData.cuit;
+    const cantidad = requestData.cantidad || 1;
+    const idRef = requestData.idRef;
+
+    // Validaciones
+    if (!cuit) {
+      throw new Error('Falta parámetro: cuit');
+    }
+    if (!idRef) {
+      throw new Error('Falta parámetro: idRef');
+    }
+
+    Logger.log('');
+    Logger.log('📋 Datos procesados:');
+    Logger.log('   CUIT: ' + cuit);
+    Logger.log('   Cantidad: ' + cantidad);
+    Logger.log('   ID REF: ' + idRef);
+
+    // Crear factura (Precio se resuelve en backend)
+    const resultado = crearFacturaCompleta(cuit, cantidad, idRef);
+
+    // Actualizar Google Sheets con número de factura
+    actualizarFacturaEnSheet(idRef, resultado.numeroDocumento);
+
+    // Retornar success
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      data: resultado
+    })).setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    Logger.log('❌ Error en webhook: ' + error.message);
+
+    // Retornar error
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: error.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * TEST: Simular webhook de AppSheet
+ */
+function testWebhook() {
+  Logger.log('🧪 TEST: Simulando webhook de AppSheet');
+  Logger.log('================================================');
+
+  // Simular request de AppSheet
+  const mockRequest = {
+    postData: {
+      contents: JSON.stringify({
+        cuit: '20-21767208-3',
+        cantidad: 2,
+        idRef: 'TEST-WEBHOOK-' + new Date().getTime()
+      })
+    }
+  };
+
+  const response = doPost(mockRequest);
+  const responseData = JSON.parse(response.getContent());
+
+  Logger.log('');
+  Logger.log('================================================');
+  Logger.log('📤 Response:');
+  Logger.log(JSON.stringify(responseData, null, 2));
 }

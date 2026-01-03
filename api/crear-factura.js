@@ -35,6 +35,22 @@ async function obtenerDatosCliente(token, clienteId) {
   return await response.json();
 }
 
+async function obtenerPrecioDeLista(token, listaId, productoId) {
+  const url = `https://xubio.com/API/1.1/listaPrecioBean/${listaId}`;
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+  });
+  if (!response.ok) throw new Error(`Error al obtener lista de precios: ${response.status}`);
+  const data = await response.json();
+  
+  const item = (data.listaPrecioItem || []).find(i => 
+    (i.producto.ID === parseInt(productoId)) || (i.producto.id === parseInt(productoId))
+  );
+  
+  if (!item) throw new Error(`Producto ${productoId} no encontrado en lista de precios ${listaId}`);
+  return parseFloat(item.precio);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -61,8 +77,19 @@ export default async function handler(req, res) {
     const datosCliente = await obtenerDatosCliente(token, clienteId);
     const cotizacionUSD = await obtenerCotizacion();
 
+    // OBTENER PRECIO DE XUBIO (Fuente de Verdad)
+    let precioFinal = parseFloat(precioUnitario);
+    try {
+      console.log(`🔎 Buscando precio en lista ${listaDePrecioId} para producto ${productoId}...`);
+      const precioXubio = await obtenerPrecioDeLista(token, listaDePrecioId, productoId);
+      console.log(`✅ Precio encontrado en Xubio: ${precioXubio}`);
+      precioFinal = precioXubio;
+    } catch (e) {
+      console.warn(`⚠️ No se pudo obtener precio de Xubio: ${e.message}. Usando precio fallback: ${precioFinal}`);
+    }
+
     // CÁLCULOS MATEMÁTICOS PRECISOS (Basados en ID 67747886)
-    const neto = Number((parseFloat(precioUnitario) * parseFloat(cantidad)).toFixed(2));
+    const neto = Number((precioFinal * parseFloat(cantidad)).toFixed(2));
     const iva = Number((neto * 0.21).toFixed(2));
     const total = Number((neto + iva).toFixed(2));
     const totalARS = Number((total * cotizacionUSD).toFixed(2));
@@ -71,7 +98,7 @@ export default async function handler(req, res) {
       importe: neto,
       descripcion: descripcion,
       cantidad: parseFloat(cantidad),
-      precio: parseFloat(precioUnitario),
+      precio: precioFinal,
       producto: {
         ID: parseInt(productoId),
         id: parseInt(productoId)

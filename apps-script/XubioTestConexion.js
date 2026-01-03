@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* global Logger, UrlFetchApp */
 
 const VERCEL_URL_DISCOVERY = 'https://xubio-facturacion-online.vercel.app';

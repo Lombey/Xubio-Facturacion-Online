@@ -1,31 +1,32 @@
 // @ts-nocheck
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* global Logger, UrlFetchApp, DriveApp, Utilities, Session */
 
 /**
  * XUBIO FACTURADOR VERCEL - Versión Dinámica con Logs Detallados
  */
 // Nota GAS: todos los .gs comparten scope global. Evitamos "already been declared"
-// usando `var` + inicialización idempotente.
-var VERCEL_URL_DINAMICO =
+// usando variables globales con inicialización idempotente.
+const VERCEL_URL_DINAMICO =
   (typeof VERCEL_URL_DINAMICO === 'undefined')
     ? 'https://xubio-facturacion-online.vercel.app'
     : VERCEL_URL_DINAMICO;
 
-var DEBUG_LOG_CHUNK_SIZE =
+const DEBUG_LOG_CHUNK_SIZE =
   (typeof DEBUG_LOG_CHUNK_SIZE === 'undefined')
     ? 3500 // evita truncado en Logger
     : DEBUG_LOG_CHUNK_SIZE;
 
-var DEBUG_PERSIST_TO_DRIVE =
+const DEBUG_PERSIST_TO_DRIVE =
   (typeof DEBUG_PERSIST_TO_DRIVE === 'undefined')
     ? true // guarda el JSON completo y loguea el link
     : DEBUG_PERSIST_TO_DRIVE;
 
 // Ojo: esto puede guardar datos sensibles (cliente/producto/precios).
 // Activar sólo para diagnóstico.
-var DEBUG_PERSIST_REQUEST_TO_DRIVE =
+const DEBUG_PERSIST_REQUEST_TO_DRIVE =
   (typeof DEBUG_PERSIST_REQUEST_TO_DRIVE === 'undefined')
     ? true
     : DEBUG_PERSIST_REQUEST_TO_DRIVE;
