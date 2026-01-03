@@ -51,6 +51,22 @@ async function obtenerPrecioDeLista(token, listaId, productoId) {
   return parseFloat(item.precio);
 }
 
+async function obtenerLinkPdfPublico(token, transaccionId) {
+  try {
+    const url = `https://xubio.com/API/1.1/imprimirPDF?idtransaccion=${transaccionId}&tipoimpresion=1`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`Error obteniendo PDF: ${response.status}`);
+    const data = await response.json();
+    return data.urlPdf; // Este es el link público de descarga
+  } catch (e) {
+    console.error('⚠️ Error al obtener link público del PDF:', e.message);
+    // Fallback al link interno si falla el público, aunque no sea ideal
+    return `https://xubio.com/NXV/transaccion/ver/${transaccionId}`;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -192,12 +208,17 @@ export default async function handler(req, res) {
       });
     }
 
+    const transaccionId = responseData.transaccionId || responseData.ID || responseData.transaccionid;
+    
+    // OBTENER LINK PÚBLICO DEL PDF
+    const publicPdfUrl = await obtenerLinkPdfPublico(token, transaccionId);
+
     return res.status(200).json({
       success: true,
       data: {
-        transaccionId: responseData.transaccionId || responseData.ID || responseData.transaccionid,
+        transaccionId: transaccionId,
         numeroDocumento: responseData.numeroDocumento,
-        pdfUrl: `https://xubio.com/NXV/transaccion/ver/${responseData.transaccionId || responseData.ID || responseData.transaccionid}`
+        pdfUrl: publicPdfUrl // Link público directo
       }
     });
 
