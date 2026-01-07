@@ -67,6 +67,35 @@ async function obtenerLinkPdfPublico(token, transaccionId) {
   }
 }
 
+async function solicitarCAE(token, transaccionId) {
+  try {
+    console.log('📋 Solicitando CAE para transacción:', transaccionId);
+    const url = 'https://xubio.com/API/1.1/solicitarCAE';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ transaccionId: parseInt(transaccionId) })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Error solicitando CAE: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ CAE obtenido:', data.CAE || data.cae);
+    return data;
+  } catch (e) {
+    console.error('⚠️ Error al solicitar CAE:', e.message);
+    // No lanzar error - la factura ya se creó, el CAE es secundario
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -213,7 +242,10 @@ CUIT 30-71241712-5`;
     }
 
     const transaccionId = responseData.transaccionId || responseData.ID || responseData.transaccionid;
-    
+
+    // SOLICITAR CAE (Código de Autorización Electrónico)
+    await solicitarCAE(token, transaccionId);
+
     // OBTENER LINK PÚBLICO DEL PDF
     const publicPdfUrl = await obtenerLinkPdfPublico(token, transaccionId);
 
