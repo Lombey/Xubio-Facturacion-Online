@@ -92,9 +92,8 @@ export default async function handler(req, res) {
 
     console.log('XML a enviar:', xml.substring(0, 500));
 
-    // 5. Enviar XML a Xubio (formato: body=<XML_URL_ENCODED>)
+    // 5. Enviar XML a Xubio (directo sin body= prefix, como en el fetch original)
     const submitUrl = 'https://xubio.com/NXV/DF_submit';
-    const encodedXml = encodeURIComponent(xml);
     const submitRes = await fetch(submitUrl, {
       method: 'POST',
       headers: {
@@ -102,7 +101,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         'Accept': '*/*'
       },
-      body: `body=${encodedXml}`
+      body: xml
     });
 
     const responseText = await submitRes.text();
