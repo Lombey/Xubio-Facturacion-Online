@@ -27,13 +27,23 @@ Xubio REST API
 **Script:** `apps-script/XubioDiscovery.js`
 **Endpoint:** `POST /api/crear-factura`
 
-### Proceso:
-1. AppSheet trigger → Apps Script webhook (`doPost`)
-2. Busca cliente por CUIT en Xubio
-3. Obtiene cotización USD desde DolarAPI
+### Trigger en AppSheet:
+1. Usuario presiona botón "Facturar"
+2. **Acción** cambia columna ESTADO → `"FACTURA PENDIENTE"`
+3. **Bot** detecta el cambio de estado (Updates + Condition)
+4. Bot ejecuta webhook con body `{ cuit, cantidad, idRef }`
+
+### Proceso en Vercel:
+1. Busca cliente por CUIT en Xubio
+2. Obtiene cotización USD desde DolarAPI
+3. Obtiene precio del producto desde lista de precios
 4. Crea factura vía Xubio REST API
-5. Obtiene PDF público de la factura
-6. Actualiza Google Sheets (columna 13: número factura, columna 21: PDF)
+5. **Solicita CAE a AFIP** (automático, POST /solicitarCAE)
+6. Obtiene PDF público de la factura
+7. Retorna { transaccionId, numeroDocumento, pdfUrl }
+
+### Proceso en Apps Script:
+1. Actualiza Google Sheets (columna 13: número factura, columna 21: PDF)
 
 ### Columnas Google Sheets (Facturación):
 | Columna | Índice | Campo |
@@ -49,14 +59,22 @@ Xubio REST API
 **Script:** `apps-script/XubioCobranzas.js`
 **Endpoint:** `POST /api/crear-cobranza`
 
-### Proceso:
-1. AppSheet trigger → Apps Script webhook (`doPost`)
-2. Lee número de factura de columna 13 (o recibe por parámetro)
-3. Busca factura por `numeroDocumento` en Xubio
-4. Crea cobranza heredando datos de la factura (cliente, moneda, cotización)
-5. Incluye observación con datos de factura para facilitar imputación manual
-6. Obtiene PDF público de la cobranza
-7. Actualiza Google Sheets (columna 22: PDF cobranza)
+### Trigger en AppSheet:
+1. Usuario presiona botón "Cobrar"
+2. **Acción** cambia columna ESTADO → `"COBRADO"`
+3. **Bot** detecta el cambio de estado (Updates + Condition)
+4. Bot ejecuta webhook con body `{ idRef }`
+
+### Proceso en Vercel:
+1. Lee número de factura de columna 13 (vía Apps Script)
+2. Busca factura por `numeroDocumento` en Xubio
+3. Crea cobranza heredando datos de la factura (cliente, moneda, cotización)
+4. Incluye observación: `IMPUTAR A: {factura} - {cliente} - Total: {monto}`
+5. Obtiene PDF público de la cobranza
+6. Retorna { cobranzaId, numeroRecibo, pdfUrl }
+
+### Proceso en Apps Script:
+1. Actualiza Google Sheets (columna 22: PDF cobranza)
 
 ### Columnas Google Sheets (Cobranzas):
 | Columna | Índice | Campo |
@@ -77,6 +95,7 @@ La REST API de Xubio **NO soporta imputación automática** de cobranzas a factu
 ## ✨ Características Compartidas
 
 - **OAuth2 Centralizado**: Token gestionado en Vercel, cacheado por 1 hora
+- **CAE Automático**: Al crear factura se solicita CAE a AFIP automáticamente
 - **Generación de PDF Público**: Ambos flujos obtienen link de descarga público
 - **Idempotencia**: `externalId` compuesto (idRef + timestamp) previene duplicados
 - **Datos Bancarios Automáticos**: Observaciones incluyen CBU/Alias (facturas) o datos de imputación (cobranzas)
