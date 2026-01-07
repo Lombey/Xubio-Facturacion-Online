@@ -3,4 +3,5 @@ dist
 *.min.js
 vercel.json
 *.d.ts
+apps-script/
 

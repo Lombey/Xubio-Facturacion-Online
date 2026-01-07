@@ -110,17 +110,11 @@ export default async function handler(req, res) {
         descripcion: ''
       }],
 
-      // CRÍTICO: Asociación con factura (cuenta corriente)
-      // Basado en gold standard XML: TransaccionTesoreriaCtaCteItems
-      transaccionTesoreriaCtaCteItems: [{
-        cuentaId: -3, // Deudores por Venta
-        monedaIdTransaccion: monedaFactura.id,
-        cotizacionMonTransaccion: cotizacion,
-        importeMonTransaccion: total,
-        importeMonPrincipal: importeMonPrincipal,
-        debeHaber: -1,
-        organizacionId: parseInt(clienteId),
-        transaccionIdOrigen: parseInt(facturaId)
+      // CRÍTICO: Asociación con factura (imputación)
+      // Campo REST API (NO XML): detalleCobranzas
+      detalleCobranzas: [{
+        idComprobante: parseInt(facturaId),
+        importe: total
       }],
 
       // Retenciones (vacías)
@@ -128,6 +122,9 @@ export default async function handler(req, res) {
     };
 
     // 5. Crear cobranza en Xubio
+    console.log('📤 Payload completo a enviar:');
+    console.log(JSON.stringify(payload, null, 2));
+
     const cobranzaUrl = 'https://xubio.com/API/1.1/cobranzaBean';
     const cobranzaRes = await fetch(cobranzaUrl, {
       method: 'POST',
@@ -140,11 +137,15 @@ export default async function handler(req, res) {
     });
 
     const responseText = await cobranzaRes.text();
+    console.log('📥 Response Code:', cobranzaRes.status);
+    console.log('📥 Response Body:', responseText);
+
     let cobranza;
 
     try {
       cobranza = JSON.parse(responseText);
     } catch (e) {
+      console.error('❌ Xubio retornó no-JSON:', responseText);
       return res.status(500).json({
         success: false,
         error: 'Respuesta no-JSON de Xubio',
@@ -153,12 +154,15 @@ export default async function handler(req, res) {
     }
 
     if (!cobranzaRes.ok) {
+      console.error('❌ Xubio retornó error:', cobranza);
       return res.status(cobranzaRes.status).json({
         success: false,
         error: `Error al crear cobranza: HTTP ${cobranzaRes.status}`,
         debug: cobranza
       });
     }
+
+    console.log('✅ Cobranza creada:', cobranza);
 
     // 6. Retornar resultado exitoso
     return res.status(200).json({
@@ -171,8 +175,8 @@ export default async function handler(req, res) {
         total: factura.importetotal
       },
       debug: {
-        payload: payload,
-        response: cobranza
+        payloadEnviado: payload,
+        responseXubio: cobranza
       }
     });
 

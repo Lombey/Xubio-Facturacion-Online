@@ -77,7 +77,8 @@ module.exports = [
       'archive/**',
       '.vercel/**',
       '*.min.js',
-      '*.bundle.js'
+      '*.bundle.js',
+      'apps-script/**'
     ]
   },
   
