@@ -97,6 +97,9 @@ export default async function handler(req, res) {
       // Número de recibo (lo auto-genera Xubio)
       numeroRecibo: '',
 
+      // Observación con datos de la factura a imputar
+      observacion: `IMPUTAR A: ${factura.numeroDocumento} - ${factura.cliente.nombre} - Total: ${total} ${monedaFactura.nombre}`,
+
       // Instrumento de cobro (BANCO por defecto)
       transaccionInstrumentoDeCobro: [{
         cuentaTipo: 2, // 2 = Banco
