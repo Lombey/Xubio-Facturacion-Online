@@ -62,18 +62,11 @@ export default async function handler(req, res) {
     const importeMonTransaccion = totalFactura; // En moneda de factura (USD o ARS)
     const importeMonPrincipal = esUSD ? (totalFactura * cotizacion) : totalFactura; // Siempre en ARS
 
-    // Intentar obtener itemId del primer item de la factura
+    // Obtener itemId del primer item de la factura
+    // El campo correcto es transaccionCVItemId (CV = Comprobante Venta)
     const primerItem = factura.transaccionProductoItems?.[0] || {};
-    console.log('Primer item de factura:', JSON.stringify(primerItem, null, 2));
-
-    // Buscar el ID del item en varios campos posibles
-    const itemIdOrigen = primerItem.transaccionProductoItemId
-      || primerItem.itemId
-      || primerItem.id
-      || primerItem.ID
-      || '';
-
-    console.log('itemIdOrigen encontrado:', itemIdOrigen);
+    const itemIdOrigen = primerItem.transaccionCVItemId || '';
+    console.log('itemIdOrigen (transaccionCVItemId):', itemIdOrigen);
 
     // Fecha actual
     const now = new Date();
