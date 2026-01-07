@@ -111,10 +111,21 @@ export default async function handler(req, res) {
       }],
 
       // CRÍTICO: Asociación con factura (imputación)
-      // Campo REST API (NO XML): detalleCobranzas
+      // Intento 1: detalleCobranzas (documentado en SDK pero ignorado por Xubio)
       detalleCobranzas: [{
         idComprobante: parseInt(facturaId),
         importe: total
+      }],
+
+      // Intento 2: transaccionTesoreriaCtaCteItems (campo XML Legacy, no documentado en REST)
+      // Basado en M_TransaccionIDOrigen del XML gold standard
+      transaccionTesoreriaCtaCteItems: [{
+        transaccionIdOrigen: parseInt(facturaId),
+        importeMonTransaccion: total,
+        importeMonPrincipal: importeMonPrincipal,
+        organizacionId: parseInt(clienteId),
+        monedaIdTransaccion: monedaFactura.id,
+        cotizacionMonTransaccion: cotizacion
       }],
 
       // Retenciones (vacías)
