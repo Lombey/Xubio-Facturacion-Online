@@ -4,25 +4,82 @@ Este proyecto es una infraestructura de API serverless para conectar Google Shee
 
 **URL Base Vercel:** `https://xubio-facturacion-online.vercel.app`
 
-## 🚀 Arquitectura Actual
+## 🚀 Arquitectura General
 
-El sistema utiliza una arquitectura de 4 capas para asegurar modularidad y robustez:
+El sistema utiliza una arquitectura de 4 capas:
 
-1.  **AppSheet**: Interfaz de usuario donde el operador selecciona una fila y presiona el botón para facturar.
-2.  **Google Apps Script**: Actúa como un Webhook que recibe la petición de AppSheet, genera un ID único para la transacción, y llama al backend.
-3.  **Vercel API**: Endpoints serverless (Node.js) que contienen la lógica pesada:
-    - Gestionan la autenticación (OAuth2) con Xubio.
-    - Obtienen el precio actualizado del producto desde la lista de precios.
-    - Construyen y envían el payload de la factura a Xubio.
-    - Solicitan el link de descarga público del PDF.
-4.  **Xubio API**: Backend final donde se procesa y almacena la factura.
+```
+AppSheet (UI)
+    ↓ trigger botón
+Google Apps Script (Webhook)
+    ↓ HTTP POST
+Vercel API (Serverless)
+    ↓ OAuth + lógica
+Xubio REST API
+    ↓
+✅ Factura/Cobranza creada
+```
 
-## ✨ Características Clave del Flujo de Facturación
+---
 
-- **Obtención Dinámica de Precios**: El backend consulta el precio del producto directamente desde la lista de precios de Xubio en tiempo real, asegurando que el valor facturado sea siempre el correcto sin necesidad de actualizarlo en el frontend.
-- **Generación de PDF Público**: Después de crear la factura, el sistema solicita a la API de Xubio el link de descarga público del PDF, que se guarda en la hoja de Google Sheets para fácil acceso.
-- **Idempotencia Flexible**: Se utiliza un `externalId` único compuesto por el ID de la fila de AppSheet + una marca de tiempo (`idRef-timestamp`). Esto previene duplicados por reintentos accidentales pero permite volver a facturar la misma fila si se necesita (ej: tras anular una factura anterior).
-- **Datos Bancarios Automáticos**: Las observaciones de la factura se completan automáticamente en el backend con la información bancaria (CBU, Alias) para facilitar el pago al cliente.
+## 📄 FLUJO 1: FACTURACIÓN
+
+**Script:** `apps-script/XubioDiscovery.js`
+**Endpoint:** `POST /api/crear-factura`
+
+### Proceso:
+1. AppSheet trigger → Apps Script webhook (`doPost`)
+2. Busca cliente por CUIT en Xubio
+3. Obtiene cotización USD desde DolarAPI
+4. Crea factura vía Xubio REST API
+5. Obtiene PDF público de la factura
+6. Actualiza Google Sheets (columna 13: número factura, columna 21: PDF)
+
+### Columnas Google Sheets (Facturación):
+| Columna | Índice | Campo |
+|---------|--------|-------|
+| 13 | M | FACTURA 2026 (numeroDocumento) |
+| 20 | T | ID REF (identificador único fila) |
+| 21 | U | LINK_PDF_FACTURA |
+
+---
+
+## 💰 FLUJO 2: COBRANZAS
+
+**Script:** `apps-script/XubioCobranzas.js`
+**Endpoint:** `POST /api/crear-cobranza`
+
+### Proceso:
+1. AppSheet trigger → Apps Script webhook (`doPost`)
+2. Lee número de factura de columna 13 (o recibe por parámetro)
+3. Busca factura por `numeroDocumento` en Xubio
+4. Crea cobranza heredando datos de la factura (cliente, moneda, cotización)
+5. Incluye observación con datos de factura para facilitar imputación manual
+6. Obtiene PDF público de la cobranza
+7. Actualiza Google Sheets (columna 22: PDF cobranza)
+
+### Columnas Google Sheets (Cobranzas):
+| Columna | Índice | Campo |
+|---------|--------|-------|
+| 13 | M | FACTURA 2026 (input - lee de aquí) |
+| 20 | T | ID REF (identificador único fila) |
+| 22 | V | LINK_PDF_COBRANZA |
+
+### ⚠️ Limitación Conocida: Imputación Manual
+La REST API de Xubio **NO soporta imputación automática** de cobranzas a facturas. La cobranza se crea correctamente pero debe imputarse manualmente desde Xubio UI:
+
+1. Ir a **Xubio → Cuenta Corriente** del cliente
+2. La cobranza aparece con observación: `IMPUTAR A: A-00004-00001685 - CLIENTE - Total: 169.4 USD`
+3. Click en **Aplicar** → Seleccionar factura → **Guardar** (2 clicks)
+
+---
+
+## ✨ Características Compartidas
+
+- **OAuth2 Centralizado**: Token gestionado en Vercel, cacheado por 1 hora
+- **Generación de PDF Público**: Ambos flujos obtienen link de descarga público
+- **Idempotencia**: `externalId` compuesto (idRef + timestamp) previene duplicados
+- **Datos Bancarios Automáticos**: Observaciones incluyen CBU/Alias (facturas) o datos de imputación (cobranzas)
 
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 
