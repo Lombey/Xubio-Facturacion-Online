@@ -81,6 +81,47 @@ La REST API de Xubio **NO soporta imputación automática** de cobranzas a factu
 - **Idempotencia**: `externalId` compuesto (idRef + timestamp) previene duplicados
 - **Datos Bancarios Automáticos**: Observaciones incluyen CBU/Alias (facturas) o datos de imputación (cobranzas)
 
+---
+
+## 🔀 Router de Webhooks (Apps Script)
+
+**Archivo:** `apps-script/router.gs`
+
+Un único `doPost()` que rutea automáticamente según los campos del request:
+
+```
+Request con "cuit"     → Facturación (xubiodiscovery.gs)
+Request sin "cuit"     → Cobranza (xubiocobranzas.gs)
+```
+
+### Estructura de archivos Apps Script:
+
+| Archivo | Función | doPost |
+|---------|---------|--------|
+| `router.gs` | Router principal | ✅ Único doPost() |
+| `xubiodiscovery.gs` | Lógica facturación | ❌ Comentado |
+| `xubiocobranzas.gs` | Lógica cobranzas | ❌ Comentado |
+
+### Body del webhook según operación:
+
+**Facturación:**
+```json
+{
+  "cuit": "<<[CUIT]>>",
+  "cantidad": <<[Equipos]>>,
+  "idRef": "<<[ID REF]>>"
+}
+```
+
+**Cobranza:**
+```json
+{
+  "idRef": "<<[ID REF]>>"
+}
+```
+
+Ambos usan la **misma URL de webhook** - el router detecta qué hacer.
+
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 
 Se intentó implementar un servicio de login automatizado con Puppeteer en Fly.io para obtener cookies de sesión. Esta vía fue **descartada** debido a los bloqueos de firewall de Visma Connect en IPs de datacenters. El enfoque actual utiliza exclusivamente la **API Oficial de Xubio (OAuth2)**.

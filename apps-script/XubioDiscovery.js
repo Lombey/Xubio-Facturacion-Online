@@ -377,78 +377,14 @@ function actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl) {
 }
 
 /**
- * WEBHOOK ENDPOINT PARA APPSHEET
- * Recibe request POST desde AppSheet Action y crea factura
+ * NOTA: doPost() movido a router.gs
+ * El router detecta automáticamente si es facturación o cobranza
+ * según los campos del request (si viene "cuit" = facturación)
  *
- * Request Body esperado:
- * {
- *   "cuit": "30-71614098-4",
- *   "cantidad": 15,
- *   "idRef": "1"
- * }
- *
- * Response:
- * {
- *   "success": true,
- *   "data": {
- *     "transaccionId": 67768786,
- *     "numeroDocumento": "A-00004-00001682",
- *     "pdfUrl": "https://xubio.com/..."
- *   }
- * }
+ * Las funciones que usa el router desde este archivo:
+ * - crearFacturaCompleta(cuit, cantidad, externalId)
+ * - actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl)
  */
-function doPost(e) {
-  Logger.log('📥 Webhook recibido desde AppSheet');
-
-  try {
-    // Parsear request body
-    const requestData = JSON.parse(e.postData.contents);
-    Logger.log('📦 Request data: ' + JSON.stringify(requestData));
-
-    const cuit = requestData.cuit;
-    const cantidad = requestData.cantidad || 1;
-    const idRef = requestData.idRef;
-
-    // Validaciones
-    if (!cuit) {
-      throw new Error('Falta parámetro: cuit');
-    }
-    if (!idRef) {
-      throw new Error('Falta parámetro: idRef');
-    }
-
-    Logger.log('');
-    Logger.log('📋 Datos procesados:');
-    Logger.log('   CUIT: ' + cuit);
-    Logger.log('   Cantidad: ' + cantidad);
-    Logger.log('   ID REF: ' + idRef);
-
-    // Generar un ID único por cada clic (idRef + timestamp)
-    // Esto permite volver a facturar la misma fila si se anula la anterior
-    const externalIdUnique = idRef + '-' + new Date().getTime();
-
-    // Crear factura (Precio se resuelve en backend)
-    const resultado = crearFacturaCompleta(cuit, cantidad, externalIdUnique);
-
-    // Actualizar Google Sheets con número de factura y LINK PDF
-    actualizarFacturaEnSheet(idRef, resultado.numeroDocumento, resultado.pdfUrl);
-
-    // Retornar success
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      data: resultado
-    })).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (error) {
-    Logger.log('❌ Error en webhook: ' + error.message);
-
-    // Retornar error
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: error.message
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
 
 /**
  * TEST: Simular webhook de AppSheet

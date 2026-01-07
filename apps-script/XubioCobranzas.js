@@ -126,67 +126,15 @@ function actualizarCobranzaEnSheet(idRef, pdfUrl) {
 // ============================================================================
 
 /**
- * WEBHOOK ENDPOINT PARA APPSHEET
- * Recibe request POST desde AppSheet Action y crea cobranza
+ * NOTA: doPost() movido a router.gs
+ * El router detecta automáticamente si es facturación o cobranza
+ * según los campos del request (si NO viene "cuit" = cobranza)
  *
- * Request Body esperado:
- * {
- *   "idRef": "1",
- *   "numeroDocumento": "A-00004-00001685"  // Opcional si se lee de la sheet
- * }
- *
- * Si no se envía numeroDocumento, lo lee de la columna 13 de la fila con idRef
+ * Las funciones que usa el router desde este archivo:
+ * - crearCobranzaPorFactura(numeroDocumento)
+ * - obtenerFacturaDeSheet(idRef)
+ * - actualizarCobranzaEnSheet(idRef, pdfUrl)
  */
-function doPost(e) {
-  Logger.log('📥 Webhook cobranza recibido desde AppSheet');
-
-  try {
-    const requestData = JSON.parse(e.postData.contents);
-    Logger.log('📦 Request data: ' + JSON.stringify(requestData));
-
-    const idRef = requestData.idRef;
-    let numeroDocumento = requestData.numeroDocumento;
-
-    if (!idRef) {
-      throw new Error('Falta parámetro: idRef');
-    }
-
-    // Si no viene numeroDocumento, leerlo de la sheet (columna 13)
-    if (!numeroDocumento) {
-      numeroDocumento = obtenerFacturaDeSheet(idRef);
-    }
-
-    if (!numeroDocumento) {
-      throw new Error('No se encontró número de factura para ID REF: ' + idRef);
-    }
-
-    Logger.log('📋 Datos procesados:');
-    Logger.log('   ID REF: ' + idRef);
-    Logger.log('   Factura: ' + numeroDocumento);
-
-    // Crear cobranza
-    const resultado = crearCobranzaPorFactura(numeroDocumento);
-
-    // Actualizar Google Sheets con link del PDF
-    if (resultado.pdfUrl) {
-      actualizarCobranzaEnSheet(idRef, resultado.pdfUrl);
-    }
-
-    // Retornar success
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      data: resultado
-    })).setMimeType(ContentService.MimeType.JSON);
-
-  } catch (error) {
-    Logger.log('❌ Error en webhook: ' + error.message);
-
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: error.message
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
 
 /**
  * OBTENER NÚMERO DE FACTURA DE LA SHEET
