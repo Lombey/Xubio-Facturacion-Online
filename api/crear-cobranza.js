@@ -6,7 +6,7 @@
  * Credenciales OAuth manejadas en Vercel (variables de entorno)
  */
 
-import { getOfficialToken } from '../sdk/tokenManager.js';
+import { getOfficialToken } from './utils/tokenManager.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
