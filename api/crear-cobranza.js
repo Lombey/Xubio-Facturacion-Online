@@ -8,6 +8,24 @@
 
 import { getOfficialToken } from './utils/tokenManager.js';
 
+/**
+ * Obtener link público del PDF de la cobranza
+ */
+async function obtenerLinkPdfPublico(token, transaccionId) {
+  try {
+    const url = `https://xubio.com/API/1.1/imprimirPDF?idtransaccion=${transaccionId}&tipoimpresion=1`;
+    const response = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`Error obteniendo PDF: ${response.status}`);
+    const data = await response.json();
+    return data.urlPdf;
+  } catch (e) {
+    console.error('⚠️ Error al obtener link público del PDF:', e.message);
+    return null; // Retornar null si falla, no bloquear la cobranza
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({
@@ -17,19 +35,47 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { facturaId } = req.body;
+    let { facturaId, numeroDocumento } = req.body;
 
-    if (!facturaId) {
+    if (!facturaId && !numeroDocumento) {
       return res.status(400).json({
         success: false,
-        error: 'Falta parámetro requerido: facturaId'
+        error: 'Falta parámetro requerido: facturaId o numeroDocumento'
       });
     }
 
     // 1. Obtener token OAuth (desde variables de entorno de Vercel)
     const token = await getOfficialToken();
 
-    // 2. Obtener datos de la factura
+    // 2. Si recibimos numeroDocumento, buscar el facturaId primero
+    if (!facturaId && numeroDocumento) {
+      console.log('Buscando factura por numeroDocumento:', numeroDocumento);
+      const searchUrl = `https://xubio.com/API/1.1/comprobanteVentaBean?numeroDocumento=${encodeURIComponent(numeroDocumento)}`;
+      const searchRes = await fetch(searchUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!searchRes.ok) {
+        const errorText = await searchRes.text();
+        throw new Error(`Error buscando factura: HTTP ${searchRes.status} - ${errorText}`);
+      }
+
+      const searchResults = await searchRes.json();
+
+      // Xubio retorna array de resultados
+      if (!searchResults || searchResults.length === 0) {
+        throw new Error(`No se encontró factura con número: ${numeroDocumento}`);
+      }
+
+      facturaId = searchResults[0].transaccionid;
+      console.log('Factura encontrada, ID:', facturaId);
+    }
+
+    // 3. Obtener datos completos de la factura
     const facturaUrl = `https://xubio.com/API/1.1/comprobanteVentaBean/${facturaId}`;
     const facturaRes = await fetch(facturaUrl, {
       method: 'GET',
@@ -184,19 +230,21 @@ export default async function handler(req, res) {
 
     console.log('✅ Cobranza creada:', cobranza);
 
-    // 6. Retornar resultado exitoso
+    // 6. Obtener PDF de la cobranza
+    const cobranzaId = cobranza.transaccionid;
+    const pdfUrl = await obtenerLinkPdfPublico(token, cobranzaId);
+    console.log('📄 PDF URL:', pdfUrl);
+
+    // 7. Retornar resultado exitoso
     return res.status(200).json({
       success: true,
       data: {
-        cobranzaId: cobranza.transaccionid,
+        cobranzaId: cobranzaId,
         numeroRecibo: cobranza.numeroRecibo,
         factura: factura.numeroDocumento,
         cliente: factura.cliente.nombre,
-        total: factura.importetotal
-      },
-      debug: {
-        payloadEnviado: payload,
-        responseXubio: cobranza
+        total: factura.importetotal,
+        pdfUrl: pdfUrl
       }
     });
 
