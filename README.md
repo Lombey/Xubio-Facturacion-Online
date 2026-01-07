@@ -1,6 +1,8 @@
 # Sheets con Xubio - API Centralizada (Vercel)
 
-Este proyecto es una infraestructura de API serverless para conectar Google Sheets (via AppSheet y Apps Script) con Xubio para la creación de facturas.
+Este proyecto es una infraestructura de API serverless para conectar Google Sheets (via AppSheet y Apps Script) con Xubio para la creación de facturas y cobranzas.
+
+**URL Base Vercel:** `https://xubio-facturacion-online.vercel.app`
 
 ## 🚀 Arquitectura Actual
 
@@ -45,5 +47,6 @@ Se deben configurar las siguientes variables de entorno en el dashboard de Verce
 
 - `POST /api/auth`: Gestiona el token de acceso oficial.
 - `POST /api/crear-factura`: Procesa la creación de facturas (Usa Bearer Token).
+- `POST /api/crear-cobranza`: Crea cobranzas asociadas a facturas existentes.
 - `ANY /api/proxy`: Proxy para peticiones genéricas a la API de Xubio.
 - `ANY /api/discovery`: Proxy genérico para endpoints de consulta de Xubio.

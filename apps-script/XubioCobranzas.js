@@ -9,7 +9,7 @@
  * 2. Ejecutar testCrearCobranza() para probar
  */
 
-const VERCEL_BASE_COBRANZA = 'https://sheets-con-xubio.vercel.app';
+const VERCEL_BASE_COBRANZA = 'https://xubio-facturacion-online.vercel.app';
 
 /**
  * TEST: Crear cobranza para factura de prueba
