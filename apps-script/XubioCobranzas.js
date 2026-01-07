@@ -78,6 +78,71 @@ function testCrearCobranza() {
 }
 
 /**
+ * TEST: Crear cobranza usando XML Legacy (con imputacion automatica)
+ * Factura: 67835721 (LA MAYACA SRL, USD 169.40 @ 1490)
+ */
+function testCrearCobranzaXML() {
+  const facturaId = 67835721; // LA MAYACA SRL
+
+  Logger.log('='.repeat(50));
+  Logger.log('TEST XML LEGACY: Cobranza con Imputacion');
+  Logger.log('Factura: ' + facturaId);
+  Logger.log('='.repeat(50));
+
+  const url = VERCEL_BASE_COBRANZA + '/api/crear-cobranza-xml';
+  const payload = { facturaId: facturaId };
+
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  Logger.log('Llamando a: ' + url);
+  Logger.log('-'.repeat(50));
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const code = response.getResponseCode();
+    const text = response.getContentText();
+
+    Logger.log('HTTP Code: ' + code);
+    logChunked(text, 'Response');
+
+    const result = JSON.parse(text);
+
+    Logger.log('-'.repeat(50));
+
+    if (result.success) {
+      Logger.log('EXITO: Cobranza XML creada');
+      Logger.log('  Metodo: ' + result.data.metodo);
+      Logger.log('  Cobranza ID: ' + result.data.cobranzaId);
+      Logger.log('  Nro Recibo: ' + result.data.numeroRecibo);
+      Logger.log('  Factura: ' + result.data.factura);
+      Logger.log('  Cliente: ' + result.data.cliente);
+      Logger.log('  Total: ' + result.data.total);
+
+      Logger.log('');
+      Logger.log('>>> VERIFICAR en Xubio: Cuenta Corriente del cliente');
+      Logger.log('>>> La cobranza deberia estar IMPUTADA a la factura');
+    } else {
+      Logger.log('ERROR: ' + result.error);
+      if (result.debug) {
+        Logger.log('Debug info:');
+        logChunked(JSON.stringify(result.debug, null, 2), 'Debug');
+      }
+    }
+
+    return result;
+
+  } catch (error) {
+    Logger.log('EXCEPCION: ' + error.message);
+    throw error;
+  }
+}
+
+/**
  * Crear cobranza para cualquier factura por ID
  * @param {number} facturaId - ID de la factura a cobrar
  * @returns {Object} Resultado de la operacion
