@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  COBRANZA GOLD STANDARD - XML Legacy Mode
+  Capturado desde UI de Xubio (DevTools Network tab)
+  Fecha: 2026-01-06
+  Endpoint: https://xubio.com/NXV/DF_submit
+  Cliente: LA MAYACA SRL
+  Monto: ARS 252,406.00 (USD 169.40 @ 1490)
+
+  DOS VARIANTES CAPTURADAS:
+  1. Tipo: Banco (M_CuentaTipo id="2")
+  2. Tipo: Valores a Depositar - Cheque (M_CuentaTipo id="3")
+
+  DIFERENCIAS CLAVE ENTRE BANCO Y VALORES:
+  - cuentaTipo: 2 = Banco, 3 = Valores a Depositar
+  - CuentaID: -14 = Banco, -2 = Valores a Depositar
+  - M_Banco: vacío para Banco, id del banco para cheques
+  - M_NumeroCheque: vacío para Banco, número de cheque para Valores
+  - FechaVto: vacío para Banco, fecha de vencimiento para cheques
+-->
+<df>
+  <config>
+    <javaClass value="app.nexivia.ui.transaccion.form.CobranzaNXVForm"/>
+    <lightMode value="0"/>
+    <userDataValues>
+      <userDataValue name="auditID"><![CDATA[-1]]></userDataValue>
+      <userDataValue name="isTransaction"><![CDATA[true]]></userDataValue>
+      <userDataValue name="NoProponerAplicaciones"><![CDATA[1]]></userDataValue>
+      <userDataValue name="standardXml"><![CDATA[claseVO=CobranzaARNXVVO|docID=228]]></userDataValue>
+      <userDataValue name="titulo"><![CDATA[Nuevo - LA MAYACA SRL - Cobranza]]></userDataValue>
+      <userDataValue name="PonerReadOnly"><![CDATA[1]]></userDataValue>
+      <userDataValue name="auditClass"><![CDATA[app.nexivia.transacciones.tesoreria.cobranzas.model.CobranzaNXVVO]]></userDataValue>
+      <userDataValue name="EsLPG"><![CDATA[false]]></userDataValue>
+      <userDataValue name="v_Cobranza_Aplicada"><![CDATA[false]]></userDataValue>
+      <userDataValue name="v_Transaccion_Conciliada"><![CDATA[false]]></userDataValue>
+      <userDataValue name="TransaccionSubTipoID"><![CDATA[228]]></userDataValue>
+      <userDataValue name="utilizaCotizacionOrigen"><![CDATA[true]]></userDataValue>
+      <userDataValue name="vo"><![CDATA[CobranzaARNXVVO]]></userDataValue>
+      <userDataValue name="action"><![CDATA[save]]></userDataValue>
+    </userDataValues>
+  </config>
+
+  <dataset>
+    <data>
+      <!-- ============================================ -->
+      <!-- DATOS PRINCIPALES DE LA COBRANZA -->
+      <!-- ============================================ -->
+      <pk value="-1"/>
+      <EmpresaID type="C" id="234054" value="corvusweb srl"/>
+      <ComprobanteElectronicomxID type="C" id="0" value=""/>
+      <M_IdsExtractos value=""/>
+      <M_Cuentaid value="" type="LNG"/>
+      <M_EstadoFK type="C" id="0" value=""/>
+      <M_EstadoID value=""/>
+
+      <!-- CLIENTE -->
+      <OrganizacionID type="C" id="8720736" value="LA MAYACA SRL"/>
+
+      <!-- NÚMERO DE RECIBO -->
+      <NumeroDocumento value="C-0001-00001543"/>
+
+      <!-- FECHA -->
+      <Fecha type="date" value="2026-01-06 00:00"/>
+
+      <FacturacionTenantID type="C" id="0" value=""/>
+      <MostrarOpciones value="0"/>
+      <OrganizacionSucursalItemID type="C" id="0" value=""/>
+
+      <!-- MONEDA Y COTIZACIÓN -->
+      <MonedaID type="C" id="-3" value="Dólares"/>
+      <Cotizacion value="1490" type="DEC"/>
+      <leyendaCotizacion value=""/>
+      <UtilizaMonedaExtranjera value="0"/>
+
+      <NumeroInterno value="0" type="LNG"/>
+      <Descripcion type="cdata"><![CDATA[]]></Descripcion>
+
+      <!-- CIRCUITO CONTABLE -->
+      <CircuitoContableID type="C" id="-2" value="default"/>
+
+      <!-- ============================================ -->
+      <!-- INSTRUMENTOS DE COBRO (MEDIOS DE PAGO) -->
+      <!-- ============================================ -->
+      <TransaccionTesoreriaIngresoItems type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+          <TransaccionID type="cdata"/>
+          <AsientoItemID type="cdata"/>
+
+          <!-- TIPO DE CUENTA: 2 = Banco -->
+          <M_CuentaTipo type="C" id="2" value="Banco"/>
+
+          <!-- CUENTA BANCARIA -->
+          <CuentaID type="C" id="-14" value="Banco"/>
+
+          <!-- MONEDA DEL INSTRUMENTO -->
+          <MonedaIDTransaccion type="C" id="-2" value="Pesos Argentinos"/>
+          <CotizacionMonTransaccion value="1" type="DEC"/>
+
+          <!-- IMPORTE EN MONEDA DE TRANSACCIÓN (ARS) -->
+          <ImporteMonTransaccion value="252406" type="DEC"/>
+
+          <!-- IMPORTE EN MONEDA PRINCIPAL (ARS) -->
+          <ImporteMonPrincipal value="252406"/>
+
+          <!-- DATOS DE CHEQUE (vacíos para Banco) -->
+          <M_Banco type="C" id="" value=""/>
+          <Descripcion value=""/>
+          <M_NumeroCheque value=""/>
+          <FechaVto type="date" value=""/>
+
+          <DebeHaber value="1" type="LNG"/>
+          <operacionbancariaid type="C" id="" value=""/>
+          <control1 value=""/>
+          <importemonsecundaria value=""/>
+          <organizacionid type="C" id="" value=""/>
+          <productoid type="C" id="" value=""/>
+          <itemid value=""/>
+          <centrodecostoid type="C" id="" value=""/>
+          <documentofisicoid type="C" id="" value=""/>
+          <importetotal value=""/>
+          <importecanceladomontransaccion value=""/>
+          <estadoiddocumentofisico type="C" id="" value=""/>
+          <itemtipo value="0"/>
+          <importecanceladomonprincipal value=""/>
+        </row>
+      </TransaccionTesoreriaIngresoItems>
+
+      <!-- ============================================ -->
+      <!-- EGRESOS (vacío para cobranza simple) -->
+      <!-- ============================================ -->
+      <TransaccionTesoreriaEgresoItems type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+          <TransaccionID value=""/>
+          <AsientoItemID value=""/>
+          <CuentaID type="C" id="0" value=""/>
+          <Descripcion value=""/>
+          <MonedaIDTransaccion type="C" id="-2" value="Pesos Argentinos"/>
+          <CotizacionMonTransaccion value="1" type="DEC"/>
+          <ImporteMonTransaccion value="0" type="DEC"/>
+          <ImporteMonPrincipal value="0" type="DEC"/>
+          <FechaVto type="date" value=""/>
+          <DebeHaber value="-1" type="LNG"/>
+        </row>
+      </TransaccionTesoreriaEgresoItems>
+
+      <!-- ============================================ -->
+      <!-- APLICACIÓN A CUENTA CORRIENTE (FACTURA) -->
+      <!-- ⚠️ CAMPO CRÍTICO: M_TransaccionIDOrigen = ID de la factura -->
+      <!-- ============================================ -->
+      <TransaccionTesoreriaCtaCteItems type="D" count="1">
+        <row>
+          <pk value="0"/>
+          <TransaccionID type="cdata"/>
+
+          <!-- ID DE LA FACTURA A LA QUE SE APLICA -->
+          <M_ItemIDOrigen value="244067142"/>
+          <M_TransaccionIDOrigen value="67835721"/>
+
+          <M_CotizacionItemOrigen value=""/>
+          <AsientoItemID type="cdata"/>
+
+          <!-- CUENTA DE DEUDORES -->
+          <CuentaID type="C" id="-3" value="Deudores por Venta"/>
+
+          <!-- MONEDA Y COTIZACIÓN (misma que factura) -->
+          <MonedaIDTransaccion type="C" id="-3" value="Dólares"/>
+          <CotizacionMonTransaccion value="1490.000000"/>
+
+          <!-- IMPORTES -->
+          <ImporteMonTransaccion value="169.40"/>      <!-- USD -->
+          <ImporteMonPrincipal value="252406.00"/>     <!-- ARS -->
+
+          <Descripcion value=""/>
+          <FechaVto type="date" value=""/>
+          <DebeHaber value="-1"/>
+          <operacionbancariaid type="C" id="" value=""/>
+          <control1 value=""/>
+          <importemonsecundaria value=""/>
+
+          <!-- CLIENTE (mismo que arriba) -->
+          <organizacionid type="C" id="8720736" value=""/>
+
+          <productoid type="C" id="" value=""/>
+          <itemid value=""/>
+          <centrodecostoid type="C" id="" value=""/>
+          <documentofisicoid type="C" id="" value=""/>
+          <importetotal value=""/>
+          <importecanceladomontransaccion value=""/>
+          <estadoiddocumentofisico type="C" id="" value=""/>
+          <itemtipo value="2"/>
+          <importecanceladomonprincipal value=""/>
+        </row>
+      </TransaccionTesoreriaCtaCteItems>
+
+      <!-- ============================================ -->
+      <!-- RETENCIONES (vacío para cobranza simple) -->
+      <!-- ============================================ -->
+      <M_AgregarRetenciones value="0"/>
+      <TransaccionTesoreriaRetencionItems type="D" count="1">
+        <row index="1">
+          <pk value="0"/>
+          <TransaccionID value=""/>
+          <AsientoItemID value=""/>
+          <CuentaID type="C" id="0" value=""/>
+          <M_RetencionTipo type="CB" id="-1" value=""/>
+          <RetencionID type="C" id="0" value=""/>
+          <Descripcion value=""/>
+          <MonedaIDTransaccion type="C" id="-2" value="Pesos Argentinos"/>
+          <CotizacionMonTransaccion value="1" type="DEC"/>
+          <ImporteISAR value="0" type="DEC"/>
+          <ImporteMonPrincipal value="0" type="DEC"/>
+          <ImporteMonTransaccion value="0" type="DEC"/>
+          <FechaVto type="date" value="2026-01-06 00:00"/>
+          <NroComprobanteRetencion value=""/>
+        </row>
+      </TransaccionTesoreriaRetencionItems>
+
+      <!-- ============================================ -->
+      <!-- ASIENTOS CONTABLES (vacío) -->
+      <!-- ============================================ -->
+      <TransaccionAsientoItems type="D" count="0"/>
+
+      <!-- ============================================ -->
+      <!-- TOTALES -->
+      <!-- ============================================ -->
+      <ImporteIva value="" type="DEC"/>
+      <ImporteIva8 value="" type="DEC"/>
+      <ImporteGravado value="" type="DEC"/>
+      <ImporteGravado8 value="" type="DEC"/>
+      <ImporteExento value="" type="DEC"/>
+      <ImporteNoComputable value="" type="DEC"/>
+      <ImporteImpuesto value="" type="DEC"/>
+      <ImporteNoObjetoDeImpuesto value="" type="DEC"/>
+      <ImporteRetencionIva value="" type="DEC"/>
+      <TotalConcepto value="0" type="DEC"/>
+      <TotalIngresosMonPrincipal value="252406" type="DEC"/>
+      <TotalEgresosMonPrincipal value="0" type="DEC"/>
+      <TotalRetencionMonPrincipal value="0" type="DEC"/>
+      <TotalCtaCteMonPrincipal value="252406" type="DEC"/>
+
+      <!-- ============================================ -->
+      <!-- METADATA -->
+      <!-- ============================================ -->
+      <transaccionsubtipoid type="C" id="228" value="LA MAYACA SRL - Cobranza"/>
+      <externalid value=""/>
+      <foliosustitucionid value=""/>
+      <noeditable value="0"/>
+      <comprobanteelectronicomanual value=""/>
+      <esanticipo value="0"/>
+      <numparcialidad value=""/>
+      <usuarioidinsert value=""/>
+      <fechainsert value="2026-01-06 21:54:57.974"/>
+      <generadoautomaticamente value=""/>
+      <motivocancelacionid value=""/>
+      <nombre value=""/>
+      <fechatimbrado value=""/>
+      <obtuvocae value=""/>
+      <talonarioid type="C" id="8410592" value=""/>
+      <importededucciones value=""/>
+      <transaccionid value="-1"/>
+      <importeretencionisr value=""/>
+      <formadepagoid type="C" id="" value=""/>
+      <debitobancofrances value=""/>
+      <importeimpuestos value=""/>
+      <eliminable value=""/>
+      <importeretencionieps value=""/>
+      <transacciontipoid type="C" id="-5" value=""/>
+      <origenid value=""/>
+      <importetotal value=""/>
+      <usocfdi value=""/>
+      <pagomercadopagoid value=""/>
+      <tipocomprobantesat value=""/>
+      <transacciontareaid value=""/>
+    </data>
+  </dataset>
+</df>
+
+<!-- ============================================ -->
+<!-- VARIANTE 2: VALORES A DEPOSITAR (CHEQUE) -->
+<!-- ============================================ -->
+<!--
+  DIFERENCIAS CON BANCO (arriba):
+  Solo cambia el bloque TransaccionTesoreriaIngresoItems
+  Todos los demás campos son idénticos
+-->
+<!--
+<TransaccionTesoreriaIngresoItems type="D" count="1">
+  <row index="1">
+    <pk value="0"/>
+    <TransaccionID type="cdata"/>
+    <AsientoItemID type="cdata"/>
+
+    <!- - TIPO: 3 = Valores a Depositar - ->
+    <M_CuentaTipo type="C" id="3" value="Valores a Depositar"/>
+
+    <!- - CUENTA: -2 = Valores a Depositar - ->
+    <CuentaID type="C" id="-2" value="Valores a Depositar"/>
+
+    <MonedaIDTransaccion type="C" id="-2" value="Pesos Argentinos"/>
+    <CotizacionMonTransaccion value="1" type="DEC"/>
+    <ImporteMonTransaccion value="252406" type="DEC"/>
+    <ImporteMonPrincipal value="252406"/>
+
+    <!- - DATOS DEL CHEQUE - ->
+    <M_Banco type="C" id="3" value="ABN Amro"/>
+    <Descripcion value=""/>
+    <M_NumeroCheque value="0000001"/>
+    <FechaVto type="date" value="2026-01-06 00:00"/>
+
+    <DebeHaber value="1" type="LNG"/>
+    <operacionbancariaid type="C" id="" value=""/>
+    <control1 value=""/>
+    <importemonsecundaria value=""/>
+    <organizacionid type="C" id="" value=""/>
+    <productoid type="C" id="" value=""/>
+    <itemid value=""/>
+    <centrodecostoid type="C" id="" value=""/>
+    <documentofisicoid type="C" id="" value=""/>
+    <importetotal value=""/>
+    <importecanceladomontransaccion value=""/>
+    <estadoiddocumentofisico type="C" id="" value=""/>
+    <itemtipo value="0"/>
+    <importecanceladomonprincipal value=""/>
+  </row>
+</TransaccionTesoreriaIngresoItems>
+-->
+
+<!-- ============================================ -->
+<!-- RESUMEN DE MAPEOS -->
+<!-- ============================================ -->
+<!--
+  TIPO DE CUENTA (M_CuentaTipo):
+  - id="2" value="Banco" → Transferencia bancaria
+  - id="3" value="Valores a Depositar" → Cheque
+
+  CUENTA (CuentaID):
+  - id="-14" value="Banco" → Cuenta bancaria genérica
+  - id="-2" value="Valores a Depositar" → Cuenta de valores genérica
+
+  CAMPOS EXCLUSIVOS DE CHEQUES:
+  - M_Banco: { id: "3", value: "ABN Amro" } (banco emisor del cheque)
+  - M_NumeroCheque: "0000001" (número del cheque)
+  - FechaVto: "2026-01-06 00:00" (fecha de vencimiento)
+
+  ASOCIACIÓN CON FACTURA (crítico):
+  - M_TransaccionIDOrigen: ID de la factura a cobrar
+  - Se encuentra en TransaccionTesoreriaCtaCteItems
+-->
