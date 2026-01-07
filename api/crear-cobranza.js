@@ -61,6 +61,11 @@ export default async function handler(req, res) {
     const esMonedaExtranjera = monedaFactura.id === -3; // USD
     const importeMonPrincipal = esMonedaExtranjera ? (total * cotizacion) : total;
 
+    // Obtener itemId del primer item de la factura (transaccionCVItemId)
+    const primerItem = factura.transaccionProductoItems?.[0] || {};
+    const itemIdOrigen = primerItem.transaccionCVItemId || null;
+    console.log('itemIdOrigen (transaccionCVItemId):', itemIdOrigen);
+
     const fechaISO = new Date().toISOString().split('T')[0];
 
     const payload = {
@@ -118,9 +123,10 @@ export default async function handler(req, res) {
       }],
 
       // Intento 2: transaccionTesoreriaCtaCteItems (campo XML Legacy, no documentado en REST)
-      // Basado en M_TransaccionIDOrigen del XML gold standard
+      // Basado en M_TransaccionIDOrigen y M_ItemIDOrigen del XML gold standard
       transaccionTesoreriaCtaCteItems: [{
         transaccionIdOrigen: parseInt(facturaId),
+        itemIdOrigen: itemIdOrigen,  // transaccionCVItemId de la factura
         importeMonTransaccion: total,
         importeMonPrincipal: importeMonPrincipal,
         organizacionId: parseInt(clienteId),
