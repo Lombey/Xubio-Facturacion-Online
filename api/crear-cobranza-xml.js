@@ -63,7 +63,17 @@ export default async function handler(req, res) {
     const importeMonPrincipal = esUSD ? (totalFactura * cotizacion) : totalFactura; // Siempre en ARS
 
     // Intentar obtener itemId del primer item de la factura
-    const itemIdOrigen = factura.transaccionProductoItems?.[0]?.transaccionProductoItemId || '';
+    const primerItem = factura.transaccionProductoItems?.[0] || {};
+    console.log('Primer item de factura:', JSON.stringify(primerItem, null, 2));
+
+    // Buscar el ID del item en varios campos posibles
+    const itemIdOrigen = primerItem.transaccionProductoItemId
+      || primerItem.itemId
+      || primerItem.id
+      || primerItem.ID
+      || '';
+
+    console.log('itemIdOrigen encontrado:', itemIdOrigen);
 
     // Fecha actual
     const now = new Date();
