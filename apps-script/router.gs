@@ -3,7 +3,8 @@
  * Router principal para webhooks de AppSheet
  *
  * Detecta automáticamente el tipo de operación por los campos del request:
- * - Si viene "cuit" → Facturación
+ * - Si viene "accion": "consultaCuit" → Consulta razón social
+ * - Si viene "cuit" (sin accion) → Facturación
  * - Si NO viene "cuit" → Cobranza
  */
 
@@ -15,7 +16,10 @@ function doPost(e) {
     Logger.log('📦 Request data: ' + JSON.stringify(requestData));
 
     // Detectar tipo de operación por campos presentes
-    if (requestData.cuit) {
+    if (requestData.accion === 'consultaCuit') {
+      Logger.log('🔀 Ruteo: CONSULTA CUIT (accion=consultaCuit)');
+      return procesarConsultaCuit(requestData);
+    } else if (requestData.cuit) {
       Logger.log('🔀 Ruteo: FACTURACIÓN (detectado campo cuit)');
       return procesarFacturacion(requestData);
     } else {
@@ -110,5 +114,46 @@ function procesarCobranza(requestData) {
     success: true,
     tipo: 'cobranza',
     data: resultado
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * PROCESAR CONSULTA CUIT
+ * Llamado cuando el request contiene accion="consultaCuit"
+ * Consulta razón social y actualiza columna AI
+ */
+function procesarConsultaCuit(requestData) {
+  Logger.log('🔍 Procesando CONSULTA CUIT...');
+
+  const cuit = requestData.cuit;
+  const idRef = requestData.idRef;
+
+  if (!cuit) {
+    throw new Error('Falta parámetro: cuit');
+  }
+  if (!idRef) {
+    throw new Error('Falta parámetro: idRef');
+  }
+
+  Logger.log('   CUIT: ' + cuit);
+  Logger.log('   ID REF: ' + idRef);
+
+  // Consultar razón social (función de AutocompletarRazonSocial.gs)
+  const razonSocial = consultarCUIT(normalizarCUIT(cuit));
+
+  if (!razonSocial) {
+    throw new Error('No se pudo obtener razón social para CUIT: ' + cuit);
+  }
+
+  // Actualizar Google Sheets
+  actualizarRazonSocialEnSheet(idRef, razonSocial);
+
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    tipo: 'consultaCuit',
+    data: {
+      cuit: cuit,
+      razonSocial: razonSocial
+    }
   })).setMimeType(ContentService.MimeType.JSON);
 }

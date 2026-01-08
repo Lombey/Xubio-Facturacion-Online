@@ -9,8 +9,8 @@
  * - AI (35): RAZON SOCIAL (output)
  */
 
-// Configuración
-var VERCEL_BASE = 'https://xubio-facturacion-online.vercel.app';
+// Configuración de columnas
+// NOTA: VERCEL_BASE está definida en XubioDiscovery.js
 var COLUMNA_CUIT = 23;        // Columna W
 var COLUMNA_RAZON_SOCIAL = 35; // Columna AI
 var FILA_HEADER = 1;
@@ -235,6 +235,55 @@ function testNormalizarCUIT() {
     var resultado = normalizarCUIT(caso);
     Logger.log(caso + ' → ' + (resultado || 'INVÁLIDO'));
   });
+}
+
+/**
+ * Actualiza la razón social en Google Sheets buscando por ID REF
+ * Llamado desde router.gs cuando viene un webhook de AppSheet
+ * @param {string} idRef - ID REF de la fila a actualizar
+ * @param {string} razonSocial - Razón social a escribir
+ */
+function actualizarRazonSocialEnSheet(idRef, razonSocial) {
+  var spreadsheetId = '1URTOFW_OIM1JG0HKarhjigd-JgQSgFPCItbvDRa3p-o';
+  var sheetName = 'TABLET'; // Nombre de la solapa
+
+  Logger.log('📝 Actualizando razón social en sheet...');
+  Logger.log('   ID REF: ' + idRef);
+  Logger.log('   Razón Social: ' + razonSocial);
+
+  try {
+    var ss = SpreadsheetApp.openById(spreadsheetId);
+    var sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+      throw new Error('No se encontró la hoja: ' + sheetName);
+    }
+
+    // Obtener todos los datos
+    var data = sheet.getDataRange().getValues();
+
+    // Buscar fila por ID REF (columna T = 20 = índice 19)
+    var filaEncontrada = -1;
+    for (var i = 1; i < data.length; i++) { // Empezar en 1 para skipear headers
+      if (String(data[i][19]) === String(idRef)) {
+        filaEncontrada = i + 1; // +1 porque getValues() es 0-indexed
+        break;
+      }
+    }
+
+    if (filaEncontrada === -1) {
+      throw new Error('No se encontró registro con ID REF: ' + idRef);
+    }
+
+    // Actualizar columna AI (35) con razón social
+    sheet.getRange(filaEncontrada, COLUMNA_RAZON_SOCIAL).setValue(razonSocial);
+
+    Logger.log('✅ Razón social actualizada en fila ' + filaEncontrada);
+
+  } catch (error) {
+    Logger.log('❌ Error actualizando sheet: ' + error.message);
+    throw error;
+  }
 }
 
 /**
