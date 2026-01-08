@@ -92,6 +92,42 @@ La REST API de Xubio **NO soporta imputación automática** de cobranzas a factu
 
 ---
 
+## 🔍 FLUJO 3: AUTOCOMPLETAR RAZÓN SOCIAL (Solapa Tablet)
+
+**Script:** `apps-script/AutocompletarRazonSocial.gs`
+**Endpoint:** `GET /api/consulta-cuit?cuit={CUIT}`
+
+### Funcionamiento:
+1. Usuario ingresa CUIT en columna W (cualquier formato: con/sin guiones)
+2. Trigger `onChange` detecta el cambio automáticamente
+3. Apps Script llama al endpoint de Vercel
+4. Vercel hace scraping de cuitonline.com y extrae razón social
+5. Se autocompleta columna AI con la razón social
+
+### Columnas Google Sheets (Solapa Tablet):
+| Columna | Índice | Campo |
+|---------|--------|-------|
+| W | 23 | CUIT (input) |
+| AI | 35 | RAZON SOCIAL (output - autocompletado) |
+
+### Comportamiento:
+- **Solo completa si está vacío**: Si la columna AI ya tiene valor, no sobrescribe
+- **Normaliza CUIT automáticamente**: Acepta `33-71584119-9`, `33715841199`, etc.
+- **Si falla**: Deja la celda vacía (sin mensaje de error)
+
+### Instalación del Trigger:
+Ejecutar **una sola vez** en Apps Script:
+```javascript
+setupTriggerOnChange()
+```
+
+### Test manual:
+```javascript
+testConsultaCUIT()  // Prueba con CUIT 33715841199 (LA MAYACA SRL)
+```
+
+---
+
 ## ✨ Características Compartidas
 
 - **OAuth2 Centralizado**: Token gestionado en Vercel, cacheado por 1 hora
@@ -165,5 +201,6 @@ Se deben configurar las siguientes variables de entorno en el dashboard de Verce
 - `POST /api/auth`: Gestiona el token de acceso oficial.
 - `POST /api/crear-factura`: Procesa la creación de facturas (Usa Bearer Token).
 - `POST /api/crear-cobranza`: Crea cobranzas asociadas a facturas existentes.
+- `GET /api/consulta-cuit`: Consulta razón social por CUIT (scraping cuitonline.com).
 - `ANY /api/proxy`: Proxy para peticiones genéricas a la API de Xubio.
 - `ANY /api/discovery`: Proxy genérico para endpoints de consulta de Xubio.
