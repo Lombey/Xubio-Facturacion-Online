@@ -311,10 +311,12 @@ Soporta descuento porcentual y licencias opcionales.
   "cuit": "<<[CUIT]>>",
   "idRef": "<<[ID]>>",
   "incluirLicencias": "<<[INCLUIR_LICENCIAS]>>",
-  "precioEquipo": <<NUMBER([PRESUPUESTO (USD)])*1>>,
+  "precioEquipo": <<CONCATENATE([PRESUPUESTO (USD)])>>,
   "descuento": <<[DESCUENTO (%)]>>
 }
 ```
+
+**IMPORTANTE:** Usar `CONCATENATE()` para números tipo Price evita que AppSheet agregue separador de miles (ej: 2.050 → 2050).
 
 **Acción: FACTURAR EQUIPOS**
 | Campo | Valor |
