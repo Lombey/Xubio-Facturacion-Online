@@ -15,16 +15,10 @@ const TABLET_CONFIG = {
   spreadsheetId: '1URTOFW_OIM1JG0HKarhjigd-JgQSgFPCItbvDRa3p-o',
   sheetName: 'TABLET',
   columnas: {
-    // Ajustar estos índices según la estructura real de la sheet
     // Los índices son 1-based (columna A = 1)
     ID: 43,              // AQ - UNIQUEID
     CUIT: 23,            // W
-    ESTADO_PAGO: null,   // TODO: definir columna
-    PRESUPUESTO_USD: null, // TODO: definir columna
-    SELECCION_PARA_FC: null, // TODO: definir columna
-    INCLUIR_LICENCIAS: null, // TODO: definir columna
-    FACTURA: null,       // TODO: columna para guardar número de factura
-    LINK_PDF: null       // TODO: columna para guardar PDF
+    SELECCION_PARA_FC: 46 // AT - checkbox para seleccionar equipos
   }
 };
 
@@ -188,14 +182,10 @@ function contarEquiposSeleccionados(cuit) {
   }
 
   const data = sheet.getDataRange().getValues();
-  const headers = data[0];
 
-  // Encontrar índices de columnas por nombre
-  const colCuit = findColumnIndex(headers, 'CUIT');
-  const colSeleccion = findColumnIndex(headers, 'SELECCION'); // Busca SELECCION_PARA_FC o SELECCIONAR
-
-  if (colCuit === -1) throw new Error('Columna CUIT no encontrada');
-  if (colSeleccion === -1) throw new Error('Columna SELECCION_PARA_FC no encontrada');
+  // Usar índices fijos de TABLET_CONFIG (convertir a 0-based para array)
+  const colCuit = TABLET_CONFIG.columnas.CUIT - 1;           // W = 23 → índice 22
+  const colSeleccion = TABLET_CONFIG.columnas.SELECCION_PARA_FC - 1; // AT = 46 → índice 45
 
   // Normalizar CUIT de búsqueda
   const cuitNormalizado = normalizarCUIT(cuit);
@@ -273,17 +263,13 @@ function limpiarSeleccionEquipos(filas) {
   const ss = SpreadsheetApp.openById(TABLET_CONFIG.spreadsheetId);
   const sheet = ss.getSheetByName(TABLET_CONFIG.sheetName);
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const colSeleccion = findColumnIndex(headers, 'SELECCION') + 1; // Busca SELECCION_PARA_FC o SELECCIONAR
+  // Usar índice fijo de TABLET_CONFIG (ya es 1-based para getRange)
+  const colSeleccion = TABLET_CONFIG.columnas.SELECCION_PARA_FC; // AT = 46
 
-  if (colSeleccion > 0) {
-    for (const fila of filas) {
-      sheet.getRange(fila, colSeleccion).setValue(false);
-    }
-    Logger.log('✅ Selección limpiada');
-  } else {
-    Logger.log('⚠️ Columna SELECCION_PARA_FC no encontrada');
+  for (const fila of filas) {
+    sheet.getRange(fila, colSeleccion).setValue(false);
   }
+  Logger.log('✅ Selección limpiada');
 }
 
 /**
