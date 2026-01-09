@@ -18,6 +18,7 @@ const TABLET_CONFIG = {
     // Los índices son 1-based (columna A = 1)
     ID: 43,              // AQ - UNIQUEID
     CUIT: 23,            // W
+    ESTADO_PAGO: 31,     // AE - estado de pago (NO FACTURADO / FACTURADO)
     SELECCION_PARA_FC: 46, // AT - checkbox para seleccionar equipos
     FACTURA_NUMERO: 30,  // AD - número de factura generada
     LINK_PDF: 49         // AW - link al PDF
@@ -44,32 +45,44 @@ function procesarFacturacionEquipos(requestData) {
 
   const cuit = requestData.cuit;
   const idRef = requestData.idRef;
-  // Aceptar: true, "true", "TRUE", "Y", "Yes", "YES", "1", 1
-  const valorLicencias = String(requestData.incluirLicencias).toUpperCase();
-  const incluirLicencias = requestData.incluirLicencias === true ||
-                           valorLicencias === 'TRUE' ||
-                           valorLicencias === 'Y' ||
-                           valorLicencias === 'YES' ||
-                           valorLicencias === '1';
-  const precioEquipo = parseFloat(requestData.precioEquipo) || 0;
-  const descuento = parseFloat(requestData.descuento) || 0; // Porcentaje de descuento
 
-  if (!cuit) {
-    throw new Error('Falta parámetro: cuit');
+  // LOCK: Evitar ejecuciones concurrentes para el mismo CUIT
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(2000)) {
+    Logger.log('⏳ Lock ocupado, otra ejecución en progreso. Saliendo...');
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      tipo: 'facturacionEquipos',
+      data: { mensaje: 'Procesamiento en curso por otra instancia', skipped: true }
+    })).setMimeType(ContentService.MimeType.JSON);
   }
-  if (!idRef) {
-    throw new Error('Falta parámetro: idRef');
-  }
-
-  Logger.log('   CUIT: ' + cuit);
-  Logger.log('   ID REF: ' + idRef);
-  Logger.log('   Incluir licencias: ' + incluirLicencias);
-  Logger.log('   Precio equipo: ' + precioEquipo);
-  if (descuento > 0) {
-    Logger.log('   Descuento: ' + descuento + '%');
-  }
+  Logger.log('🔒 Lock adquirido');
 
   try {
+    // Aceptar: true, "true", "TRUE", "Y", "Yes", "YES", "1", 1
+    const valorLicencias = String(requestData.incluirLicencias).toUpperCase();
+    const incluirLicencias = requestData.incluirLicencias === true ||
+                             valorLicencias === 'TRUE' ||
+                             valorLicencias === 'Y' ||
+                             valorLicencias === 'YES' ||
+                             valorLicencias === '1';
+    const precioEquipo = parseFloat(requestData.precioEquipo) || 0;
+    const descuento = parseFloat(requestData.descuento) || 0; // Porcentaje de descuento
+
+    if (!cuit) {
+      throw new Error('Falta parámetro: cuit');
+    }
+    if (!idRef) {
+      throw new Error('Falta parámetro: idRef');
+    }
+
+    Logger.log('   CUIT: ' + cuit);
+    Logger.log('   ID REF: ' + idRef);
+    Logger.log('   Incluir licencias: ' + incluirLicencias);
+    Logger.log('   Precio equipo: ' + precioEquipo);
+    if (descuento > 0) {
+      Logger.log('   Descuento: ' + descuento + '%');
+    }
     // 1. Contar equipos seleccionados del mismo CUIT
     const equiposData = contarEquiposSeleccionados(cuit);
     const cantidadEquipos = equiposData.cantidad;
@@ -169,6 +182,9 @@ function procesarFacturacionEquipos(requestData) {
   } catch (error) {
     Logger.log('❌ Error: ' + error.message);
     throw error;
+  } finally {
+    lock.releaseLock();
+    Logger.log('🔓 Lock liberado');
   }
 }
 
@@ -227,7 +243,7 @@ function contarEquiposSeleccionados(cuit) {
 
 /**
  * ACTUALIZAR EQUIPOS EN SHEET
- * Escribe número de factura y PDF en las filas procesadas
+ * Escribe número de factura, PDF y ESTADO_PAGO en las filas procesadas
  *
  * @param {number[]} filas - Números de fila a actualizar
  * @param {string} numeroFactura - Número de factura generada
@@ -240,17 +256,19 @@ function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl) {
   const sheet = ss.getSheetByName(TABLET_CONFIG.sheetName);
 
   // Usar índices fijos de TABLET_CONFIG
+  const colEstado = TABLET_CONFIG.columnas.ESTADO_PAGO;     // AE = 31
   const colFactura = TABLET_CONFIG.columnas.FACTURA_NUMERO; // AD = 30
   const colPdf = TABLET_CONFIG.columnas.LINK_PDF;           // AW = 49
 
   for (const fila of filas) {
+    sheet.getRange(fila, colEstado).setValue('FACTURADO');
     sheet.getRange(fila, colFactura).setValue(numeroFactura);
     if (pdfUrl) {
       sheet.getRange(fila, colPdf).setValue(pdfUrl);
     }
   }
 
-  Logger.log('✅ Filas actualizadas');
+  Logger.log('✅ Filas actualizadas (estado, factura, PDF)');
 }
 
 /**
