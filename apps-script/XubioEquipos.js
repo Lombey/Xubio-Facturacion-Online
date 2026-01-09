@@ -18,7 +18,9 @@ const TABLET_CONFIG = {
     // Los índices son 1-based (columna A = 1)
     ID: 43,              // AQ - UNIQUEID
     CUIT: 23,            // W
-    SELECCION_PARA_FC: 46 // AT - checkbox para seleccionar equipos
+    SELECCION_PARA_FC: 46, // AT - checkbox para seleccionar equipos
+    FACTURA_NUMERO: 30,  // AD - número de factura generada
+    LINK_PDF: 49         // AW - link al PDF
   }
 };
 
@@ -232,18 +234,13 @@ function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl) {
   const ss = SpreadsheetApp.openById(TABLET_CONFIG.spreadsheetId);
   const sheet = ss.getSheetByName(TABLET_CONFIG.sheetName);
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  // Encontrar columnas de factura y PDF
-  // TODO: Ajustar nombres de columnas según estructura real
-  const colFactura = findColumnIndex(headers, 'FACTURA') + 1; // +1 para 1-indexed
-  const colPdf = findColumnIndex(headers, 'LINK_PDF_FACTURA') + 1;
+  // Usar índices fijos de TABLET_CONFIG
+  const colFactura = TABLET_CONFIG.columnas.FACTURA_NUMERO; // AD = 30
+  const colPdf = TABLET_CONFIG.columnas.LINK_PDF;           // AW = 49
 
   for (const fila of filas) {
-    if (colFactura > 0) {
-      sheet.getRange(fila, colFactura).setValue(numeroFactura);
-    }
-    if (colPdf > 0 && pdfUrl) {
+    sheet.getRange(fila, colFactura).setValue(numeroFactura);
+    if (pdfUrl) {
       sheet.getRange(fila, colPdf).setValue(pdfUrl);
     }
   }
