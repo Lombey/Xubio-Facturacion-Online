@@ -322,3 +322,117 @@ function testContarEquipos() {
     Logger.log('❌ Error: ' + error.message);
   }
 }
+
+/**
+ * TEST DEBUG: Simula el webhook de facturarEquipos completo
+ * Ejecutar desde el editor de Apps Script para verificar todo el flujo
+ */
+function testFacturarEquiposDebug() {
+  Logger.log('🧪 ========================================');
+  Logger.log('🧪 TEST DEBUG: Facturar Equipos');
+  Logger.log('🧪 ========================================');
+
+  // Simular request de AppSheet
+  const mockRequest = {
+    accion: 'facturarEquipos',
+    cuit: '20-31240266-2',  // Cambiar por CUIT de prueba
+    idRef: 'TEST-DEBUG-' + new Date().getTime(),
+    incluirLicencias: 'Y',
+    precioEquipo: '2050',
+    descuento: 0
+  };
+
+  Logger.log('📦 Request simulado:');
+  Logger.log(JSON.stringify(mockRequest, null, 2));
+
+  try {
+    // 1. Verificar constantes
+    Logger.log('');
+    Logger.log('▶️ PASO 1: Verificar constantes...');
+    Logger.log('   VERCEL_BASE: ' + (typeof VERCEL_BASE !== 'undefined' ? VERCEL_BASE : '❌ NO DEFINIDA'));
+    Logger.log('   TABLET_CONFIG: ' + (typeof TABLET_CONFIG !== 'undefined' ? 'OK' : '❌ NO DEFINIDA'));
+    Logger.log('   PRODUCTOS: ' + (typeof PRODUCTOS !== 'undefined' ? JSON.stringify(PRODUCTOS) : '❌ NO DEFINIDA'));
+
+    // 2. Verificar función normalizarCUIT
+    Logger.log('');
+    Logger.log('▶️ PASO 2: Verificar normalizarCUIT...');
+    const cuitNorm = normalizarCUIT(mockRequest.cuit);
+    Logger.log('   normalizarCUIT("' + mockRequest.cuit + '"): ' + cuitNorm);
+
+    // 3. Contar equipos
+    Logger.log('');
+    Logger.log('▶️ PASO 3: Contar equipos seleccionados...');
+    const equiposData = contarEquiposSeleccionados(mockRequest.cuit);
+    Logger.log('   Cantidad: ' + equiposData.cantidad);
+    Logger.log('   Filas: ' + equiposData.filas.join(', '));
+
+    if (equiposData.cantidad === 0) {
+      Logger.log('⚠️ No hay equipos seleccionados. Selecciona equipos en la sheet antes de probar.');
+      return;
+    }
+
+    // 4. Construir payload
+    Logger.log('');
+    Logger.log('▶️ PASO 4: Construir payload...');
+    const items = [];
+    items.push({
+      productoId: PRODUCTOS.KIT_AGDP,
+      cantidad: equiposData.cantidad,
+      precio: parseFloat(mockRequest.precioEquipo) || 0,
+      descripcion: 'KIT SISTEMA AGDP'
+    });
+
+    const payload = {
+      cuit: mockRequest.cuit,  // ← VERIFICAR: debe ser "cuit", NO "clienteId"
+      items: items,
+      externalId: 'TEST-' + new Date().getTime(),
+      descuento: mockRequest.descuento || 0,
+      puntoVentaId: 212819,
+      centroDeCostoId: 57329,
+      listaDePrecioId: 15386
+    };
+
+    Logger.log('📤 Payload a enviar:');
+    Logger.log(JSON.stringify(payload, null, 2));
+
+    // 5. Llamar a Vercel
+    Logger.log('');
+    Logger.log('▶️ PASO 5: Llamar a Vercel...');
+    const url = VERCEL_BASE + '/api/crear-factura-equipos';
+    Logger.log('   URL: ' + url);
+
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    const res = UrlFetchApp.fetch(url, options);
+    const code = res.getResponseCode();
+    const responseText = res.getContentText();
+
+    Logger.log('   Response Code: ' + code);
+    Logger.log('   Response (primeros 1000 chars):');
+    Logger.log(responseText.substring(0, 1000));
+
+    if (code === 200) {
+      const result = JSON.parse(responseText);
+      if (result.success) {
+        Logger.log('');
+        Logger.log('✅ ¡ÉXITO! Factura creada:');
+        Logger.log('   Número: ' + result.data.numeroDocumento);
+        Logger.log('   PDF: ' + result.data.pdfUrl);
+      } else {
+        Logger.log('❌ Error funcional: ' + result.error);
+      }
+    } else {
+      Logger.log('❌ Error HTTP ' + code);
+    }
+
+  } catch (error) {
+    Logger.log('');
+    Logger.log('❌ ERROR: ' + error.message);
+    Logger.log('Stack: ' + error.stack);
+  }
+}
