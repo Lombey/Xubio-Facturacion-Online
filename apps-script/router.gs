@@ -77,12 +77,14 @@ function procesarFacturacion(requestData) {
 /**
  * PROCESAR COBRANZA
  * Llamado cuando el request NO contiene campo "cuit"
+ * Soporta cobro por BANCO (default) o CHEQUES (si viene array cheques)
  */
 function procesarCobranza(requestData) {
   Logger.log('💰 Procesando COBRANZA...');
 
   const idRef = requestData.idRef;
   let numeroDocumento = requestData.numeroDocumento;
+  const cheques = requestData.cheques; // Array opcional de cheques
 
   if (!idRef) {
     throw new Error('Falta parámetro: idRef');
@@ -102,8 +104,15 @@ function procesarCobranza(requestData) {
     throw new Error('No se encontró número de factura para ID REF: ' + idRef);
   }
 
+  // Log tipo de cobro
+  if (cheques && Array.isArray(cheques) && cheques.length > 0) {
+    Logger.log('   Tipo cobro: CHEQUES (' + cheques.length + ')');
+  } else {
+    Logger.log('   Tipo cobro: BANCO');
+  }
+
   // Crear cobranza (función de xubiocobranzas.gs)
-  const resultado = crearCobranzaPorFactura(numeroDocumento);
+  const resultado = crearCobranzaPorFactura(numeroDocumento, cheques);
 
   // Actualizar Google Sheets con PDF de cobranza
   if (resultado.pdfUrl) {

@@ -9,6 +9,67 @@
 import { getOfficialToken } from './utils/tokenManager.js';
 
 /**
+ * Construir array de instrumentos de cobro según tipo (banco o cheques)
+ * @param {Array|null} cheques - Array de cheques o null para banco
+ * @param {number} importeTotal - Importe total en moneda principal (ARS)
+ * @returns {Array} Array de instrumentos de cobro para el payload
+ */
+function construirInstrumentosCobro(cheques, importeTotal) {
+  // Si no hay cheques → BANCO (comportamiento actual)
+  if (!cheques || !Array.isArray(cheques) || cheques.length === 0) {
+    console.log('💳 Tipo de cobro: BANCO');
+    return [{
+      cuentaTipo: 2, // 2 = Banco
+      cuenta: {
+        ID: -14,
+        id: -14,
+        nombre: 'Banco'
+      },
+      moneda: {
+        ID: -2,
+        id: -2,
+        nombre: 'Pesos Argentinos'
+      },
+      cotizacion: 1,
+      importe: importeTotal,
+      descripcion: ''
+    }];
+  }
+
+  // Si hay cheques → VALORES A DEPOSITAR
+  console.log(`📝 Tipo de cobro: CHEQUES (${cheques.length} cheque(s))`);
+
+  return cheques.map((cheque, index) => {
+    console.log(`   Cheque ${index + 1}: #${cheque.numero} - $${cheque.importe} - Vto: ${cheque.fecha}`);
+
+    return {
+      cuentaTipo: 3, // 3 = Valores a Depositar
+      cuenta: {
+        ID: 681702,
+        id: 681702,
+        nombre: 'santander cheques'
+      },
+      moneda: {
+        ID: -2,
+        id: -2,
+        nombre: 'Pesos Argentinos'
+      },
+      cotizacion: 1,
+      importe: parseFloat(cheque.importe),
+      // Campos específicos de cheque
+      banco: {
+        ID: 3,
+        id: 3,
+        nombre: 'ABN Amro'
+      },
+      numCheque: String(cheque.numero),
+      vtoCheque: cheque.fecha, // Formato: YYYY-MM-DD
+      descripcion: cheque.descripcion || ''
+    };
+  });
+}
+
+/**
  * Obtener link público del PDF de la cobranza
  */
 async function obtenerLinkPdfPublico(token, transaccionId) {
@@ -35,7 +96,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let { facturaId, numeroDocumento } = req.body;
+    let { facturaId, numeroDocumento, cheques } = req.body;
 
     if (!facturaId && !numeroDocumento) {
       return res.status(400).json({
@@ -146,23 +207,8 @@ export default async function handler(req, res) {
       // Observación con datos de la factura a imputar
       observacion: `IMPUTAR A: ${factura.numeroDocumento} - ${factura.cliente.nombre} - Total: ${total} ${monedaFactura.nombre}`,
 
-      // Instrumento de cobro (BANCO por defecto)
-      transaccionInstrumentoDeCobro: [{
-        cuentaTipo: 2, // 2 = Banco
-        cuenta: {
-          ID: -14,
-          id: -14,
-          nombre: 'Banco'
-        },
-        moneda: {
-          ID: -2,
-          id: -2,
-          nombre: 'Pesos Argentinos'
-        },
-        cotizacion: 1,
-        importe: importeMonPrincipal,
-        descripcion: ''
-      }],
+      // Instrumento de cobro: CHEQUES o BANCO según request
+      transaccionInstrumentoDeCobro: construirInstrumentosCobro(cheques, importeMonPrincipal),
 
       // CRÍTICO: Asociación con factura (imputación)
       // Intento 1: detalleCobranzas (documentado en SDK pero ignorado por Xubio)
