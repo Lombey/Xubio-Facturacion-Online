@@ -15,8 +15,14 @@ import { getOfficialToken } from './utils/tokenManager.js';
  * @returns {Array} Array de instrumentos de cobro para el payload
  */
 function construirInstrumentosCobro(cheques, importeTotal) {
-  // Si no hay cheques → BANCO (comportamiento actual)
-  if (!cheques || !Array.isArray(cheques) || cheques.length === 0) {
+  // Filtrar cheques vacíos (cuando AppSheet envía 5 pero solo se usan 2)
+  const chequesValidos = cheques?.filter(ch =>
+    ch.numero && String(ch.numero).trim() !== '' &&
+    ch.importe && parseFloat(ch.importe) > 0
+  ) || [];
+
+  // Si no hay cheques válidos → BANCO (comportamiento actual)
+  if (chequesValidos.length === 0) {
     console.log('💳 Tipo de cobro: BANCO');
     return [{
       cuentaTipo: 2, // 2 = Banco
@@ -36,10 +42,10 @@ function construirInstrumentosCobro(cheques, importeTotal) {
     }];
   }
 
-  // Si hay cheques → VALORES A DEPOSITAR
-  console.log(`📝 Tipo de cobro: CHEQUES (${cheques.length} cheque(s))`);
+  // Si hay cheques válidos → VALORES A DEPOSITAR
+  console.log(`📝 Tipo de cobro: CHEQUES (${chequesValidos.length} cheque(s) válidos)`);
 
-  return cheques.map((cheque, index) => {
+  return chequesValidos.map((cheque, index) => {
     console.log(`   Cheque ${index + 1}: #${cheque.numero} - $${cheque.importe} - Vto: ${cheque.fecha}`);
 
     return {

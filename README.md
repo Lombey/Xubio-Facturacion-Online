@@ -132,6 +132,37 @@ Para cobranzas con cheques, el **webhook debe ejecutarse directamente desde la a
 | `fecha` | string | ✅ | Fecha vencimiento (YYYY-MM-DD) |
 | `descripcion` | string | ❌ | Descripción opcional |
 
+### Configuración AppSheet para Cheques (5 slots)
+
+**Columnas auxiliares a agregar en Google Sheets:**
+
+| Columnas | Campos por cheque |
+|----------|-------------------|
+| CHEQUE1_NUM, CHEQUE1_IMPORTE, CHEQUE1_FECHA | Cheque 1 |
+| CHEQUE2_NUM, CHEQUE2_IMPORTE, CHEQUE2_FECHA | Cheque 2 |
+| CHEQUE3_NUM, CHEQUE3_IMPORTE, CHEQUE3_FECHA | Cheque 3 |
+| CHEQUE4_NUM, CHEQUE4_IMPORTE, CHEQUE4_FECHA | Cheque 4 |
+| CHEQUE5_NUM, CHEQUE5_IMPORTE, CHEQUE5_FECHA | Cheque 5 |
+
+**Webhook body (envía los 5, el servidor filtra vacíos):**
+```json
+{
+  "idRef": "<<[ID REF]>>",
+  "cheques": [
+    { "numero": "<<[CHEQUE1_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE1_IMPORTE]), 0, [CHEQUE1_IMPORTE])>>, "fecha": "<<[CHEQUE1_FECHA]>>" },
+    { "numero": "<<[CHEQUE2_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE2_IMPORTE]), 0, [CHEQUE2_IMPORTE])>>, "fecha": "<<[CHEQUE2_FECHA]>>" },
+    { "numero": "<<[CHEQUE3_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE3_IMPORTE]), 0, [CHEQUE3_IMPORTE])>>, "fecha": "<<[CHEQUE3_FECHA]>>" },
+    { "numero": "<<[CHEQUE4_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE4_IMPORTE]), 0, [CHEQUE4_IMPORTE])>>, "fecha": "<<[CHEQUE4_FECHA]>>" },
+    { "numero": "<<[CHEQUE5_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE5_IMPORTE]), 0, [CHEQUE5_IMPORTE])>>, "fecha": "<<[CHEQUE5_FECHA]>>" }
+  ]
+}
+```
+
+**Comportamiento del servidor:**
+- Filtra automáticamente cheques con `numero` vacío o `importe` = 0
+- Si todos los cheques son vacíos → usa cobro tipo BANCO
+- Solo se procesan los cheques con datos válidos
+
 ### ⚠️ Limitación Conocida: Imputación Manual
 La REST API de Xubio **NO soporta imputación automática** de cobranzas a facturas. La cobranza se crea correctamente pero debe imputarse manualmente desde Xubio UI:
 
