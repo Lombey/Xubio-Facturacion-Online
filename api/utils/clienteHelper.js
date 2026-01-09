@@ -141,22 +141,32 @@ async function buscarClienteEnXubio(token, cuitSinGuiones) {
  */
 async function consultarCuitOnline(cuitSinGuiones, vercelBase) {
   const url = `${vercelBase}/api/consulta-cuit?cuit=${cuitSinGuiones}`;
+  console.log(`🔍 [CLIENTE] Consultando: ${url}`);
 
-  const response = await fetch(url);
+  try {
+    const response = await fetch(url);
+    console.log(`📥 [CLIENTE] Response status: ${response.status}`);
 
-  if (!response.ok) {
-    console.log(`⚠️ [CLIENTE] Error consultando cuitonline: HTTP ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log(`⚠️ [CLIENTE] Error HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+      return null;
+    }
+
+    const result = await response.json();
+    console.log(`📋 [CLIENTE] Result success: ${result.success}`);
+
+    if (!result.success) {
+      console.log(`⚠️ [CLIENTE] Error cuitonline: ${result.error}`);
+      return null;
+    }
+
+    console.log(`✅ [CLIENTE] Datos obtenidos: ${result.data?.razonSocial || 'sin razón social'}`);
+    return result.data;
+  } catch (error) {
+    console.log(`❌ [CLIENTE] Error fetch: ${error.message}`);
     return null;
   }
-
-  const result = await response.json();
-
-  if (!result.success) {
-    console.log(`⚠️ [CLIENTE] Error cuitonline: ${result.error}`);
-    return null;
-  }
-
-  return result.data;
 }
 
 /**

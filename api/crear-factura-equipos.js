@@ -8,10 +8,9 @@
 import { getOfficialToken } from './utils/tokenManager.js';
 import { obtenerOcrearCliente } from './utils/clienteHelper.js';
 
-// URL base de Vercel (para llamadas internas al scraping)
-const VERCEL_BASE = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : 'https://xubio-facturacion-online.vercel.app';
+// URL base de Vercel - siempre usar producción para llamadas internas
+// (VERCEL_URL puede apuntar a preview deployments con código desactualizado)
+const VERCEL_BASE = 'https://xubio-facturacion-online.vercel.app';
 
 async function obtenerCotizacion() {
   try {
