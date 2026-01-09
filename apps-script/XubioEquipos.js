@@ -34,7 +34,7 @@ const PRODUCTOS = {
   LICENCIA: 2751338      // CONECTIVIDAD ANUAL POR TOLVA
 };
 
-const VERCEL_BASE = 'https://xubio-facturacion-online.vercel.app';
+// VERCEL_BASE ya está declarada en XubioDiscovery.js
 
 /**
  * PROCESAR FACTURACION DE EQUIPOS
