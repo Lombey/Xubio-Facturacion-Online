@@ -204,14 +204,13 @@ function contarEquiposSeleccionados(cuit) {
     const filaCuit = normalizarCUIT(String(data[i][colCuit]));
     const seleccionado = data[i][colSeleccion];
 
-    // Verificar si está seleccionado (TRUE, true, "TRUE", "true", 1, "1", "SI", "YES")
+    // Verificar si está seleccionado (normalizar a mayúsculas para comparar)
+    const valorSeleccion = String(seleccionado).toUpperCase();
     const estaSeleccionado = seleccionado === true ||
-                             seleccionado === 'TRUE' ||
-                             seleccionado === 'true' ||
-                             seleccionado === 1 ||
-                             seleccionado === '1' ||
-                             seleccionado === 'SI' ||
-                             seleccionado === 'YES';
+                             valorSeleccion === 'TRUE' ||
+                             valorSeleccion === 'YES' ||
+                             valorSeleccion === 'SI' ||
+                             valorSeleccion === '1';
 
     if (filaCuit === cuitNormalizado && estaSeleccionado) {
       filasSeleccionadas.push(i + 1); // +1 porque es 1-indexed en Sheets
