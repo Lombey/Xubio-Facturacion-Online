@@ -64,7 +64,7 @@ Xubio REST API
 | Tipo | Cuenta Xubio | Campos requeridos |
 |------|--------------|-------------------|
 | **Banco** (default) | -14 (Banco) | Solo `idRef` |
-| **Cheque** | 681702 (santander cheques) | `idRef` + `chequeNumero` + `chequeImporte` |
+| **Cheque** | 681702 (santander cheques) | `idRef` + `chequeNumero` |
 
 ### Trigger en AppSheet:
 
@@ -79,13 +79,12 @@ Xubio REST API
 
 #### Opción B: Cobrar con CHEQUE
 1. Usuario presiona botón **"Cobrar Cheque"**
-2. Ingresa número(s) de cheque e importe total
+2. Ingresa número(s) de cheque
 3. **Acción ejecuta webhook directamente** con body:
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "chequeNumero": "12345/67890/11111",
-  "chequeImporte": 302000
+  "chequeNumero": "12345/67890/11111"
 }
 ```
 
@@ -94,7 +93,7 @@ Si hay **múltiples cheques físicos**, concatenar los números con `/`:
 - 1 cheque: `"12345678"`
 - 3 cheques: `"12345/67890/11111"`
 
-El importe es el **total sumado** de todos los cheques. La fecha se genera automáticamente (hoy).
+El **importe se toma automáticamente de la factura** (igual que banco). La fecha se genera automáticamente (hoy).
 
 ### Proceso en Vercel:
 1. Lee número de factura de columna 13 (vía Apps Script)
@@ -120,10 +119,9 @@ El importe es el **total sumado** de todos los cheques. La fecha se genera autom
 ### Campos del cheque:
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `chequeNumero` | string | Número(s) de cheque separados por "/" |
-| `chequeImporte` | number | Importe total en ARS |
+| `chequeNumero` | string | Número(s) de cheque separados por "/" (ej: "a1/a2/a3") |
 
-La fecha de vencimiento se genera automáticamente (fecha de hoy).
+El importe se toma de la factura. La fecha se genera automáticamente (hoy).
 
 ### ⚠️ Limitación Conocida: Imputación Manual
 La REST API de Xubio **NO soporta imputación automática** de cobranzas a facturas. La cobranza se crea correctamente pero debe imputarse manualmente desde Xubio UI:
@@ -239,8 +237,7 @@ Request sin "cuit"     → Cobranza (xubiocobranzas.gs)
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "chequeNumero": "12345/67890",
-  "chequeImporte": 150000
+  "chequeNumero": "12345/67890"
 }
 ```
 

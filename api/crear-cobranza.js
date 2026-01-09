@@ -11,13 +11,12 @@ import { getOfficialToken } from './utils/tokenManager.js';
 /**
  * Construir array de instrumentos de cobro según tipo (banco o cheque)
  * @param {string|null} chequeNumero - Número(s) del cheque (ej: "a1/a2/a3") o null para banco
- * @param {number|null} chequeImporte - Importe total del cheque en ARS
- * @param {number} importeTotal - Importe total en moneda principal (ARS) - usado para banco
+ * @param {number} importeTotal - Importe total en moneda principal (ARS) - de la factura
  * @returns {Array} Array de instrumentos de cobro para el payload
  */
-function construirInstrumentosCobro(chequeNumero, chequeImporte, importeTotal) {
-  // Si no hay datos de cheque → BANCO (comportamiento default)
-  if (!chequeNumero || String(chequeNumero).trim() === '' || !chequeImporte || parseFloat(chequeImporte) <= 0) {
+function construirInstrumentosCobro(chequeNumero, importeTotal) {
+  // Si no hay número de cheque → BANCO
+  if (!chequeNumero || String(chequeNumero).trim() === '') {
     console.log('💳 Tipo de cobro: BANCO');
     return [{
       cuentaTipo: 2, // 2 = Banco
@@ -37,11 +36,11 @@ function construirInstrumentosCobro(chequeNumero, chequeImporte, importeTotal) {
     }];
   }
 
-  // Si hay cheque → VALORES A DEPOSITAR (1 sola línea)
+  // Si hay cheque → VALORES A DEPOSITAR (1 sola línea, importe de la factura)
   const fechaHoy = new Date().toISOString().split('T')[0];
   console.log(`📝 Tipo de cobro: CHEQUE`);
   console.log(`   Número(s): ${chequeNumero}`);
-  console.log(`   Importe: $${chequeImporte}`);
+  console.log(`   Importe: $${importeTotal} (de factura)`);
   console.log(`   Fecha: ${fechaHoy}`);
 
   return [{
@@ -57,7 +56,7 @@ function construirInstrumentosCobro(chequeNumero, chequeImporte, importeTotal) {
       nombre: 'Pesos Argentinos'
     },
     cotizacion: 1,
-    importe: parseFloat(chequeImporte),
+    importe: importeTotal,
     banco: {
       ID: 3,
       id: 3,
@@ -96,7 +95,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { facturaId: facturaIdParam, numeroDocumento, chequeNumero, chequeImporte } = req.body;
+    const { facturaId: facturaIdParam, numeroDocumento, chequeNumero } = req.body;
     let facturaId = facturaIdParam;
 
     if (!facturaId && !numeroDocumento) {
@@ -209,7 +208,7 @@ export default async function handler(req, res) {
       observacion: `IMPUTAR A: ${factura.numeroDocumento} - ${factura.cliente.nombre} - Total: ${total} ${monedaFactura.nombre}`,
 
       // Instrumento de cobro: CHEQUES o BANCO según request
-      transaccionInstrumentoDeCobro: construirInstrumentosCobro(chequeNumero, chequeImporte, importeMonPrincipal),
+      transaccionInstrumentoDeCobro: construirInstrumentosCobro(chequeNumero, importeMonPrincipal),
 
       // CRÍTICO: Asociación con factura (imputación)
       // Intento 1: detalleCobranzas (documentado en SDK pero ignorado por Xubio)

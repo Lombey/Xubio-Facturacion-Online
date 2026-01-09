@@ -19,13 +19,13 @@ const VERCEL_BASE_COBRANZA = 'https://xubio-facturacion-online.vercel.app';
 /**
  * CREAR COBRANZA POR NÚMERO DE FACTURA
  * Llama al endpoint de Vercel que busca la factura y crea la cobranza
+ * El importe se toma automáticamente de la factura
  *
  * @param {string} numeroDocumento - Número de factura (ej: "A-00004-00001685")
  * @param {string} chequeNumero - (Opcional) Número(s) de cheque separados por "/" (ej: "a1/a2/a3")
- * @param {number} chequeImporte - (Opcional) Importe total del cheque en ARS
  * @returns {Object} { cobranzaId, numeroRecibo, factura, cliente, total, pdfUrl }
  */
-function crearCobranzaPorFactura(numeroDocumento, chequeNumero, chequeImporte) {
+function crearCobranzaPorFactura(numeroDocumento, chequeNumero) {
   if (!numeroDocumento) {
     throw new Error('Falta parámetro: numeroDocumento');
   }
@@ -35,13 +35,11 @@ function crearCobranzaPorFactura(numeroDocumento, chequeNumero, chequeImporte) {
   const url = VERCEL_BASE_COBRANZA + '/api/crear-cobranza';
   const payload = { numeroDocumento: numeroDocumento };
 
-  // Si hay datos de cheque, agregarlos al payload
-  if (chequeNumero && chequeImporte) {
+  // Si hay número de cheque, agregarlo al payload (importe se toma de la factura)
+  if (chequeNumero) {
     payload.chequeNumero = chequeNumero;
-    payload.chequeImporte = chequeImporte;
     Logger.log('📝 Tipo de cobro: CHEQUE');
     Logger.log('   Número(s): ' + chequeNumero);
-    Logger.log('   Importe: $' + chequeImporte);
   } else {
     Logger.log('💳 Tipo de cobro: BANCO');
   }
