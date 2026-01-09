@@ -94,10 +94,7 @@ function procesarFacturacionEquipos(requestData) {
       throw new Error('No hay equipos seleccionados para facturar con CUIT: ' + cuit);
     }
 
-    // 2. Buscar cliente por CUIT (reutilizamos función de XubioDiscovery.js)
-    const cliente = obtenerClienteExistente(cuit);
-
-    // 3. Construir items para la factura
+    // 2. Construir items para la factura (el cliente se crea en Vercel si no existe)
     const items = [];
 
     // Item 1: Kits AGDP
@@ -118,12 +115,12 @@ function procesarFacturacionEquipos(requestData) {
       });
     }
 
-    // 4. Generar ID único
+    // 3. Generar ID único
     const externalId = 'EQUIPOS-' + cuit.replace(/[-]/g, '') + '-' + new Date().getTime();
 
-    // 5. Llamar al endpoint de Vercel
+    // 4. Llamar al endpoint de Vercel (envía CUIT, Vercel crea cliente si no existe)
     const payload = {
-      clienteId: cliente.cliente_id,
+      cuit: cuit,               // Vercel busca o crea el cliente automáticamente
       items: items,
       externalId: externalId,
       descuento: descuento,      // Porcentaje de descuento (0 = sin descuento)

@@ -6,6 +6,12 @@
  */
 
 import { getOfficialToken } from './utils/tokenManager.js';
+import { obtenerOcrearCliente } from './utils/clienteHelper.js';
+
+// URL base de Vercel (para llamadas internas al scraping)
+const VERCEL_BASE = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : 'https://xubio-facturacion-online.vercel.app';
 
 async function obtenerCotizacion() {
   try {
@@ -90,7 +96,8 @@ export default async function handler(req, res) {
 
   try {
     const {
-      clienteId,
+      cuit,                 // CUIT del cliente (nuevo - reemplaza clienteId)
+      clienteId: clienteIdLegacy,  // Mantener compatibilidad hacia atrás
       items = [],           // Array de { productoId, cantidad, precio, descripcion }
       externalId,
       descuento = 0,        // Porcentaje de descuento (ej: 25 = 25%)
@@ -99,21 +106,45 @@ export default async function handler(req, res) {
       centroDeCostoId = 57329
     } = req.body;
 
-    if (!clienteId) return res.status(400).json({ error: 'Falta clienteId' });
+    // Validar que venga CUIT o clienteId (legacy)
+    if (!cuit && !clienteIdLegacy) {
+      return res.status(400).json({ error: 'Falta cuit o clienteId' });
+    }
     if (!items || items.length === 0) return res.status(400).json({ error: 'Falta items' });
 
     const descuentoPct = parseFloat(descuento) || 0;
     const factorDescuento = descuentoPct > 0 ? (1 - descuentoPct / 100) : 1;
 
     console.log('📦 Creando factura de equipos...');
-    console.log('   Cliente ID:', clienteId);
     console.log('   Items:', items.length);
     if (descuentoPct > 0) {
       console.log('   Descuento:', descuentoPct + '%');
     }
 
     const token = await getOfficialToken();
-    const datosCliente = await obtenerDatosCliente(token, clienteId);
+
+    // Obtener o crear cliente
+    let clienteId;
+    let datosCliente;
+
+    if (cuit) {
+      // Nuevo flujo: obtener o crear cliente por CUIT
+      const clienteResult = await obtenerOcrearCliente(cuit, VERCEL_BASE);
+      clienteId = clienteResult.cliente_id;
+
+      if (clienteResult.esNuevo) {
+        console.log('   🆕 Cliente NUEVO creado automáticamente');
+      }
+
+      // Obtener datos completos del cliente
+      datosCliente = await obtenerDatosCliente(token, clienteId);
+    } else {
+      // Legacy: usar clienteId directamente
+      clienteId = clienteIdLegacy;
+      datosCliente = await obtenerDatosCliente(token, clienteId);
+    }
+
+    console.log('   Cliente:', datosCliente.nombre, '(ID:', clienteId, ')');
     const cotizacionUSD = await obtenerCotizacion();
 
     // Construir items para Xubio
