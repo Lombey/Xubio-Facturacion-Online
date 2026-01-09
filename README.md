@@ -268,6 +268,66 @@ Todos usan la **misma URL de webhook** - el router detecta qué hacer:
 - Sin `cuit`, `chequeNumero` vacío → Cobranza Banco
 - Sin `cuit`, `chequeNumero` con valor → Cobranza Cheque
 
+## 📦 FLUJO 4: FACTURACIÓN DE EQUIPOS (KITS AGDP)
+
+**Solapa:** `TABLET` (misma que conectividades pero flujo diferente)
+**Estado:** UI configurada, bot pendiente
+
+### Problema que resuelve
+Facturar múltiples equipos del mismo cliente en **1 sola factura** con N items.
+
+### Columnas Google Sheets (TABLET):
+| Columna | Campo | Función |
+|---------|-------|---------|
+| ? | CUIT | Identificador del cliente |
+| ? | ESTADO_PAGO | `NO FACTURADO` / `FACTURADO` |
+| ? | PRESUPUESTO (USD) | Precio por equipo (ej: 1900) |
+| ? | SELECCION_PARA_FC | Checkbox para agrupar equipos |
+| ? | INCLUIR_LICENCIAS | Yes/No - incluir licencias en FC |
+
+### Configuración AppSheet:
+
+**Initial Value de SELECCION_PARA_FC:**
+```
+IF([ESTADO_PAGO] = "NO FACTURADO", TRUE, FALSE)
+```
+
+**Acción: FACTURAR KITS AGDP**
+| Campo | Valor |
+|-------|-------|
+| Table | TABLET |
+| Do this | Data: set the values of some columns |
+| Set columns | `ESTADO_PAGO` = `"FACTURADO"` |
+| | `INCLUIR_LICENCIAS` = `[_INPUT].[¿Incluir Licencias?]` |
+| Input | Name: `¿Incluir Licencias?`, Type: `Yes/No` |
+| Position | Inline |
+
+### Flujo del usuario:
+```
+1. Carga equipos → SELECCION_PARA_FC = TRUE (automático)
+2. Ejecuta "FACTURAR KITS AGDP" en cualquier fila
+3. Popup pregunta "¿Incluir Licencias?"
+4. Bot detecta cambio de estado
+5. Bot busca todos con SELECCION_PARA_FC = TRUE + mismo CUIT
+6. Bot llama webhook con cantidad equipos + licencias
+7. Bot limpia SELECCION_PARA_FC = FALSE en procesados
+```
+
+### Factura resultante (ejemplo):
+```
+3 equipos seleccionados, incluir licencias = YES
+→ Línea 1: Kit AGDP × 3 = 5700 USD
+→ Línea 2: Licencia × 3 = 1470 USD
+→ Total: 7170 USD + IVA
+```
+
+### ⚠️ Pendiente:
+- [ ] Crear bot que procese la facturación
+- [ ] Endpoint Vercel para factura multi-item
+- [ ] Webhook body con campos necesarios
+
+---
+
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 
 Se intentó implementar un servicio de login automatizado con Puppeteer en Fly.io para obtener cookies de sesión. Esta vía fue **descartada** debido a los bloqueos de firewall de Visma Connect en IPs de datacenters. El enfoque actual utiliza exclusivamente la **API Oficial de Xubio (OAuth2)**.
