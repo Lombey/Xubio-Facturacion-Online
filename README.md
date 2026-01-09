@@ -270,76 +270,91 @@ Todos usan la **misma URL de webhook** - el router detecta qué hacer:
 
 ## 📦 FLUJO 4: FACTURACIÓN DE EQUIPOS (KITS AGDP)
 
-**Solapa:** `TABLET` (misma que conectividades pero flujo diferente)
-**Estado:** UI configurada, bot pendiente
+**Solapa:** `TABLET`
+**Script:** `apps-script/XubioEquipos.js`
+**Endpoint:** `POST /api/crear-factura-equipos`
+**Estado:** ✅ Funcionando
 
 ### Problema que resuelve
 Facturar múltiples equipos del mismo cliente en **1 sola factura** con N items.
+Soporta descuento porcentual y licencias opcionales.
 
 ### Columnas Google Sheets (TABLET):
-| Columna | Campo | Función |
-|---------|-------|---------|
-| ? | CUIT | Identificador del cliente |
-| ? | ESTADO_PAGO | `NO FACTURADO` / `FACTURADO` |
-| ? | PRESUPUESTO (USD) | Precio por equipo (ej: 1900) |
-| ? | SELECCION_PARA_FC | Checkbox para agrupar equipos |
-| ? | INCLUIR_LICENCIAS | Yes/No - incluir licencias en FC |
+| Columna | Índice | Campo |
+|---------|--------|-------|
+| W | 23 | CUIT |
+| AE | 31 | ESTADO_PAGO (`NO FACTURADO` / `FACTURADO` / `FACTURADO (XUBIO)`) |
+| AD | 30 | FACTURA_NUMERO (output) |
+| AT | 46 | SELECCION_PARA_FC (checkbox Yes/No) |
+| AW | 49 | LINK_PDF (output) |
+
+### Estados de pago:
+| Estado | Comportamiento |
+|--------|----------------|
+| `NO FACTURADO` | Estado inicial |
+| `FACTURADO` | Dispara bot (si no tiene factura) |
+| `FACTURADO (XUBIO)` | Marca manual, NO dispara bot |
 
 ### Configuración AppSheet:
 
-**Initial Value de SELECCION_PARA_FC:**
-```
-IF([ESTADO_PAGO] = "NO FACTURADO", TRUE, FALSE)
-```
-
-**Acción: FACTURAR KITS AGDP**
+**Bot: Facturar Kits AGDP**
 | Campo | Valor |
 |-------|-------|
-| Table | TABLET |
-| Do this | Data: set the values of some columns |
-| Set columns | `ESTADO_PAGO` = `"FACTURADO"` |
-| | `INCLUIR_LICENCIAS` = `[_INPUT].[¿Incluir Licencias?]` |
-| Input | Name: `¿Incluir Licencias?`, Type: `Yes/No` |
-| Position | Inline |
+| Event | Data Change → Updates on TABLET |
+| Condition | `AND([ESTADO_PAGO] = "FACTURADO", ISBLANK([FACTURA_NUMERO]))` |
+| Task | Call webhook |
 
-### Flujo del usuario:
-```
-1. Carga equipos → SELECCION_PARA_FC = TRUE (automático)
-2. Ejecuta "FACTURAR KITS AGDP" en cualquier fila
-3. Popup pregunta "¿Incluir Licencias?"
-4. Bot detecta cambio de estado
-5. Bot busca todos con SELECCION_PARA_FC = TRUE + mismo CUIT
-6. Bot llama webhook con cantidad equipos + licencias
-7. Bot limpia SELECCION_PARA_FC = FALSE en procesados
-```
-
-### Factura resultante (ejemplo):
-```
-3 equipos seleccionados, incluir licencias = YES
-→ Línea 1: Kit AGDP × 3 = 5700 USD
-→ Línea 2: Licencia × 3 = 1470 USD
-→ Total: 7170 USD + IVA
-```
-
-### Endpoint Vercel:
-`POST /api/crear-factura-equipos`
-
-**Payload:**
+**Webhook body:**
 ```json
 {
-  "clienteId": 12345,
-  "items": [
-    { "productoId": 123, "cantidad": 3, "precio": 1900, "descripcion": "KIT SISTEMA AGDP" },
-    { "productoId": 2751338, "cantidad": 3, "precio": 490, "descripcion": "CONECTIVIDAD ANUAL POR TOLVA" }
-  ],
-  "externalId": "EQUIPOS-CUIT-timestamp"
+  "accion": "facturarEquipos",
+  "cuit": "<<[CUIT]>>",
+  "idRef": "<<[ID]>>",
+  "incluirLicencias": "<<[INCLUIR_LICENCIAS]>>",
+  "precioEquipo": <<NUMBER([PRESUPUESTO (USD)])*1>>,
+  "descuento": <<[DESCUENTO (%)]>>
 }
 ```
 
-### ⚠️ Pendiente:
-- [ ] Crear bot AppSheet que procese la facturación
-- [ ] Configurar IDs de productos (Kit AGDP) en XubioEquipos.js
-- [ ] Definir columnas exactas en TABLET_CONFIG
+**Acción: FACTURAR EQUIPOS**
+| Campo | Valor |
+|-------|-------|
+| Do this | Data: set the values of some columns |
+| Set columns | `ESTADO_PAGO` = `"FACTURADO"` |
+| | `INCLUIR_LICENCIAS` = `[_INPUT].[¿Incluir licencias?]` |
+| | `DESCUENTO (%)` = `[_INPUT].[Descuento]` |
+| Inputs | `¿Incluir licencias?` (Yes/No, default TRUE) |
+| | `Descuento` (Number, default 0) |
+| Confirmation | Fórmula con preview de cliente, equipos y montos |
+
+### Flujo del usuario:
+```
+1. Equipos se cargan → SELECCION_PARA_FC = TRUE (automático)
+2. Usuario ejecuta "FACTURAR EQUIPOS" en 1 fila del CUIT
+3. Confirmation muestra preview (cliente, cantidad, montos)
+4. Inputs: ¿Incluir licencias? + Descuento %
+5. Bot detecta ESTADO_PAGO = "FACTURADO" + sin factura
+6. Webhook procesa TODAS las filas con SELECCION=TRUE del mismo CUIT
+7. Apps Script actualiza: ESTADO_PAGO, FACTURA_NUMERO, LINK_PDF
+8. Apps Script limpia SELECCION_PARA_FC = FALSE
+```
+
+### IDs de productos Xubio:
+| Producto | ID |
+|----------|-----|
+| KIT SISTEMA AGDP | 2751285 |
+| CONECTIVIDAD ANUAL POR TOLVA | 2751338 |
+
+### Factura resultante (ejemplo):
+```
+3 equipos, incluir licencias = YES, descuento = 25%
+→ Línea 1: Kit AGDP × 3 @ 1900 USD = 5700 USD - 25% = 4275 USD
+→ Línea 2: Licencia × 3 @ 490 USD = 1470 USD - 25% = 1102.50 USD
+→ Total neto: 5377.50 USD + IVA
+```
+
+### Lock para evitar duplicados:
+El bot puede disparar múltiples veces si se usa multi-select. Apps Script usa `LockService` para que solo 1 ejecución procese y las demás se descarten.
 
 ---
 
