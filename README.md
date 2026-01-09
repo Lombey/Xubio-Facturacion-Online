@@ -61,30 +61,39 @@ Xubio REST API
 
 ### Tipos de Cobranza Soportados
 
-| Tipo | Cuenta Xubio | Campos requeridos |
+| Tipo | Cuenta Xubio | ESTADO en AppSheet |
 |------|--------------|-------------------|
-| **Banco** (default) | -14 (Banco) | Solo `idRef` |
-| **Cheque** | 681702 (santander cheques) | `idRef` + `chequeNumero` |
+| **Banco** (transfer) | -14 (Banco) | `COBRADA (TRANSFER)` |
+| **Cheque** | 681702 (santander cheques) | `COBRADA (CHEQUES)` |
 
-### Trigger en AppSheet:
+### Configuración en AppSheet:
 
-#### Opción A: Cobrar con BANCO (transferencia)
-1. Usuario presiona botón **"Cobrar Banco"**
-2. **Acción ejecuta webhook directamente** con body:
-```json
-{
-  "idRef": "<<[ID REF]>>"
-}
-```
+#### Acción: Cobrar Banco
+| Campo | Valor |
+|-------|-------|
+| Do this | `Data: set the values of some columns` |
+| Set these columns | `ESTADO` = `"COBRADA (TRANSFER)"` |
 
-#### Opción B: Cobrar con CHEQUE
-1. Usuario presiona botón **"Cobrar Cheque"**
-2. Ingresa número(s) de cheque
-3. **Acción ejecuta webhook directamente** con body:
+#### Acción: Cobrar Cheque
+| Campo | Valor |
+|-------|-------|
+| Do this | `Data: set the values of some columns` |
+| Set these columns | `N° CHEQUE` = `[_INPUT].[NumCheque]` |
+| | `ESTADO` = `"COBRADA (CHEQUES)"` |
+| **Advanced** | Input name: `NumCheque`, Type: `Text` |
+
+#### Bot: Cobrar con Xubio
+| Campo | Valor |
+|-------|-------|
+| Event | Data Change → Updates |
+| Condition | `OR([ESTADO] = "COBRADA (TRANSFER)", [ESTADO] = "COBRADA (CHEQUES)")` |
+| Task | Call a webhook (ver body abajo) |
+
+**Webhook body:**
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "chequeNumero": "12345/67890/11111"
+  "chequeNumero": "<<[N° CHEQUE]>>"
 }
 ```
 
@@ -93,7 +102,7 @@ Si hay **múltiples cheques físicos**, concatenar los números con `/`:
 - 1 cheque: `"12345678"`
 - 3 cheques: `"12345/67890/11111"`
 
-El **importe se toma automáticamente de la factura** (igual que banco). La fecha se genera automáticamente (hoy).
+El **importe se toma automáticamente de la factura**. La fecha se genera automáticamente (hoy).
 
 ### Proceso en Vercel:
 1. Lee número de factura de columna 13 (vía Apps Script)
@@ -226,25 +235,18 @@ Request sin "cuit"     → Cobranza (xubiocobranzas.gs)
 }
 ```
 
-**Cobranza Banco:**
-```json
-{
-  "idRef": "<<[ID REF]>>"
-}
-```
-
-**Cobranza Cheque:**
+**Cobranza (Banco o Cheque):**
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "chequeNumero": "12345/67890"
+  "chequeNumero": "<<[N° CHEQUE]>>"
 }
 ```
 
 Todos usan la **misma URL de webhook** - el router detecta qué hacer:
 - Con `cuit` → Facturación
-- Sin `cuit`, sin `chequeNumero` → Cobranza Banco
-- Sin `cuit`, con `chequeNumero` → Cobranza Cheque
+- Sin `cuit`, `chequeNumero` vacío → Cobranza Banco
+- Sin `cuit`, `chequeNumero` con valor → Cobranza Cheque
 
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 
