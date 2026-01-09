@@ -30,7 +30,7 @@ const TABLET_CONFIG = {
 
 // IDs de productos en Xubio
 const PRODUCTOS = {
-  KIT_AGDP: null,        // TODO: buscar ID en Xubio con /api/discovery?resource=productoBean
+  KIT_AGDP: 12345,       // KIT SISTEMA AGDP
   LICENCIA: 2751338      // CONECTIVIDAD ANUAL POR TOLVA
 };
 
