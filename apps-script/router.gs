@@ -77,14 +77,15 @@ function procesarFacturacion(requestData) {
 /**
  * PROCESAR COBRANZA
  * Llamado cuando el request NO contiene campo "cuit"
- * Soporta cobro por BANCO (default) o CHEQUES (si viene array cheques)
+ * Soporta cobro por BANCO (default) o CHEQUE (si viene chequeNumero + chequeImporte)
  */
 function procesarCobranza(requestData) {
   Logger.log('💰 Procesando COBRANZA...');
 
   const idRef = requestData.idRef;
   let numeroDocumento = requestData.numeroDocumento;
-  const cheques = requestData.cheques; // Array opcional de cheques
+  const chequeNumero = requestData.chequeNumero;   // String opcional (ej: "a1/a2/a3")
+  const chequeImporte = requestData.chequeImporte; // Number opcional
 
   if (!idRef) {
     throw new Error('Falta parámetro: idRef');
@@ -105,14 +106,16 @@ function procesarCobranza(requestData) {
   }
 
   // Log tipo de cobro
-  if (cheques && Array.isArray(cheques) && cheques.length > 0) {
-    Logger.log('   Tipo cobro: CHEQUES (' + cheques.length + ')');
+  if (chequeNumero && chequeImporte) {
+    Logger.log('   Tipo cobro: CHEQUE');
+    Logger.log('   Número(s): ' + chequeNumero);
+    Logger.log('   Importe: $' + chequeImporte);
   } else {
     Logger.log('   Tipo cobro: BANCO');
   }
 
   // Crear cobranza (función de xubiocobranzas.gs)
-  const resultado = crearCobranzaPorFactura(numeroDocumento, cheques);
+  const resultado = crearCobranzaPorFactura(numeroDocumento, chequeNumero, chequeImporte);
 
   // Actualizar Google Sheets con PDF de cobranza
   if (resultado.pdfUrl) {

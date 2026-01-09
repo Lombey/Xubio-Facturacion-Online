@@ -64,7 +64,7 @@ Xubio REST API
 | Tipo | Cuenta Xubio | Campos requeridos |
 |------|--------------|-------------------|
 | **Banco** (default) | -14 (Banco) | Solo `idRef` |
-| **Cheques** | 681702 (santander cheques) | `idRef` + array `cheques` |
+| **Cheque** | 681702 (santander cheques) | `idRef` + `chequeNumero` + `chequeImporte` |
 
 ### Trigger en AppSheet:
 
@@ -77,31 +77,24 @@ Xubio REST API
 }
 ```
 
-#### Opción B: Cobrar con CHEQUES
+#### Opción B: Cobrar con CHEQUE
 1. Usuario presiona botón **"Cobrar Cheque"**
-2. Abre formulario para ingresar cheques (número, importe, fecha)
+2. Ingresa número(s) de cheque e importe total
 3. **Acción ejecuta webhook directamente** con body:
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "cheques": [
-    {
-      "numero": "12345678",
-      "importe": 252000,
-      "fecha": "2026-02-20",
-      "descripcion": "opcional"
-    },
-    {
-      "numero": "87654321",
-      "importe": 50000,
-      "fecha": "2026-03-15"
-    }
-  ]
+  "chequeNumero": "12345/67890/11111",
+  "chequeImporte": 302000
 }
 ```
 
-### ⚠️ Importante: Webhook directo vs Bot
-Para cobranzas con cheques, el **webhook debe ejecutarse directamente desde la acción**, NO desde un bot que detecta cambio de celda. Esto permite enviar datos dinámicos (array de cheques) que no están en columnas fijas.
+### Formato de chequeNumero
+Si hay **múltiples cheques físicos**, concatenar los números con `/`:
+- 1 cheque: `"12345678"`
+- 3 cheques: `"12345/67890/11111"`
+
+El importe es el **total sumado** de todos los cheques. La fecha se genera automáticamente (hoy).
 
 ### Proceso en Vercel:
 1. Lee número de factura de columna 13 (vía Apps Script)
@@ -124,44 +117,13 @@ Para cobranzas con cheques, el **webhook debe ejecutarse directamente desde la a
 | 20 | T | ID REF (identificador único fila) |
 | 22 | V | LINK_PDF_COBRANZA |
 
-### Estructura del array `cheques`:
-| Campo | Tipo | Requerido | Descripción |
-|-------|------|-----------|-------------|
-| `numero` | string | ✅ | Número del cheque (alfanumérico) |
-| `importe` | number | ✅ | Importe en ARS |
-| `fecha` | string | ✅ | Fecha vencimiento (YYYY-MM-DD) |
-| `descripcion` | string | ❌ | Descripción opcional |
+### Campos del cheque:
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `chequeNumero` | string | Número(s) de cheque separados por "/" |
+| `chequeImporte` | number | Importe total en ARS |
 
-### Configuración AppSheet para Cheques (5 slots)
-
-**Columnas auxiliares a agregar en Google Sheets:**
-
-| Columnas | Campos por cheque |
-|----------|-------------------|
-| CHEQUE1_NUM, CHEQUE1_IMPORTE, CHEQUE1_FECHA | Cheque 1 |
-| CHEQUE2_NUM, CHEQUE2_IMPORTE, CHEQUE2_FECHA | Cheque 2 |
-| CHEQUE3_NUM, CHEQUE3_IMPORTE, CHEQUE3_FECHA | Cheque 3 |
-| CHEQUE4_NUM, CHEQUE4_IMPORTE, CHEQUE4_FECHA | Cheque 4 |
-| CHEQUE5_NUM, CHEQUE5_IMPORTE, CHEQUE5_FECHA | Cheque 5 |
-
-**Webhook body (envía los 5, el servidor filtra vacíos):**
-```json
-{
-  "idRef": "<<[ID REF]>>",
-  "cheques": [
-    { "numero": "<<[CHEQUE1_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE1_IMPORTE]), 0, [CHEQUE1_IMPORTE])>>, "fecha": "<<[CHEQUE1_FECHA]>>" },
-    { "numero": "<<[CHEQUE2_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE2_IMPORTE]), 0, [CHEQUE2_IMPORTE])>>, "fecha": "<<[CHEQUE2_FECHA]>>" },
-    { "numero": "<<[CHEQUE3_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE3_IMPORTE]), 0, [CHEQUE3_IMPORTE])>>, "fecha": "<<[CHEQUE3_FECHA]>>" },
-    { "numero": "<<[CHEQUE4_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE4_IMPORTE]), 0, [CHEQUE4_IMPORTE])>>, "fecha": "<<[CHEQUE4_FECHA]>>" },
-    { "numero": "<<[CHEQUE5_NUM]>>", "importe": <<IF(ISBLANK([CHEQUE5_IMPORTE]), 0, [CHEQUE5_IMPORTE])>>, "fecha": "<<[CHEQUE5_FECHA]>>" }
-  ]
-}
-```
-
-**Comportamiento del servidor:**
-- Filtra automáticamente cheques con `numero` vacío o `importe` = 0
-- Si todos los cheques son vacíos → usa cobro tipo BANCO
-- Solo se procesan los cheques con datos válidos
+La fecha de vencimiento se genera automáticamente (fecha de hoy).
 
 ### ⚠️ Limitación Conocida: Imputación Manual
 La REST API de Xubio **NO soporta imputación automática** de cobranzas a facturas. La cobranza se crea correctamente pero debe imputarse manualmente desde Xubio UI:
@@ -273,21 +235,19 @@ Request sin "cuit"     → Cobranza (xubiocobranzas.gs)
 }
 ```
 
-**Cobranza Cheques:**
+**Cobranza Cheque:**
 ```json
 {
   "idRef": "<<[ID REF]>>",
-  "cheques": [
-    { "numero": "12345", "importe": 100000, "fecha": "2026-02-20" },
-    { "numero": "67890", "importe": 50000, "fecha": "2026-03-15" }
-  ]
+  "chequeNumero": "12345/67890",
+  "chequeImporte": 150000
 }
 ```
 
 Todos usan la **misma URL de webhook** - el router detecta qué hacer:
 - Con `cuit` → Facturación
-- Sin `cuit`, sin `cheques` → Cobranza Banco
-- Sin `cuit`, con `cheques` → Cobranza Cheques
+- Sin `cuit`, sin `chequeNumero` → Cobranza Banco
+- Sin `cuit`, con `chequeNumero` → Cobranza Cheque
 
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 

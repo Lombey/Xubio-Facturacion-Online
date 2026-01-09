@@ -9,20 +9,15 @@
 import { getOfficialToken } from './utils/tokenManager.js';
 
 /**
- * Construir array de instrumentos de cobro según tipo (banco o cheques)
- * @param {Array|null} cheques - Array de cheques o null para banco
- * @param {number} importeTotal - Importe total en moneda principal (ARS)
+ * Construir array de instrumentos de cobro según tipo (banco o cheque)
+ * @param {string|null} chequeNumero - Número(s) del cheque (ej: "a1/a2/a3") o null para banco
+ * @param {number|null} chequeImporte - Importe total del cheque en ARS
+ * @param {number} importeTotal - Importe total en moneda principal (ARS) - usado para banco
  * @returns {Array} Array de instrumentos de cobro para el payload
  */
-function construirInstrumentosCobro(cheques, importeTotal) {
-  // Filtrar cheques vacíos (cuando AppSheet envía 5 pero solo se usan 2)
-  const chequesValidos = cheques?.filter(ch =>
-    ch.numero && String(ch.numero).trim() !== '' &&
-    ch.importe && parseFloat(ch.importe) > 0
-  ) || [];
-
-  // Si no hay cheques válidos → BANCO (comportamiento actual)
-  if (chequesValidos.length === 0) {
+function construirInstrumentosCobro(chequeNumero, chequeImporte, importeTotal) {
+  // Si no hay datos de cheque → BANCO (comportamiento default)
+  if (!chequeNumero || String(chequeNumero).trim() === '' || !chequeImporte || parseFloat(chequeImporte) <= 0) {
     console.log('💳 Tipo de cobro: BANCO');
     return [{
       cuentaTipo: 2, // 2 = Banco
@@ -42,37 +37,36 @@ function construirInstrumentosCobro(cheques, importeTotal) {
     }];
   }
 
-  // Si hay cheques válidos → VALORES A DEPOSITAR
-  console.log(`📝 Tipo de cobro: CHEQUES (${chequesValidos.length} cheque(s) válidos)`);
+  // Si hay cheque → VALORES A DEPOSITAR (1 sola línea)
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  console.log(`📝 Tipo de cobro: CHEQUE`);
+  console.log(`   Número(s): ${chequeNumero}`);
+  console.log(`   Importe: $${chequeImporte}`);
+  console.log(`   Fecha: ${fechaHoy}`);
 
-  return chequesValidos.map((cheque, index) => {
-    console.log(`   Cheque ${index + 1}: #${cheque.numero} - $${cheque.importe} - Vto: ${cheque.fecha}`);
-
-    return {
-      cuentaTipo: 3, // 3 = Valores a Depositar
-      cuenta: {
-        ID: 681702,
-        id: 681702,
-        nombre: 'santander cheques'
-      },
-      moneda: {
-        ID: -2,
-        id: -2,
-        nombre: 'Pesos Argentinos'
-      },
-      cotizacion: 1,
-      importe: parseFloat(cheque.importe),
-      // Campos específicos de cheque
-      banco: {
-        ID: 3,
-        id: 3,
-        nombre: 'ABN Amro'
-      },
-      numCheque: String(cheque.numero),
-      vtoCheque: cheque.fecha, // Formato: YYYY-MM-DD
-      descripcion: cheque.descripcion || ''
-    };
-  });
+  return [{
+    cuentaTipo: 3, // 3 = Valores a Depositar
+    cuenta: {
+      ID: 681702,
+      id: 681702,
+      nombre: 'santander cheques'
+    },
+    moneda: {
+      ID: -2,
+      id: -2,
+      nombre: 'Pesos Argentinos'
+    },
+    cotizacion: 1,
+    importe: parseFloat(chequeImporte),
+    banco: {
+      ID: 3,
+      id: 3,
+      nombre: 'ABN Amro'
+    },
+    numCheque: String(chequeNumero),
+    vtoCheque: fechaHoy,
+    descripcion: ''
+  }];
 }
 
 /**
@@ -102,7 +96,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    let { facturaId, numeroDocumento, cheques } = req.body;
+    const { facturaId: facturaIdParam, numeroDocumento, chequeNumero, chequeImporte } = req.body;
+    let facturaId = facturaIdParam;
 
     if (!facturaId && !numeroDocumento) {
       return res.status(400).json({
@@ -214,7 +209,7 @@ export default async function handler(req, res) {
       observacion: `IMPUTAR A: ${factura.numeroDocumento} - ${factura.cliente.nombre} - Total: ${total} ${monedaFactura.nombre}`,
 
       // Instrumento de cobro: CHEQUES o BANCO según request
-      transaccionInstrumentoDeCobro: construirInstrumentosCobro(cheques, importeMonPrincipal),
+      transaccionInstrumentoDeCobro: construirInstrumentosCobro(chequeNumero, chequeImporte, importeMonPrincipal),
 
       // CRÍTICO: Asociación con factura (imputación)
       // Intento 1: detalleCobranzas (documentado en SDK pero ignorado por Xubio)
