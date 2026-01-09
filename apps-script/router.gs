@@ -19,6 +19,9 @@ function doPost(e) {
     if (requestData.accion === 'consultaCuit') {
       Logger.log('🔀 Ruteo: CONSULTA CUIT (accion=consultaCuit)');
       return procesarConsultaCuit(requestData);
+    } else if (requestData.accion === 'facturarEquipos') {
+      Logger.log('🔀 Ruteo: FACTURACION EQUIPOS (accion=facturarEquipos)');
+      return procesarFacturacionEquipos(requestData);
     } else if (requestData.cuit) {
       Logger.log('🔀 Ruteo: FACTURACIÓN (detectado campo cuit)');
       return procesarFacturacion(requestData);

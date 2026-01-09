@@ -321,10 +321,25 @@ IF([ESTADO_PAGO] = "NO FACTURADO", TRUE, FALSE)
 → Total: 7170 USD + IVA
 ```
 
+### Endpoint Vercel:
+`POST /api/crear-factura-equipos`
+
+**Payload:**
+```json
+{
+  "clienteId": 12345,
+  "items": [
+    { "productoId": 123, "cantidad": 3, "precio": 1900, "descripcion": "KIT SISTEMA AGDP" },
+    { "productoId": 2751338, "cantidad": 3, "precio": 490, "descripcion": "CONECTIVIDAD ANUAL POR TOLVA" }
+  ],
+  "externalId": "EQUIPOS-CUIT-timestamp"
+}
+```
+
 ### ⚠️ Pendiente:
-- [ ] Crear bot que procese la facturación
-- [ ] Endpoint Vercel para factura multi-item
-- [ ] Webhook body con campos necesarios
+- [ ] Crear bot AppSheet que procese la facturación
+- [ ] Configurar IDs de productos (Kit AGDP) en XubioEquipos.js
+- [ ] Definir columnas exactas en TABLET_CONFIG
 
 ---
 
@@ -351,6 +366,7 @@ Se deben configurar las siguientes variables de entorno en el dashboard de Verce
 
 - `POST /api/auth`: Gestiona el token de acceso oficial.
 - `POST /api/crear-factura`: Procesa la creación de facturas (Usa Bearer Token).
+- `POST /api/crear-factura-equipos`: Crea facturas multi-item (Kits AGDP + Licencias).
 - `POST /api/crear-cobranza`: Crea cobranzas asociadas a facturas existentes.
 - `GET /api/consulta-cuit`: Consulta razón social por CUIT (scraping cuitonline.com).
 - `ANY /api/proxy`: Proxy para peticiones genéricas a la API de Xubio.
