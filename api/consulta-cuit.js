@@ -134,6 +134,21 @@ function extraerDatosDeHTML(html, cuitBuscado) {
       condicionIVA = ivaMatch[1].trim();
     }
 
+    // Buscar Provincia y Localidad
+    // Patrón: "Provincia: Santa Fe - Localidad: Pueblo Marini"
+    let provincia = null;
+    let localidad = null;
+
+    const provinciaMatch = html.match(/Provincia:\s*([^-<\n»•]+)/i);
+    if (provinciaMatch) {
+      provincia = provinciaMatch[1].trim().replace(/&nbsp;/g, '').trim();
+    }
+
+    const localidadMatch = html.match(/Localidad:\s*([^<\n»•]+)/i);
+    if (localidadMatch) {
+      localidad = localidadMatch[1].trim().replace(/&nbsp;/g, '').trim();
+    }
+
     // Si no encontramos razón social, intentar otro patrón
     if (!razonSocial) {
       // Buscar cualquier texto que parezca nombre de empresa después del CUIT
@@ -163,7 +178,9 @@ function extraerDatosDeHTML(html, cuitBuscado) {
       cuitSinGuiones: cuitBuscado,
       razonSocial: razonSocial,
       tipoPersona: tipoPersona,
-      condicionIVA: condicionIVA
+      condicionIVA: condicionIVA,
+      provincia: provincia,
+      localidad: localidad
     };
 
   } catch (error) {
