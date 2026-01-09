@@ -262,10 +262,10 @@ function actualizarRazonSocialEnSheet(idRef, razonSocial) {
     // Obtener todos los datos
     var data = sheet.getDataRange().getValues();
 
-    // Buscar fila por ID REF (columna T = 20 = índice 19)
+    // Buscar fila por ID (columna AQ = 43 = índice 42)
     var filaEncontrada = -1;
     for (var i = 1; i < data.length; i++) { // Empezar en 1 para skipear headers
-      if (String(data[i][19]) === String(idRef)) {
+      if (String(data[i][42]) === String(idRef)) {
         filaEncontrada = i + 1; // +1 porque getValues() es 0-indexed
         break;
       }
