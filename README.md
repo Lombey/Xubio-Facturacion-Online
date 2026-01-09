@@ -59,19 +59,60 @@ Xubio REST API
 **Script:** `apps-script/XubioCobranzas.js`
 **Endpoint:** `POST /api/crear-cobranza`
 
+### Tipos de Cobranza Soportados
+
+| Tipo | Cuenta Xubio | Campos requeridos |
+|------|--------------|-------------------|
+| **Banco** (default) | -14 (Banco) | Solo `idRef` |
+| **Cheques** | 681702 (santander cheques) | `idRef` + array `cheques` |
+
 ### Trigger en AppSheet:
-1. Usuario presiona botón "Cobrar"
-2. **Acción** cambia columna ESTADO → `"COBRADO"`
-3. **Bot** detecta el cambio de estado (Updates + Condition)
-4. Bot ejecuta webhook con body `{ idRef }`
+
+#### Opción A: Cobrar con BANCO (transferencia)
+1. Usuario presiona botón **"Cobrar Banco"**
+2. **Acción ejecuta webhook directamente** con body:
+```json
+{
+  "idRef": "<<[ID REF]>>"
+}
+```
+
+#### Opción B: Cobrar con CHEQUES
+1. Usuario presiona botón **"Cobrar Cheque"**
+2. Abre formulario para ingresar cheques (número, importe, fecha)
+3. **Acción ejecuta webhook directamente** con body:
+```json
+{
+  "idRef": "<<[ID REF]>>",
+  "cheques": [
+    {
+      "numero": "12345678",
+      "importe": 252000,
+      "fecha": "2026-02-20",
+      "descripcion": "opcional"
+    },
+    {
+      "numero": "87654321",
+      "importe": 50000,
+      "fecha": "2026-03-15"
+    }
+  ]
+}
+```
+
+### ⚠️ Importante: Webhook directo vs Bot
+Para cobranzas con cheques, el **webhook debe ejecutarse directamente desde la acción**, NO desde un bot que detecta cambio de celda. Esto permite enviar datos dinámicos (array de cheques) que no están en columnas fijas.
 
 ### Proceso en Vercel:
 1. Lee número de factura de columna 13 (vía Apps Script)
 2. Busca factura por `numeroDocumento` en Xubio
-3. Crea cobranza heredando datos de la factura (cliente, moneda, cotización)
-4. Incluye observación: `IMPUTAR A: {factura} - {cliente} - Total: {monto}`
-5. Obtiene PDF público de la cobranza
-6. Retorna { cobranzaId, numeroRecibo, pdfUrl }
+3. Detecta tipo de cobro:
+   - Sin `cheques` → usa cuenta Banco (-14), cuentaTipo 2
+   - Con `cheques` → usa cuenta santander cheques (681702), cuentaTipo 3
+4. Crea cobranza heredando datos de la factura (cliente, moneda, cotización)
+5. Incluye observación: `IMPUTAR A: {factura} - {cliente} - Total: {monto}`
+6. Obtiene PDF público de la cobranza
+7. Retorna { cobranzaId, numeroRecibo, pdfUrl }
 
 ### Proceso en Apps Script:
 1. Actualiza Google Sheets (columna 22: PDF cobranza)
@@ -83,6 +124,14 @@ Xubio REST API
 | 20 | T | ID REF (identificador único fila) |
 | 22 | V | LINK_PDF_COBRANZA |
 
+### Estructura del array `cheques`:
+| Campo | Tipo | Requerido | Descripción |
+|-------|------|-----------|-------------|
+| `numero` | string | ✅ | Número del cheque (alfanumérico) |
+| `importe` | number | ✅ | Importe en ARS |
+| `fecha` | string | ✅ | Fecha vencimiento (YYYY-MM-DD) |
+| `descripcion` | string | ❌ | Descripción opcional |
+
 ### ⚠️ Limitación Conocida: Imputación Manual
 La REST API de Xubio **NO soporta imputación automática** de cobranzas a facturas. La cobranza se crea correctamente pero debe imputarse manualmente desde Xubio UI:
 
@@ -92,34 +141,52 @@ La REST API de Xubio **NO soporta imputación automática** de cobranzas a factu
 
 ---
 
-## 🔍 FLUJO 3: AUTOCOMPLETAR RAZÓN SOCIAL (Solapa Tablet)
+## 🔍 FLUJO 3: AUTOCOMPLETAR RAZÓN SOCIAL (Solapa TABLET)
 
 **Script:** `apps-script/AutocompletarRazonSocial.gs`
 **Endpoint:** `GET /api/consulta-cuit?cuit={CUIT}`
 
-### Funcionamiento:
-1. Usuario ingresa CUIT en columna W (cualquier formato: con/sin guiones)
-2. Trigger `onChange` detecta el cambio automáticamente
-3. Apps Script llama al endpoint de Vercel
-4. Vercel hace scraping de cuitonline.com y extrae razón social
-5. Se autocompleta columna AI con la razón social
+### Funcionamiento (via AppSheet Bot):
+1. Usuario ingresa/modifica CUIT en columna W desde AppSheet
+2. **Bot AppSheet** detecta el cambio y ejecuta webhook
+3. Router (`router.gs`) rutea a `procesarConsultaCuit()`
+4. Apps Script llama al endpoint de Vercel
+5. Vercel hace scraping de cuitonline.com y extrae razón social
+6. Se actualiza columna AI buscando la fila por ID (columna AQ)
 
-### Columnas Google Sheets (Solapa Tablet):
+### Columnas Google Sheets (Solapa TABLET):
 | Columna | Índice | Campo |
 |---------|--------|-------|
 | W | 23 | CUIT (input) |
 | AI | 35 | RAZON SOCIAL (output - autocompletado) |
+| AQ | 43 | ID (UNIQUEID - identificador único de fila) |
 
 ### Comportamiento:
 - **Solo completa si está vacío**: Si la columna AI ya tiene valor, no sobrescribe
 - **Normaliza CUIT automáticamente**: Acepta `33-71584119-9`, `33715841199`, etc.
 - **Si falla**: Deja la celda vacía (sin mensaje de error)
 
-### Instalación del Trigger:
-Ejecutar **una sola vez** en Apps Script:
-```javascript
-setupTriggerOnChange()
+### Configuración Bot AppSheet:
+**Nombre:** OBTENER RAZON SOCIAL CON CUIT
+**Evento:** Updates (detecta cambios)
+**Tabla:** TABLET
+**Condición:** `AND(ISNOTBLANK([CUIT]), ISBLANK([RAZON SOCIAL]))`
+
+**Webhook Body:**
+```json
+{
+  "accion": "consultaCuit",
+  "cuit": "<<[CUIT]>>",
+  "idRef": "<<[ID]>>"
+}
 ```
+
+**Settings recomendados:**
+- Timeout: 10-15 segundos
+- Max retries: 1-2
+
+### ⚠️ Nota importante:
+Los triggers de Apps Script (`onEdit`, `onChange`) **NO detectan cambios desde AppSheet**. Solo funcionan para ediciones manuales en Google Sheets. Por eso se usa bot + webhook.
 
 ### Test manual:
 ```javascript
@@ -168,14 +235,28 @@ Request sin "cuit"     → Cobranza (xubiocobranzas.gs)
 }
 ```
 
-**Cobranza:**
+**Cobranza Banco:**
 ```json
 {
   "idRef": "<<[ID REF]>>"
 }
 ```
 
-Ambos usan la **misma URL de webhook** - el router detecta qué hacer.
+**Cobranza Cheques:**
+```json
+{
+  "idRef": "<<[ID REF]>>",
+  "cheques": [
+    { "numero": "12345", "importe": 100000, "fecha": "2026-02-20" },
+    { "numero": "67890", "importe": 50000, "fecha": "2026-03-15" }
+  ]
+}
+```
+
+Todos usan la **misma URL de webhook** - el router detecta qué hacer:
+- Con `cuit` → Facturación
+- Sin `cuit`, sin `cheques` → Cobranza Banco
+- Sin `cuit`, con `cheques` → Cobranza Cheques
 
 ## ⚠️ Nota sobre Fly.io y Puppeteer (Dead End)
 
