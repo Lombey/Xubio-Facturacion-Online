@@ -93,6 +93,7 @@ export default async function handler(req, res) {
       clienteId,
       items = [],           // Array de { productoId, cantidad, precio, descripcion }
       externalId,
+      descuento = 0,        // Porcentaje de descuento (ej: 25 = 25%)
       puntoVentaId = 212819,
       listaDePrecioId = 15386,
       centroDeCostoId = 57329
@@ -101,9 +102,15 @@ export default async function handler(req, res) {
     if (!clienteId) return res.status(400).json({ error: 'Falta clienteId' });
     if (!items || items.length === 0) return res.status(400).json({ error: 'Falta items' });
 
+    const descuentoPct = parseFloat(descuento) || 0;
+    const factorDescuento = descuentoPct > 0 ? (1 - descuentoPct / 100) : 1;
+
     console.log('📦 Creando factura de equipos...');
     console.log('   Cliente ID:', clienteId);
     console.log('   Items:', items.length);
+    if (descuentoPct > 0) {
+      console.log('   Descuento:', descuentoPct + '%');
+    }
 
     const token = await getOfficialToken();
     const datosCliente = await obtenerDatosCliente(token, clienteId);
@@ -116,7 +123,8 @@ export default async function handler(req, res) {
     for (const item of items) {
       const cantidad = parseFloat(item.cantidad) || 1;
       const precio = parseFloat(item.precio) || 0;
-      const importe = Number((precio * cantidad).toFixed(2));
+      const importeSinDescuento = Number((precio * cantidad).toFixed(2));
+      const importe = Number((importeSinDescuento * factorDescuento).toFixed(2)); // Aplicar descuento
       totalNeto += importe;
 
       const xubioItem = {
@@ -133,10 +141,10 @@ export default async function handler(req, res) {
           nombre: "Depósito Universal",
           codigo: "DEPOSITO_UNIVERSAL"
         },
-        total: Number((importe * 1.21).toFixed(2)), // Neto + IVA
+        total: Number((importe * 1.21).toFixed(2)), // Neto con descuento + IVA
         precioconivaincluido: 0,
         montoExento: 0,
-        porcentajeDescuento: 0
+        porcentajeDescuento: descuentoPct
       };
 
       if (centroDeCostoId) {
@@ -144,7 +152,11 @@ export default async function handler(req, res) {
       }
 
       transaccionProductoItems.push(xubioItem);
-      console.log(`   Item: ${item.descripcion} x${cantidad} @ $${precio} = $${importe}`);
+      if (descuentoPct > 0) {
+        console.log(`   Item: ${item.descripcion} x${cantidad} @ $${precio} - ${descuentoPct}% = $${importe}`);
+      } else {
+        console.log(`   Item: ${item.descripcion} x${cantidad} @ $${precio} = $${importe}`);
+      }
     }
 
     // Calcular totales

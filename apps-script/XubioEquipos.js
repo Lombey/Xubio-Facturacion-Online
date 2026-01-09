@@ -50,6 +50,7 @@ function procesarFacturacionEquipos(requestData) {
   const idRef = requestData.idRef;
   const incluirLicencias = requestData.incluirLicencias === true || requestData.incluirLicencias === 'true';
   const precioEquipo = parseFloat(requestData.precioEquipo) || 0;
+  const descuento = parseFloat(requestData.descuento) || 0; // Porcentaje de descuento
 
   if (!cuit) {
     throw new Error('Falta parámetro: cuit');
@@ -62,6 +63,9 @@ function procesarFacturacionEquipos(requestData) {
   Logger.log('   ID REF: ' + idRef);
   Logger.log('   Incluir licencias: ' + incluirLicencias);
   Logger.log('   Precio equipo: ' + precioEquipo);
+  if (descuento > 0) {
+    Logger.log('   Descuento: ' + descuento + '%');
+  }
 
   try {
     // 1. Contar equipos seleccionados del mismo CUIT
@@ -107,6 +111,7 @@ function procesarFacturacionEquipos(requestData) {
       clienteId: cliente.cliente_id,
       items: items,
       externalId: externalId,
+      descuento: descuento,      // Porcentaje de descuento (0 = sin descuento)
       puntoVentaId: 212819,      // corvusweb srl
       centroDeCostoId: 57329,    // kit sistema agdp
       listaDePrecioId: 15386     // AGDP

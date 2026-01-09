@@ -68,7 +68,8 @@ IF([ESTADO_PAGO] = "NO FACTURADO", TRUE, FALSE)
   "cuit": "<<[CUIT]>>",
   "idRef": "<<[ID]>>",
   "incluirLicencias": <<[INCLUIR_LICENCIAS]>>,
-  "precioEquipo": <<[PRESUPUESTO (USD)]>>
+  "precioEquipo": <<[PRESUPUESTO (USD)]>>,
+  "descuento": <<[DESCUENTO (%)]>>
 }
 ```
 
