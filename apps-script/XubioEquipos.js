@@ -192,7 +192,7 @@ function contarEquiposSeleccionados(cuit) {
 
   // Encontrar índices de columnas por nombre
   const colCuit = findColumnIndex(headers, 'CUIT');
-  const colSeleccion = findColumnIndex(headers, 'SELECCION_PARA_FC');
+  const colSeleccion = findColumnIndex(headers, 'SELECCION'); // Busca SELECCION_PARA_FC o SELECCIONAR
 
   if (colCuit === -1) throw new Error('Columna CUIT no encontrada');
   if (colSeleccion === -1) throw new Error('Columna SELECCION_PARA_FC no encontrada');
@@ -274,7 +274,7 @@ function limpiarSeleccionEquipos(filas) {
   const sheet = ss.getSheetByName(TABLET_CONFIG.sheetName);
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const colSeleccion = findColumnIndex(headers, 'SELECCION_PARA_FC') + 1;
+  const colSeleccion = findColumnIndex(headers, 'SELECCION') + 1; // Busca SELECCION_PARA_FC o SELECCIONAR
 
   if (colSeleccion > 0) {
     for (const fila of filas) {
