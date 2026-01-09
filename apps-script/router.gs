@@ -46,6 +46,7 @@ function procesarFacturacion(requestData) {
   const cuit = requestData.cuit;
   const cantidad = requestData.cantidad || 1;
   const idRef = requestData.idRef;
+  const descuento = requestData.descuento || 0; // Porcentaje de descuento
 
   if (!cuit) {
     throw new Error('Falta parámetro: cuit');
@@ -57,12 +58,15 @@ function procesarFacturacion(requestData) {
   Logger.log('   CUIT: ' + cuit);
   Logger.log('   Cantidad: ' + cantidad);
   Logger.log('   ID REF: ' + idRef);
+  if (descuento > 0) {
+    Logger.log('   Descuento: ' + descuento + '%');
+  }
 
   // Generar ID único (idRef + timestamp)
   const externalIdUnique = idRef + '-' + new Date().getTime();
 
   // Crear factura (función de xubiodiscovery.gs)
-  const resultado = crearFacturaCompleta(cuit, cantidad, externalIdUnique);
+  const resultado = crearFacturaCompleta(cuit, cantidad, externalIdUnique, descuento);
 
   // Actualizar Google Sheets
   actualizarFacturaEnSheet(idRef, resultado.numeroDocumento, resultado.pdfUrl);

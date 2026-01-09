@@ -197,16 +197,21 @@ function testBuscarClienteNoExiste() {
  * @param {string} cuit - CUIT del cliente (debe pre-existir en Xubio)
  * @param {number} cantidad - Cantidad de items (default: 1)
  * @param {string} externalId - ID externo para idempotencia (RowKey de AppSheet)
+ * @param {number} descuento - Porcentaje de descuento (ej: 25 = 25%). Default: 0
  * @returns {Object} { transaccionId, numeroDocumento, pdfUrl }
  */
-function crearFacturaCompleta(cuit, cantidad, externalId) {
+function crearFacturaCompleta(cuit, cantidad, externalId, descuento) {
   cantidad = cantidad || 1;
   externalId = externalId || 'TEST-' + new Date().getTime();
+  descuento = parseFloat(descuento) || 0;
 
   Logger.log('🚀 Iniciando creación de factura...');
   Logger.log('📋 CUIT: ' + cuit);
   Logger.log('📦 Cantidad: ' + cantidad);
   Logger.log('🆔 External ID: ' + externalId);
+  if (descuento > 0) {
+    Logger.log('🏷️ Descuento: ' + descuento + '%');
+  }
 
   try {
     // 1. Buscar cliente por CUIT
@@ -224,6 +229,7 @@ function crearFacturaCompleta(cuit, cantidad, externalId) {
       cantidad: cantidad,
       descripcion: 'CONECTIVIDAD ANUAL POR TOLVA',
       externalId: externalId,
+      descuento: descuento,        // Porcentaje de descuento (0 = sin descuento)
       // IDs hardcodeados (del documento XUBIO_RECURSOS_ID.md)
       productoId: 2751338,         // CONECTIVIDAD ANUAL POR TOLVA
       puntoVentaId: 212819,        // corvusweb srl

@@ -105,8 +105,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { 
-      clienteId, 
+    const {
+      clienteId,
       cantidad = 1,
       externalId, // <-- Extraer ID externo
       productoId = 2751338,
@@ -114,7 +114,8 @@ export default async function handler(req, res) {
       listaDePrecioId = 15386,
       centroDeCostoId = null,
       precioUnitario = 490,
-      descripcion = "CONECTIVIDAD ANUAL POR TOLVA"
+      descripcion = "CONECTIVIDAD ANUAL POR TOLVA",
+      descuento = 0 // Porcentaje de descuento (ej: 25 = 25%)
     } = req.body;
 
     if (!clienteId) return res.status(400).json({ error: 'Falta clienteId' });
@@ -135,10 +136,19 @@ export default async function handler(req, res) {
     }
 
     // CÁLCULOS MATEMÁTICOS PRECISOS (Basados en ID 67747886)
-    const neto = Number((precioFinal * parseFloat(cantidad)).toFixed(2));
+    // Aplicar descuento si existe (descuento es porcentaje, ej: 25 = 25%)
+    const descuentoPct = parseFloat(descuento) || 0;
+    const factorDescuento = descuentoPct > 0 ? (1 - descuentoPct / 100) : 1;
+    const netoSinDescuento = Number((precioFinal * parseFloat(cantidad)).toFixed(2));
+    const neto = Number((netoSinDescuento * factorDescuento).toFixed(2));
     const iva = Number((neto * 0.21).toFixed(2));
     const total = Number((neto + iva).toFixed(2));
     const totalARS = Number((total * cotizacionUSD).toFixed(2));
+
+    if (descuentoPct > 0) {
+      console.log(`🏷️ Descuento aplicado: ${descuentoPct}%`);
+      console.log(`   Neto sin descuento: ${netoSinDescuento} → Neto con descuento: ${neto}`);
+    }
 
     const item = {
       importe: neto,
@@ -158,7 +168,7 @@ export default async function handler(req, res) {
       total: total,
       precioconivaincluido: 0,
       montoExento: 0,
-      porcentajeDescuento: 0
+      porcentajeDescuento: descuentoPct
     };
 
     if (centroDeCostoId) {

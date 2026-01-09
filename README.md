@@ -31,16 +31,35 @@ Xubio REST API
 1. Usuario presiona botón "Facturar"
 2. **Acción** cambia columna ESTADO → `"FACTURA PENDIENTE"`
 3. **Bot** detecta el cambio de estado (Updates + Condition)
-4. Bot ejecuta webhook con body `{ cuit, cantidad, idRef }`
+4. Bot ejecuta webhook con body (ver abajo)
+
+**Webhook body:**
+```json
+{
+  "cuit": "<<[CUIT]>>",
+  "cantidad": <<[Equipos]>>,
+  "idRef": "<<[ID REF]>>",
+  "descuento": <<[DESCUENTO (%)]>>
+}
+```
+
+### Descuento (opcional)
+| Valor columna | Comportamiento |
+|---------------|----------------|
+| vacío o 0 | Precio de lista completo |
+| 25 | Aplica 25% descuento al precio, IVA se recalcula |
+
+**Ejemplo:** Precio lista 20 USD, descuento 25% → Neto 15 USD → IVA 3.15 → Total 18.15 USD
 
 ### Proceso en Vercel:
 1. Busca cliente por CUIT en Xubio
 2. Obtiene cotización USD desde DolarAPI
 3. Obtiene precio del producto desde lista de precios
-4. Crea factura vía Xubio REST API
-5. **Solicita CAE a AFIP** (automático, POST /solicitarCAE)
-6. Obtiene PDF público de la factura
-7. Retorna { transaccionId, numeroDocumento, pdfUrl }
+4. **Aplica descuento** si existe (sobre neto, antes de IVA)
+5. Crea factura vía Xubio REST API
+6. **Solicita CAE a AFIP** (automático, POST /solicitarCAE)
+7. Obtiene PDF público de la factura
+8. Retorna { transaccionId, numeroDocumento, pdfUrl }
 
 ### Proceso en Apps Script:
 1. Actualiza Google Sheets (columna 13: número factura, columna 21: PDF)
@@ -51,6 +70,7 @@ Xubio REST API
 | 13 | M | FACTURA 2026 (numeroDocumento) |
 | 20 | T | ID REF (identificador único fila) |
 | 21 | U | LINK_PDF_FACTURA |
+| ? | ? | DESCUENTO (%) - porcentaje descuento (opcional) |
 
 ---
 
