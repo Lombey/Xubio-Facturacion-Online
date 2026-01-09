@@ -264,7 +264,9 @@ CUIT 30-71241712-5`;
       data: {
         transaccionId: transaccionId,
         numeroDocumento: responseData.numeroDocumento,
-        pdfUrl: publicPdfUrl // Link público directo
+        pdfUrl: publicPdfUrl,
+        totalUSD: total,
+        totalARS: totalARS
       }
     });
 

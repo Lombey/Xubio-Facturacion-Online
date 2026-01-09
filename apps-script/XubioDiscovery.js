@@ -327,13 +327,14 @@ function testCrearFacturaCompleta() {
 
 /**
  * ACTUALIZAR FACTURA EN GOOGLE SHEETS
- * Busca por ID REF y actualiza la columna FACTURA 2026 y LINK PDF
+ * Busca por ID REF y actualiza la columna FACTURA 2026, LINK PDF y MONTO PESOS
  *
  * @param {string} idRef - ID único de la fila (columna 20)
  * @param {string} numeroDocumento - Número de factura generada (ej: "A-00004-00001682")
  * @param {string} pdfUrl - URL del PDF de la factura
+ * @param {number} montoPesos - Monto total en pesos (opcional)
  */
-function actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl) {
+function actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl, montoPesos) {
   const spreadsheetId = '1URTOFW_OIM1JG0HKarhjigd-JgQSgFPCItbvDRa3p-o';
   const sheetName = 'CONECTIVIDADES RPG0503';
 
@@ -341,6 +342,9 @@ function actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl) {
   Logger.log('   ID REF: ' + idRef);
   Logger.log('   Factura: ' + numeroDocumento);
   Logger.log('   PDF: ' + pdfUrl);
+  if (montoPesos) {
+    Logger.log('   Monto pesos: $' + montoPesos);
+  }
 
   try {
     const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -368,10 +372,15 @@ function actualizarFacturaEnSheet(idRef, numeroDocumento, pdfUrl) {
 
     // Actualizar columna 13 (FACTURA 2026) = índice M
     sheet.getRange(filaEncontrada, 13).setValue(numeroDocumento);
-    
+
     // Actualizar columna 21 (LINK PDF) = índice U
     if (pdfUrl) {
       sheet.getRange(filaEncontrada, 21).setValue(pdfUrl);
+    }
+
+    // Actualizar columna 25 (MONTO PESOS CONECT) = índice Y
+    if (montoPesos) {
+      sheet.getRange(filaEncontrada, 25).setValue(montoPesos);
     }
 
     Logger.log('✅ Sheet actualizada - Fila: ' + filaEncontrada);

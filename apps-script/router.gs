@@ -71,8 +71,8 @@ function procesarFacturacion(requestData) {
   // Crear factura (función de xubiodiscovery.gs)
   const resultado = crearFacturaCompleta(cuit, cantidad, externalIdUnique, descuento);
 
-  // Actualizar Google Sheets
-  actualizarFacturaEnSheet(idRef, resultado.numeroDocumento, resultado.pdfUrl);
+  // Actualizar Google Sheets (incluye monto en pesos)
+  actualizarFacturaEnSheet(idRef, resultado.numeroDocumento, resultado.pdfUrl, resultado.totalARS);
 
   return ContentService.createTextOutput(JSON.stringify({
     success: true,

@@ -21,7 +21,8 @@ const TABLET_CONFIG = {
     ESTADO_PAGO: 31,     // AE - estado de pago (NO FACTURADO / FACTURADO)
     SELECCION_PARA_FC: 46, // AT - checkbox para seleccionar equipos
     FACTURA_NUMERO: 30,  // AD - número de factura generada
-    LINK_PDF: 49         // AW - link al PDF
+    LINK_PDF: 49,        // AW - link al PDF
+    MONTO_PESOS: 50      // AX - monto total en pesos
   }
 };
 
@@ -158,9 +159,10 @@ function procesarFacturacionEquipos(requestData) {
     }
 
     Logger.log('✅ Factura creada: ' + result.data.numeroDocumento);
+    Logger.log('💵 Total ARS: $' + result.data.totalARS);
 
     // 6. Actualizar Google Sheets con resultado
-    actualizarEquiposEnSheet(filasAfectadas, result.data.numeroDocumento, result.data.pdfUrl);
+    actualizarEquiposEnSheet(filasAfectadas, result.data.numeroDocumento, result.data.pdfUrl, result.data.totalARS);
 
     // 7. Limpiar selección en filas procesadas
     limpiarSeleccionEquipos(filasAfectadas);
@@ -240,13 +242,14 @@ function contarEquiposSeleccionados(cuit) {
 
 /**
  * ACTUALIZAR EQUIPOS EN SHEET
- * Escribe número de factura, PDF y ESTADO_PAGO en las filas procesadas
+ * Escribe número de factura, PDF, ESTADO_PAGO y monto en pesos en las filas procesadas
  *
  * @param {number[]} filas - Números de fila a actualizar
  * @param {string} numeroFactura - Número de factura generada
  * @param {string} pdfUrl - URL del PDF
+ * @param {number} montoPesos - Monto total en pesos (opcional)
  */
-function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl) {
+function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl, montoPesos) {
   Logger.log('📝 Actualizando ' + filas.length + ' filas en sheet...');
 
   const ss = SpreadsheetApp.openById(TABLET_CONFIG.spreadsheetId);
@@ -256,6 +259,7 @@ function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl) {
   const colEstado = TABLET_CONFIG.columnas.ESTADO_PAGO;     // AE = 31
   const colFactura = TABLET_CONFIG.columnas.FACTURA_NUMERO; // AD = 30
   const colPdf = TABLET_CONFIG.columnas.LINK_PDF;           // AW = 49
+  const colMontoPesos = TABLET_CONFIG.columnas.MONTO_PESOS; // AX = 50
 
   for (const fila of filas) {
     sheet.getRange(fila, colEstado).setValue('FACTURADO');
@@ -263,9 +267,12 @@ function actualizarEquiposEnSheet(filas, numeroFactura, pdfUrl) {
     if (pdfUrl) {
       sheet.getRange(fila, colPdf).setValue(pdfUrl);
     }
+    if (montoPesos) {
+      sheet.getRange(fila, colMontoPesos).setValue(montoPesos);
+    }
   }
 
-  Logger.log('✅ Filas actualizadas (estado, factura, PDF)');
+  Logger.log('✅ Filas actualizadas (estado, factura, PDF, monto pesos)');
 }
 
 /**
