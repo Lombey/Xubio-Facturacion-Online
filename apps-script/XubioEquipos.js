@@ -30,8 +30,8 @@ const TABLET_CONFIG = {
 
 // IDs de productos en Xubio
 const PRODUCTOS = {
-  KIT_AGDP: 12345,       // KIT SISTEMA AGDP
-  LICENCIA: 2751338      // CONECTIVIDAD ANUAL POR TOLVA
+  KIT_AGDP: 2751285,     // KIT SISTEMA AGDP (precio lista: 2050 USD)
+  LICENCIA: 2751338      // CONECTIVIDAD ANUAL POR TOLVA (precio lista: 490 USD)
 };
 
 // VERCEL_BASE ya está declarada en XubioDiscovery.js
