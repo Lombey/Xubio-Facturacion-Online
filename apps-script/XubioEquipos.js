@@ -44,8 +44,13 @@ function procesarFacturacionEquipos(requestData) {
 
   const cuit = requestData.cuit;
   const idRef = requestData.idRef;
+  // Aceptar: true, "true", "TRUE", "Y", "Yes", "YES", "1", 1
+  const valorLicencias = String(requestData.incluirLicencias).toUpperCase();
   const incluirLicencias = requestData.incluirLicencias === true ||
-                           String(requestData.incluirLicencias).toUpperCase() === 'TRUE';
+                           valorLicencias === 'TRUE' ||
+                           valorLicencias === 'Y' ||
+                           valorLicencias === 'YES' ||
+                           valorLicencias === '1';
   const precioEquipo = parseFloat(requestData.precioEquipo) || 0;
   const descuento = parseFloat(requestData.descuento) || 0; // Porcentaje de descuento
 
